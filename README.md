@@ -1,5 +1,13 @@
 # Lira
 
+> [!WARNING]
+> **This keyboard has never been built.** It is a design only: no prototype of either version (wireless on branch
+> `main`, wired on branch `rp2040`) has ever been ordered, assembled or powered on, and nothing here has been tested
+> on real hardware. The circuit, PCB, case and firmware are generated and checked automatically and reviewed on paper,
+> but passing those checks does not make a working board: there may be mistakes that only a real prototype would
+> reveal. **Do not put it into production, sell it or order it in quantity.** If you build one anyway, treat it as an
+> untested design: order the minimum quantity and expect to debug it yourself.
+
 A 40% keyboard in the [KBDfans Agar Mini](https://kbdfans.com/products/agar-mini) layout, with a numpad on the
 left and a split 3u + 3u spacebar.
 Bluetooth + USB-C, hot-swap MX switches, RMK firmware with Vial, and a built-in USB sound card (3.5 mm headset jack

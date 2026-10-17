@@ -124,6 +124,14 @@ def write_readme(pieces, bootloader):
 
 {description}
 
+> [!WARNING]
+> **This keyboard has never been built.** It is a design only: no prototype of either version (wireless on branch
+> `main`, wired on branch `rp2040`) has ever been ordered, assembled or powered on, and nothing here has been tested
+> on real hardware. The circuit, PCB, case and firmware are generated and checked automatically and reviewed on paper,
+> but passing those checks does not make a working board: there may be mistakes that only a real prototype would
+> reveal. **Do not put it into production, sell it or order it in quantity.** If you build one anyway, treat it as an
+> untested design: order the minimum quantity and expect to debug it yourself.
+
 > This folder is **generated automatically** from `../source/` and is rewritten every time it is regenerated:
 > do not edit it by hand.
 
