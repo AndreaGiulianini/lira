@@ -37,6 +37,7 @@ SUBS = [
     (re.compile(rb"\d{4}-\d{2}-\d{2}(?=[T ]\d{2}:\d{2}:\d{2})"), ISO),
     (re.compile(rb"(?<=\d{4}-\d{2}-\d{2}[T ])\d{2}:\d{2}:\d{2}"), b"00:00:00"),
     (re.compile(rb'\(date "\d{4}-\d{2}-\d{2}"\)'), KDATE),
+    (re.compile(rb'Date: \d{4}-\d{2}-\d{2}'), b"Date: " + ISO),  # KiCad title-block date in plotted SVG/PDF
 ]
 HAS_TIME = re.compile(rb"\d{2}:\d{2}:\d{2}")
 SKIP = ("/.git/", "/.venv/", "/target/", "/__pycache__/")
@@ -58,7 +59,7 @@ def process(path, set_mtime):
         return False
     data = path.read_bytes()
     # a zip's timestamps are inside the (compressed) entries, so never pre-filter zips
-    if path.suffix.lower() != ".zip" and not HAS_TIME.search(data) and b'(date "' not in data:
+    if path.suffix.lower() != ".zip" and not (HAS_TIME.search(data) or b'(date "' in data or b"Date: " in data):
         return False
     if path.suffix.lower() == ".zip":
         with zipfile.ZipFile(io.BytesIO(data)) as zin:
@@ -66,6 +67,7 @@ def process(path, set_mtime):
             with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zout:
                 for info in zin.infolist():
                     info.date_time = (Y, M, D, 0, 0, 0)
+                    info.extra = b""  # drop the NTFS/UT extended timestamps, which would leak the real hour
                     zout.writestr(info, scrub(zin.read(info.filename)))
             new = buf.getvalue()
     else:
