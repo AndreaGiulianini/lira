@@ -1,0 +1,6 @@
+(fp_lib_table
+  (version 7)
+  (lib (name "Mounting_Keyboard_Stabilizer") (type "KiCad") (uri "${KIPRJMOD}/../../../source/lib/Mounting_Keyboard_Stabilizer.pretty") (options "") (descr ""))
+  (lib (name "Switch_Keyboard_Hotswap_Kailh") (type "KiCad") (uri "${KIPRJMOD}/../../../source/lib/Switch_Keyboard_Hotswap_Kailh.pretty") (options "") (descr ""))
+  (lib (name "lcsc") (type "KiCad") (uri "${KIPRJMOD}/../../../source/lib/lcsc.pretty") (options "") (descr ""))
+)

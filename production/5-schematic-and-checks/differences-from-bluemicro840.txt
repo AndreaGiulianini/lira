@@ -1,0 +1,24 @@
+Power / USB / programming circuit copied from the BlueMicro840 (jpconstantineau/NRF52-Board).
+Differences:
+1. Second AP2112K (switched 3.3 V for external devices, P0.12 enable) omitted: nothing external to power.
+2. USBLC6-2SC6 ESD array added on D+ / D- / VBUS at the USB-C receptacle.
+3. Power switch SW101 (C&K JS102011SAQN, 300 mA) in the battery + line, as on ZMK keyboards; JP2 bypasses it.
+4. JP1 + R104: closing the solder jumper puts a second 10k on PROG: charge current 100 mA -> 200 mA.
+5. Reset push button SW102 to GND (the BlueMicro840 has only a test point).
+6. USB-C shield pads to GND (left open on the BlueMicro840).
+7. LEDs: charging LED white, status LED red on P1.04 only (BlueMicro840: green charging, red P1.04, blue P1.10).
+8. DCCH inductor pads (DNP on the BlueMicro840) not fitted at all; P1.10 is a free GPIO here, P1.02 switches the sound card.
+9. Test points added on VBUS, VBAT and VIN (BlueMicro840: SWDIO, SWCLK, VCC, GND, RESET, P1.02).
+10. C107 4.7 uF added on VBUS at the charger's VDD pin (the MCP73831 datasheet asks for 4.7 uF; Nordic's reference circuit has 4.7 uF on VBUS; the BlueMicro840 has none).
+11. C108 1 uF at the regulator output and C109 100 nF at the module: the 10 uF C103 sits at the module's supply pins (VDD / VDDH), 25 mm away. C102 on VIN is 1 uF instead of 10 uF: together they keep the capacitance charged at USB attach near USB 2.0's 10 uF.
+12. Charger MCP73831 instead of the TP4054, same pins and same PROG resistor (1000 V / R_PROG): it is stable with no battery, so the board also works when built without one (its STAT pin, and the white LED, stay off).
+13. Battery divider 10M + 10M with 10 nF (BlueMicro840: 806k + 2M, 1 nF): the MCP73831 recognises a missing battery only if VBAT sees more than 7 MOhm (datasheet 4.2); 10 nF >= 2^12 x the SAADC's 2.5 pF keeps the reading within 1 LSB (Nordic, 'Measuring Lithium battery voltage with nRF52'), and RMK samples it every 30 s. Drain 0.2 uA.
+14. Built-in USB sound card: the USB-C data lines go (through the ESD array) to a CH334P hub; hub port 3 goes to the module's D+ / D-, port 2 to a CM108B codec (C-Media demo board v1.33) with a 3.5 mm headset jack.
+
+Sound card after C-Media's CM108B/CM119B demo board v1.33 (sheet 4). Differences:
+1. Supply: VBUS through a TPS22919 load switch (soft start 1.3 ms, output discharge) to AUD_5V, ON = P1.02 with a 100k pull-down: the sound card is powered only in USB mode (firmware src/audio_gate.rs). A hard switch-on would dip VBUS enough to reset the hub (CH334 datasheet 6.1).
+2. Headphones: a TPA6132A2 DirectPath amplifier after LOL / LOR (demo board: 100 uF + 39R straight to the jack): about 0 ohm output impedance, no coupling capacitors, 0 dB gain (-6 dB with JP3 closed, for very sensitive earphones). Inputs single-ended through 1 uF (8 Hz); EN about 0.25 s after the supply (1M + 470 nF from P1.02) and off at once through a Schottky. The switch's output discharge goes through 1k (TPS22919 9.2.2.2): the 5 V falls in about 3 ms, so the amplifier is off before the codec loses its supply (TPA6132A2 p.12, no pop).
+3. Microphone: bias 1.2k + 2.2k (demo board 2.2k + 8.2k, for PC microphones) for phone headsets (Android: 1.8-2.9 V through 2.2k); 1k in series before MICIN against the step when a plug goes in.
+4. The demo board's two 10 nF capacitors DVDD - DREG18 and DVDD - DREG33 ('close to IC', for ESD) are fitted.
+5. The amplifier's SGND (pin 15) is grounded at the amplifier (its ground pad and a via into the top ground plane), not on a track of its own to the jack's ground pin as TI suggests (datasheet 10.3): with both layers poured the difference is a few millivolts.
+6. The four mode jumpers are also strapped with 10k (MODE/ADSEL low, PWRSEL/MSEL high to DREG33) on top of the chip's internal pulls. D105-D107 are bidirectional ESD clamps (PESD5V0S1BA) on the jack's left, right and microphone contacts: a DirectPath output swings below GND, so the clamp must be bidirectional.

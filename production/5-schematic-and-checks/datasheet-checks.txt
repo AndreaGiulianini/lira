@@ -1,0 +1,385 @@
+====================================================================================================
+check_circuit.py - build/netlist.json (design=Lira variant=?)
+====================================================================================================
+[PASS] N00  netlist self-consistency (parts vs nets tables)
+       source: netlist structure (no datasheet needed)
+       - 211 parts, 142 nets
+[PASS] M01  E73 ground pads 5/21/24 all on the single ground net
+       source: E73-2G4M08S1C_C356849.pdf p.7 (ch.3 pin table, nRF52840 ball per pin)
+       - pin 5 -> GND
+       - pin 21 -> GND
+       - pin 24 -> GND
+[PASS] M02  E73 VDD and VDDH tied together on the 3.3 V rail (normal voltage mode)
+       source: nrf52840_ps_a.pdf 5.3.1 p.61 (normal voltage mode = VDD shorted to VDDH), 5.3.8 p.80 (VDD 1.7-3.6 V), 9 p.612 Table 173 (VDD abs max 3.9 V)
+       - VDD (pin 19) -> 3V3[=VDD] ; VDDH (pin 23) -> 3V3[=VDD]
+       - same net -> normal voltage mode (allowed: PS 5.3.1 'pin VDD shorted to pin VDDH'); VDD operating range 1.7-3.6 V, abs max 3.9 V
+       - rail from U3 (AP2112K-3.3): 3.30 V +-1.5 % -> max 3.349 V (<= 3.6 V operating, < 3.9 V abs max)
+       - E73 datasheet: >= 3.3 V supply guarantees the rated output power (p.5)
+       - capacitance VDD-GND on the board: 11.1uF (C103, C109, C108)
+[WARN] M03  E73 VBUS pin on the USB-C VBUS (5 V) net
+       source: nrf52840_ps_a.pdf 5.3.2 p.66 (5 V on VBUS for USB), 8 p.611 (VBUS 4.35-5.5 V), 9 p.612 (VBUS abs max 5.8 V), 7.1 p.577 (AD2 VBUS, AD4 D-, AD6 D+), 7.3 p.583 (series resistor on VBUS recommended for new designs)
+       - VBUS (pin 27) -> VBUS
+       - USB-C VBUS pads ['A4', 'A9', 'B4', 'B9'] on the same net; USB 5 V is within 4.35-5.5 V operating, 5.8 V abs max
+       - note: the nRF52840 reference circuits (bare chip) put an optional 4R7 series resistor between the USB supply and the VBUS pin, 'recommended for new designs' against connection transients; none here (the BlueMicro840 has none either) - low risk with the module's internal decoupling
+[PASS] M04  E73 D+/D- on one USB-hub downstream port (DPn/DMn, not swapped), wired straight, nothing else
+       source: nrf52840_ps_a.pdf 5.3.2 p.66 (5 V on VBUS for USB), 8 p.611 (VBUS 4.35-5.5 V), 9 p.612 (VBUS abs max 5.8 V), 7.1 p.577 (AD2 VBUS, AD4 D-, AD6 D+), 7.3 p.583 (series resistor on VBUS recommended for new designs); CH334_C5373042.pdf p.1 (USB 2.0 hub: upstream HS/FS with a built-in 1.5 kOhm pull-up, downstream ports with built-in host pull-downs), p.4 Table 1-3 (DPU/DMU upstream D+/D-, DPn/DMn downstream port n), p.19 4.1 (USB pins -0.4..VDD33+0.4 V), p.29 6.5 (ESD protection advised on every USB signal); nrf52840_ps_a.pdf 7.3 p.585 Fig.210 (D+/D- wired straight to the USB connector, no series parts); CM108B_appnotes_v1.50.pdf p.9 3.5 (series resistors for PHY impedance matching, 39 Ohm in the figure) and C-Media demo board v1.33 sheet 4 (R4/R66 22 Ohm, C1/C2 100 pF)
+       - D+ (pin 31) -> MCU_DP ; D- (pin 29) -> MCU_DN
+       - hub U5 downstream port 3: DP3 (pin 6) = module D+, DM3 (pin 5) = module D-
+       - the module is a full-speed device on a hub port: no series resistor, no external pull-up or ESD array on this side (the ESD array sits at the receptacle, U02)
+[PASS] M05  SWDIO/SWDCLK reach a test point or header, nothing else on them
+       source: nrf52840_ps_a.pdf 4.8.1 p.51 (SWDIO internal pull-up, SWDCLK internal pull-down), p.53 (Rpull 13 kOhm), 7.1 p.577 (AA24 SWDCLK, AC24 SWDIO)
+       - SWDIO (pin 37) -> SWDIO : [('TP1', '1')]
+       - SWDCLK (pin 39) -> SWCLK : [('TP2', '1')]
+       - no external pull resistors needed: SWDIO has an internal pull-up, SWDCLK an internal pull-down (13 kOhm)
+[PASS] M06  RESET pin: only button-to-GND / test point / header, never tied to a rail
+       source: nrf52840_ps_a.pdf 5.3.6.2 p.69 (pin reset), 7.1 p.577 (AC13 P0.18 configurable as nRESET), p.81 (tPINR vs capacitance on the reset pin); bluemicro_nrf52840_board.h (BUTTON_DFU = P0.18, BUTTON_PULL = PULLUP)
+       - P0.18/RESET (pin 26) -> RESET
+       - other connections: [('SW102', '1'), ('TP5', '1')]
+       - SW102: push button between RESET and GND (active-low reset, DFU by double tap)
+       - the bootloader maps BUTTON_DFU to P0.18 with pull-up: no external resistor required
+[PASS] M07  32.768 kHz crystal on XL1/XL2 with matched load capacitors (2*CL - Cpin)
+       source: nrf52840_ps_a.pdf 5.4.2.4 p.86-87 (Fig.23: C1/C2 from XL1/XL2 to GND, equal values, CL per crystal datasheet), 5.4.4.3 p.97 (CL 12.5 pF, C0 <=2 pF, ESR <=100 kOhm, drive 0.5 uW, Cpin 4 pF); C32346.pdf p.1 (Epson FC-135 Q13FC13500004: CL 12.5 pF, ESR 70 kOhm max, C0 1 pF, drive level 0.5 uW max)
+       - XL1 (pin 11) -> XL1 ; XL2 (pin 13) -> XL2
+       - Y1 (32.768kHz) between XL1 and XL2
+       - crystal FC-135: CL 12.5 pF (= PS CL_LFXO 12.5 pF), ESR 70k <= 100k, C0 1 pF <= 2 pF, drive 0.5 uW <= 0.5 uW -> all within the nRF52840 LFXO limits
+       - XL1 load capacitor C105 = 18pF
+       - XL2 load capacitor C106 = 18pF
+[PASS] M08  NFC1/NFC2 (P0.09/P0.10) free, or used as GPIO with NFCPINS disabled
+       source: nrf52840_ps_a.pdf 6.14.3 p.209 (NFC1/NFC2 shared with P0.09/P0.10, UICR NFCPINS selects GPIO use), 7.1 p.576 (L24 P0.09/NFC1, J24 P0.10/NFC2)
+       - pin 41 P0.09/NFC1 unconnected (fine)
+       - pin 43 P0.10/NFC2 unconnected (fine)
+[PASS] M09  DCCH open (no DC/DC inductor) or inductor to VDD only
+       source: nrf52840_ps_a.pdf 5.3.1.1 p.61-62 (LC filter needed only when a DC/DC regulator is enabled; Fig.13 normal voltage mode, LDO only), 7.3 p.583-590 (reference circuits)
+       - DCCH (pin 25) -> <unconnected>
+       - unconnected: correct when the internal DC/DC converter is not used (LDO only, PS Fig.13)
+[PASS] M10  no GPIO tied to a power rail, no two module pins shorted together
+       source: E73-2G4M08S1C_C356849.pdf p.7 (ch.3 pin table, nRF52840 ball per pin)
+       - 27 GPIO-capable pins connected (incl. XL1/XL2, RESET, AIN): ['P0.03', 'P0.28', 'P1.13', 'P0.02', 'P0.29', 'P0.31', 'P0.30', 'P0.00', 'P0.26', 'P0.01', 'P0.06', 'P0.05', 'P0.08', 'P1.09', 'P0.04', 'P0.12', 'P0.07', 'P0.18', 'P0.15', 'P0.17', 'P0.20', 'P0.13', 'P0.22', 'P0.24', 'P1.00', 'P1.02', 'P1.04']
+[PASS] M11  no pull-up above VDD into a GPIO (divider/LED analysis vs VI/O max VDD+0.3 V)
+       source: nrf52840_ps_a.pdf 6.9.3.1 p.156 (IOH/IOL standard drive 1-4 mA, high drive 6-15 mA), 9 p.612 (VI/O max VDD+0.3 V)
+       - pin 9 P0.31/AIN7: divider 10M / 10M from VBAT -> 2.10 V max (limit VDD+0.3 = 3.6 V)
+       - E73 I/O level is 3.3 V; 5 V signals would need 1k-5.1k series resistors (E73 p.9) - none present
+[PASS] M12  E73 symbol pin numbers/names agree with the datasheet pin table
+       source: E73-2G4M08S1C_C356849.pdf p.7 (ch.3 pin table, nRF52840 ball per pin)
+       - 43 of 43 pins carry a name in the netlist; all compared names match the datasheet
+[PASS] C01  MCP73831: pinout, VDD on VBUS (3.75-6 V, abs max 7 V), VSS on GND, VBAT on the battery net, 4.20 V option
+       source: MCP73831_C424093.pdf p.1 (Package Types, SOT-23-5: 1 STAT, 2 VSS, 3 VBAT, 4 VDD, 5 PROG), p.11 Table 3-1 (pin functions), p.3 (abs max VDD 7.0 V, all other pins -0.3..VDD+0.3 V; VDD 3.75-6 V; VREG 4.168/4.20/4.232 V for MCP7383X-2), p.11 3.1 ([VREG+0.3 V] to 6 V recommended), p.26 (product ID: -2ACI = 4.20 V, option AC: IPREG 10 %, VPTH 66.5 %, ITERM 7.5 %, VRTH 96.5 %)
+       - U2 (MCP73831): STAT(1) STAT | VSS(2) GND | VBAT(3) VBAT | VDD(4) VBUS | PROG(5) PROG
+       - VDD on VBUS: USB 4.75-5.5 V inside 3.75-6 V (p.3) and above VREG + 0.3 V = 4.5 V (recommended, p.11 3.1); abs max 7.0 V
+       - VBAT -> power switch / bypass jumper -> battery connector J2 (battery JST-PH)
+       - MCP73831T-2ACI/OT: VREG 4.20 V +-0.75 % (4.168-4.232 V, p.3); option AC: precondition 10 %, VPTH 66.5 %, termination 7.5 %, recharge at 96.5 % (p.26)
+[PASS] C02  MCP73831 VDD: bypass >= 4.7 uF and a transient clamp on the hot-pluggable USB input
+       source: MCP73831_C424093.pdf p.11 3.1 (VDD: bypass to VSS with a minimum of 4.7 uF), p.18 6.1.1.2 (input overvoltage protection must be used with hot-pluggable sources, USB cables included: a transzorb from V+ to 0 V), p.17 Fig.6-1 (SMAJ5.0A); usblc6.pdf p.2 (VBUS-GND breakdown >= 6 V at 1 mA)
+       - capacitors VBUS-GND: [('C107', '4.7uF'), ('C110', '1uF'), ('C130', '1uF')] = 6.7uF
+       - >= 4.7 uF (p.11 3.1); nominal values: 0603 X5R parts lose capacitance under 5 V bias, keep the largest one next to pin 4 (layout)
+       - transient clamp: U4 pin 5 clamps VBUS to GND (VBR >= 6 V at 1 mA, usblc6.pdf p.2) = the 'transzorb from V+ to 0 V' of p.18; an ESD-class clamp, smaller than the SMAJ5.0A of Fig.6-1
+[PASS] C03  MCP73831 PROG: RPROG to GND within 2-67 kOhm -> charge current, jumper options, switch rating, heat
+       source: MCP73831_C424093.pdf p.15 5.1.2 (IREG [mA] = 1000 V / RPROG [kOhm]), p.4 (RPROG charge range 2-67 kOhm, shutdown impedance 70-200 kOhm), p.3 (IREG 90-110 mA at 10k, 450-550 mA at 2k), p.13 4.3 / p.15 5.2.2 (PROG open = charger disabled), p.18 6.1.1.3 (P = (VDDMAX - VPTHMIN) * IREGMAX), p.5 (SOT-23-5 theta-JA 230 C/W), p.14 Fig.4-2 (thermal regulation); C221660.pdf p.1 (slide switch 0.3 A)
+       - PROG(5) -> PROG
+       - fitted: RPROG = 10k (R103) -> IREG = 1000 V / 10.00 kOhm = 100 mA (+-10 %: p.3 gives 90-110 mA at 10k, 450-550 mA at 2k)
+       - jumper JP1 closed: RPROG = 5k (R103||R104) -> IREG = 1000 V / 5.00 kOhm = 200 mA (+-10 %: p.3 gives 90-110 mA at 10k, 450-550 mA at 2k)
+       - charge current flows through power switch SW101 rated 0.3 A (C221660.pdf p.1): max 200 mA x 1.1 = 220 mA OK
+       - fitted: worst-case dissipation (VDD 5.5 V, VBAT at VPTH min 2.69 V, IREG +10 %) = 0.31 W -> +71 C on a minimum-copper SOT-23-5 (230 C/W, p.5; 130 C/W with large copper)
+       - jumper JP1 closed: worst-case dissipation (VDD 5.5 V, VBAT at VPTH min 2.69 V, IREG +10 %) = 0.62 W -> +142 C on a minimum-copper SOT-23-5 (230 C/W, p.5; 130 C/W with large copper)
+       - above ~80 C die temperature the charger trims its current itself (thermal regulation, p.14 Fig.4-2; p.18 6.1.1.3) - expected behaviour at the higher setting, not a fault
+[PASS] C04  MCP73831 STAT tri-state output: LED wiring and current in the L / H / Hi-Z states, no 5 V into a GPIO
+       source: MCP73831_C424093.pdf p.15 5.2.1 Table 5-1 (STAT: shutdown Hi-Z, no battery Hi-Z, preconditioning / fast charge / constant voltage L, charge complete H on the MCP73831), p.4 (STAT sink <= 25 mA, VOL 0.4 V typ / 1 V max at 4 mA; source <= 35 mA, VOH VDD-0.4 V typ / VDD-1 V min at 4 mA; Hi-Z leakage <= 1 uA), p.11 3.3 (LED or pull-up to a host MCU), p.13 Fig.4-1
+       - STAT(1) -> STAT ; output type tri-state (Table 5-1, p.15)
+       - LED D102 (LED white): VBUS -> LED -> R102 1k -> STAT: charging (STAT L, VOL 0.4 V typ) -> 1.75 mA (STAT sinks <= 25 mA, LED IF max 30 mA)
+       -   charge complete (STAT H = VDD - 0.4 V typ, >= VDD - 1 V): at most 1 V across LED + resistor < VF min 2.6 V -> off
+       - shutdown (USB absent / VDD < UVLO / PROG open) and no battery: STAT Hi-Z (leakage <= 1 uA) -> LED off; the no-battery state needs the battery detection to work, see C06
+[PASS] C05  MCP73831 VBAT capacitor >= 4.7 uF (loop stability with the battery disconnected)
+       source: MCP73831_C424093.pdf p.11 3.2 (VBAT: bypass to VSS with a minimum of 4.7 uF to ensure loop stability when the battery is disconnected), p.18 6.1.1.4 (stable with or without battery; 4.7 uF at the output usually sufficient up to 500 mA, any ESR)
+       - capacitors on VBAT: [('C101', '10uF')]
+       - 10uF >= 4.7 uF; any capacitor type / ESR is fine (p.18 6.1.1.4) - no series resistor needed (unlike the TP4054)
+[PASS] C06  MCP73831 battery detection: > 7 MOhm on VBAT with the cell disconnected (STAT Hi-Z, LED off)
+       source: MCP73831_C424093.pdf p.13 4.2 (battery detection: 6 uA typ sourced by VBAT; VBAT >= VREG + 100 mV -> no battery; 'in order to correctly detect a battery insertion, the impedance seen by the VBAT pin before the battery is connected must be greater than 7 MOhm due to the minimum battery detection current of 0.6 uA'), p.4 (IBAT_DET 0.6 uA min / 6 uA typ; ZNO_BAT 7 MOhm min; charge-complete output current -5.5 uA typ), p.5 (tTERM 0.4-3.2 ms), p.15 Table 5-1 (no battery: STAT Hi-Z), p.26 (option AC: recharge at 96.5 % of VREG)
+       - cell disconnected (connector empty, or power switch open while on USB): VBAT = VBAT
+       - Q1 drain on VBAT: off while USB is present; its body diode (VBAT -> VIN) stays reverse biased as long as VIN (VBUS - Schottky, ~4.6 V) is above the 4.3 V no-battery level
+       - resistive load on VBAT: 20M through ['R105', 'R106']
+       - >= 7 MOhm: even the minimum detection current (0.6 uA) lifts VBAT above VREG + 100 mV -> no battery detected, STAT Hi-Z (p.13 4.2)
+[PASS] L01  AP2112K-3.3: VIN/GND/EN/NC/VOUT wiring, EN level
+       source: C51118.pdf (AP2112) p.2 (SOT25 pins: 1 VIN, 2 GND, 3 EN, 4 NC, 5 VOUT; typical application CIN = COUT = 1 uF), p.1 (stable with 1.0 uF ceramic)
+       - U3 (AP2112K-3.3): VIN(1) VIN | GND(2) GND | EN(3) VIN | NC(4) <unconnected> | VOUT(5) 3V3[=VDD]
+       - U3 EN tied to VIN: always on (VIH >= 1.5 V satisfied for VIN >= 2.5 V)
+[PASS] L02  AP2112K-3.3: input and output capacitors >= 1 uF
+       source: C51118.pdf (AP2112) p.2 (SOT25 pins: 1 VIN, 2 GND, 3 EN, 4 NC, 5 VOUT; typical application CIN = COUT = 1 uF), p.1 (stable with 1.0 uF ceramic)
+       - U3: CIN ['C102'] = 1uF ; COUT ['C103', 'C109', 'C108'] = 11.1uF
+[PASS] L03  AP2112K-3.3: input voltage within 2.5-6.0 V, output feeds the module
+       source: C51118.pdf (AP2112) p.3 (abs max VCC 6.5 V, recommended VIN 2.5-6.0 V), p.8 (AP2112-3.3: VOUT 3.3 V +-1.5 %, dropout 250 mV typ at 600 mA, VEN high >= 1.5 V, low <= 0.4 V, EN pull-down 3 MOhm)
+       - U3: VIN max ~5.2 V (USB 5.5 V minus Schottky) <= 6.0 V recommended / 6.5 V abs max; min from battery ~3.0 V >= 2.5 V (at VBAT < 3.55 V the 3.3 V output drops out gracefully)
+[PASS] P01  B5819W Schottky: anode on VBUS, cathode on VIN (USB feeds VIN, no back-feed into VBUS)
+       source: C8598.pdf (B5819W) p.1 (marking bar = cathode; IO 1 A, VRRM 40 V, VF 0.6 V at 1 A)
+       - D101 (B5819W): anode(2) -> VBUS ; cathode(1) -> VIN
+       - correct: USB feeds VIN through the diode; the battery (on VIN when on battery) cannot push current back into VBUS (VRRM 40 V >> 4.2 V); IO 1 A >> board current
+       - D104 (B5819W): anode(2) -> AMP_EN ; cathode(1) -> AUD_EN
+       - signal use: neither pin on a power rail (not in the power path; see A14)
+[PASS] P02  SI2301 P-MOSFET: gate on VBUS, source on VIN, drain on VBAT, gate pull-down
+       source: C10487.pdf (Si2301CDS) p.1 (SOT-23: 1 G, 2 S, 3 D; VDS -20 V, VGS +-8 V), p.2 (VGS(th) -0.4..-1 V, body diode VSD -0.8 V), p.7 (AN807: pin 1 gate, pin 2 source, pin 3 drain)
+       - Q1 (SI2301CDS): G(1) -> VBUS ; S(2) -> VIN ; D(3) -> VBAT
+       - correct: USB present -> VGS = VBUS - VIN ~ +0.4 V -> channel off, body diode (D->S) reverse biased since VIN (~4.6 V) > VBAT (<= 4.2 V): USB cannot reach the battery except through the charger
+       - USB absent -> gate pulled to 0 V, VGS = -VBAT (-3.0..-4.2 V, |VGS| <= 8 V) -> channel on, RDS(on) 0.11-0.14 Ohm; body diode D->S also conducts battery -> VIN at start-up
+       - gate pull-down: [('R101', '100k')]
+[PASS] P03  power rails GND/VBUS/VIN/VBAT/VDD are distinct nets, no hard bridge between them
+       source: netlist structure (no datasheet needed)
+       - GND = GND
+       - VBUS = VBUS
+       - VDD = 3V3
+       - VIN = VIN
+       - VBAT = VBAT
+       - BAT+ = BAT+
+       - VAUD = AUD_5V
+       - R101 100k between GND and VBUS (bleeder / divider, fine)
+       - solder jumper JP2 between VBAT and BAT+ (open by default)
+[PASS] P04  power path: USB cannot back-feed the battery, battery cannot back-feed VBUS
+       source: C10487.pdf (Si2301CDS) p.1 (SOT-23: 1 G, 2 S, 3 D; VDS -20 V, VGS +-8 V), p.2 (VGS(th) -0.4..-1 V, body diode VSD -0.8 V), p.7 (AN807: pin 1 gate, pin 2 source, pin 3 drain)
+       - USB present: no conduction path VBUS -> VBAT except the MCP73831 (VDD->BAT, regulated)
+       - battery only: no conduction path VBAT -> VBUS (Schottky blocks, MCP73831 reverse-blocking, < 2 uA from VBAT in UVLO (MCP73831_C424093.pdf p.13 4.1, p.18 6.1.1.5))
+       - battery only: no conduction path BAT+ -> VBUS (Schottky blocks, MCP73831 reverse-blocking, < 2 uA from VBAT in UVLO (MCP73831_C424093.pdf p.13 4.1, p.18 6.1.1.5))
+[PASS] P05  battery connector polarity, power switch uses its common terminal, bypass jumper
+       source: C221660.pdf (C&K JS series) p.1 (contact rating 6 VDC at 0.3 A), p.4 (JS102011SAQN SPDT circuit diagram: C = common = centre terminal 2)
+       - battery connector J2 (battery JST-PH): + -> BAT+ ; - -> GND
+       - positive on pin 1 ('Circuit No.1' on the JST footprint); the lead order of the cell itself must still be checked with a meter before plugging it in
+       - mounting pads ['MP'] -> ['<unconnected>'] (mechanical only)
+       - SW101 (JS102011SAQN): 1 -> BAT+ ; 2(common) -> VBAT ; 3 -> <unconnected>
+       - contacts rated 6 VDC / 0.3 A: battery discharge current (tens of mA) and charge current flow through it
+       - JP2 (switch bypass) bypasses the switch (open by default)
+[PASS] P06  battery voltage divider: ratio, AIN pin, input <= VDD, source impedance, cap
+       source: nrf52840_ps_a.pdf 6.23 p.376 (inputs AIN0-AIN7), 6.23.1.1 p.377-378 Fig.147 (the SAADC connects a sample capacitor to the input for TACQ) and Table 95 (max source resistance per TACQ, 800 kOhm at 40 us, for a resistive source), 6.23.2 p.379 (gain 1/6 + 0.6 V reference = 3.6 V range, AIN <= VDD), 6.23.10 p.397 (CSAMPLE 2.5 pF at maximum gain = the largest, RINPUT > 1 MOhm, tACQ table), p.398 (RLADDER 160 kOhm); Nordic DevZone blog 'Measuring Lithium battery voltage with nRF52' (O. Bauck, 2016-05-23: reservoir Cext = Csample x 2^12 ~ 10 nF, R1 4M / R2 10M, TACQ 3 us, SAADC input seen as 1/(fsample Csample))
+       - module pin 9 P0.31/AIN7 <- BAT_SENSE
+       - Rtop 10M (['R105']), Rbottom 10M (['R106']): ratio 0.5000 (firmware: VBAT = Vadc * 2.0000), at 4.2 V -> 2.100 V
+       - <= VDD 3.3 V and <= 3.6 V full scale with gain 1/6 and the 0.6 V internal reference
+       - source resistance 5M > 800 kOhm, above Table 95 (resistive source), but the 10nF reservoir at the pin supplies the sample charge (PS Fig.147 sample network, CSAMPLE <= 2.5 pF p.397): one sample pulls the pin by at most 0.52 mV = 0.60 LSB12 at 2.10 V (1 LSB = 0.879 mV in the 3.6 V range; needs >= 6.0 nF; Nordic's note sizes it CSAMPLE x 2^12 = 10.24 nF for a full-scale input)
+       - firmware conditions (not visible in the netlist): sample this pin no faster than every ~10 x tau = 10 x 5M x 10nF = 0.50 s so the reservoir recharges (the averaged input resistance 1/(f CSAMPLE) then stays >> 5M; the PS 'RINPUT > 1 MOhm' is that figure at 200 ksps); keep RESP/RESN at Bypass (160 kOhm ladder, p.398); any TACQ works; first reading valid ~5 tau = 0.25 s after the cell is switched on
+       - DC accuracy: the PS gives no leakage figure for an analog pin; at 5M every 10 nA of pin/PCB leakage shifts the reading by 50 mV at the pin (100 mV on VBAT) - compare with a meter on the first board and keep the node free of flux residue
+       - divider drain from the cell: 0.2 uA
+[PASS] U01  USB-C receptacle: VBUS/GND/D+/D- pads, 5.1k on CC1 and CC2, SBU open, shield
+       source: C165948.pdf (HRO TYPE-C-31-M-12) p.1 pin table (A1/B1/A12/B12 GND, A4/A9/B4/B9 VBUS, A5 CC1, B5 CC2, A6/B6 DP, A7/B7 DN, A8/B8 SBU; 5 A / 20 V rating); USB Type-C specification (sink: Rd = 5.1 kOhm +-10 % on each CC) - not in the datasheet set
+       - J1 (USB-C)
+       - VBUS pads ['A4', 'A9', 'B4', 'B9'] -> ['VBUS'] ; GND pads ['A1', 'A12', 'B1', 'B12'] -> ['GND']
+       - CC1 (A5): Rd R108 5.1k to GND (USB-C sink, 5.1k +-10 %)
+       - CC2 (B5): Rd R109 5.1k to GND (USB-C sink, 5.1k +-10 %)
+       - SBU pads ['A8', 'B8'] unconnected
+       - shield pads ['SH'] -> GND
+[PASS] U02  USBLC6-2SC6 at the receptacle: I/O1 = pins 1+6, I/O2 = pins 3+4 on the connector D+/D-, pin 2 GND, pin 5 VBUS
+       source: usblc6.pdf p.1 Fig.1 (SOT23-6L: 1 I/O1, 2 GND, 3 I/O2, 4 I/O2, 5 VBUS, 6 I/O1), p.2 (VBR VBUS-GND 6 V min, leakage 150 nA at 5.25 V), p.5-6 (place next to the connector, short tracks), p.9 Fig.18 (100 nF on VBUS)
+       - U4 (USBLC6-2SC6): 1 USB_DP | 2 GND | 3 USB_DN | 4 USB_DN | 5 VBUS | 6 USB_DP
+       - I/O1/I/O2 on the receptacle D+/D- nets (USB_DP, USB_DN) = the hub upstream lines (U03)
+       - pin 5 on VBUS: rail-to-rail clamp referenced to 5 V (VBR 6 V min, leakage 150 nA at 5.25 V)
+       - layout: place next to the receptacle with short tracks (p.5-6); 100 nF on VBUS suggested (p.9)
+[PASS] U03  USB through the hub: receptacle -> ESD -> hub upstream DPU/DMU; each used downstream port a D+/D- pair to one device; only datasheet-allowed series parts
+       source: CH334_C5373042.pdf p.1 (USB 2.0 hub: upstream HS/FS with a built-in 1.5 kOhm pull-up, downstream ports with built-in host pull-downs), p.4 Table 1-3 (DPU/DMU upstream D+/D-, DPn/DMn downstream port n), p.19 4.1 (USB pins -0.4..VDD33+0.4 V), p.29 6.5 (ESD protection advised on every USB signal); nrf52840_ps_a.pdf 7.3 p.585 Fig.210 (D+/D- wired straight to the USB connector, no series parts); CM108B_appnotes_v1.50.pdf p.9 3.5 (series resistors for PHY impedance matching, 39 Ohm in the figure) and C-Media demo board v1.33 sheet 4 (R4/R66 22 Ohm, C1/C2 100 pF)
+       - U5 (CH334P) upstream: DPU(12) -> USB_DP ; DMU(11) -> USB_DN
+       - receptacle A6/B6 -> DPU, A7/B7 -> DMU; 1.5 kOhm upstream pull-up inside the hub (CH334 p.1)
+       - port 1 (DP1 pin 10 / DM1 pin 9): unused, left open (host pull-downs inside, CH334 p.1)
+       - port 2 -> codec U6 (CM108B): D+ <- DP2, D- <- DM2 ; DP2 via R110 22 Ohm; DM2 via R111 22 Ohm (C-Media demo board R4/R66 22 Ohm, app note 3.5 39 Ohm)
+       - port 3 -> module U1 (E73-2G4M08S1C): D+ <- DP3, D- <- DM3 (straight, as PS 7.3 Fig.210)
+       - port 4 (DP4 pin 4 / DM4 pin 3): unused, left open (host pull-downs inside, CH334 p.1)
+[PASS] H01  CH334P: pinout, GND pad, V5 on VBUS (4.5-5.25 V, abs max 5.5 V) with >= 1 uF, VDD33 0.1 uF + 10 uF (or >= 1 uF), no load on the internal LDO
+       source: CH334_C5373042.pdf p.4 Table 1-3 (V5: 5 V or 3.3 V input, 1 uF or more; VDD33: LDO output and 3.3 V input, 0.1 uF + 10 uF or 1 uF; GND pad), p.19 4.1 (abs max V5 5.5 V, VDD33 4.0 V), p.19 4.2 (V5 4.5-5.0-5.25 V with the internal LDO, 3.15-3.5 V without; LDO external load <= 20 mA), p.26 6.1 (bus-powered application: V5 from the upstream VBUS, C1 1 uF, C2 0.1 uF + C8 10 uF on VDD33), p.28 6.4 (embedded hub: V5 = VDD33 = on-board 3.3 V suggested)
+       - U5 exposed pad ['17'] -> GND (the CH334P's only ground pin)
+       - U5 (CH334P): V5(15) -> VBUS ; VDD33(16) -> HUB_3V3
+       - internal LDO in use: V5 from VBUS (USB 2.0 VBUS 4.75-5.25 V inside 4.5-5.25 V, p.19 4.2; a USB-C source may give up to 5.5 V = the V5 absolute maximum of 5.5 V, p.19 4.1)
+       - V5 capacitance 6.7uF (['C107', 'C110', 'C130'])
+       - VDD33 capacitors [('C111', '10uF'), ('C112', '100nF')] = 10.1uF
+       - 0.1 uF + 10 uF as in p.4 / p.26 6.1 (10 uF or more also helps against hot-plug dips, p.26)
+       - V5 straight from VBUS (as p.26 6.1); p.28 6.4 suggests the on-board 3.3 V for embedded hubs, but here that rail is battery-backed and the hub would then draw its 0.12-0.4 mA sleep current from the cell: the VBUS supply is the better choice
+[PASS] H02  CH334P clock: 12 MHz crystal between XI and XO, no external load capacitors (~16 pF inside), case to GND
+       source: CH334_C5373042.pdf p.1 (crystal oscillator with built-in capacitors), p.4 Table 1-3 (XI/XO: 12 MHz crystal, 24 MHz only on the CH334X), p.26 6.1 (XI and XO have ~16 pF built in: no external load capacitors), p.27 6.2 (crystal-free option only on parts ordered with it: XO open and XI to GND)
+       - U5 (CH334P): XI(2) -> HUB_XI ; XO(1) -> HUB_XO
+       - Y2 (12MHz) 12MHz between XI and XO
+       - no load capacitors (p.26: ~16 pF built in) -> load ~ 16 pF / 2 + 2-3 pF stray = 10-11 pF; the crystal's CL is not in the datasheet set (PARTS.txt: generic 20 pF): with typical C1 5 fF / C0 2 pF a 20 pF crystal runs ~ +50..+100 ppm fast - inside the +-500 ppm USB high-speed budget; a 10-12 pF crystal would centre it
+[PASS] H03  CH334P RESET#/CDP and PGANG left open (or legally driven), unused downstream ports open
+       source: CH334_C5373042.pdf p.4 Table 1-3 (RESET#/CDP: internal pull-up, active low, leave fully floating when no reset is needed), p.10-11 3.2 (internal power-on reset; ~25 kOhm pull-up; Table 3-2: low = reset, driven high at power-up = CDP on and low-power sleep off, open = default), p.5 (PGANG: internal pull-up configuration input during reset, status output afterwards; pull-down only through a resistor)
+       - U5 RESET#/CDP(13) open: internal power-on reset and ~25 kOhm pull-up, CDP off, low-power sleep allowed (p.4 'leave fully floating'; p.11 Table 3-2)
+       - PGANG(14) open: internal pull-up (default configuration); it turns into a status output after reset (p.5)
+       - port 1 unused: DP1/DM1 open (pull-downs inside, p.1)
+       - port 4 unused: DP4/DM4 open (pull-downs inside, p.1)
+[PASS] A01  CM108B supply: AVDD/DVDD on a 4.5-5.5 V rail (through ferrite beads), DVSS/AVSS on GND, decoupling
+       source: CM108B_datasheet_v1.41.pdf p.4 (DVdd = AVdd = 5 V), p.7 (29/34 AVDD 5 V, 35 DVDD 5 V, 8 DREG18 1.8 V / 9 DREG33 3.3 V (40 mA) / 37 AREG36 3.6 V regulator outputs, 14/36 DVSS, 24/33 AVSS), p.20 8.1-8.2 (supplies 4.5-5.0-5.5 V, abs max 6 V; 37.25 mA; 0-70 C); CM108B_appnotes_v1.50.pdf p.8 3.4 (1 uF on DREG18, 0.1 uF on DREG33), p.25 (AVDD36: 10 uF to AGND); demo board v1.33 sheet 4 (L2/L3 beads USB5V -> DVDD/AVDD, DVDD 4.7 uF + 0.1 uF, AVDD 0.1 uF, AVDD36 10 uF, C23/C24 10 nF DVDD -> REGV/DVDD18 'close to IC')
+       - AVDD AUD_AVDD <- VAUD via bead ['L101']: VAUD 4.75-5.25 V (USB 2.0) through the load switch, inside 4.5-5.5 V (p.20), abs max 6 V
+       - AVDD capacitors [('C117', '100nF')] (demo board: 0.1 uF C7)
+       - DVDD AUD_DVDD <- VAUD via bead ['L102']: VAUD 4.75-5.25 V (USB 2.0) through the load switch, inside 4.5-5.5 V (p.20), abs max 6 V
+       - DVDD capacitors [('C115', '100nF'), ('C116', '4.7uF')] = 4.8uF (demo board: 4.7 uF + 0.1 uF)
+       - current 37.25 mA typ (p.20); ambient 0-70 C only (p.20)
+[PASS] A02  CM108B regulator/reference pins: DREG18 1 uF, DREG33 0.1 uF, AREG36 10 uF, VREF 10 uF, LOBS 10 uF, no external load
+       source: CM108B_datasheet_v1.41.pdf p.4 (DVdd = AVdd = 5 V), p.7 (29/34 AVDD 5 V, 35 DVDD 5 V, 8 DREG18 1.8 V / 9 DREG33 3.3 V (40 mA) / 37 AREG36 3.6 V regulator outputs, 14/36 DVSS, 24/33 AVSS), p.20 8.1-8.2 (supplies 4.5-5.0-5.5 V, abs max 6 V; 37.25 mA; 0-70 C); CM108B_appnotes_v1.50.pdf p.8 3.4 (1 uF on DREG18, 0.1 uF on DREG33), p.25 (AVDD36: 10 uF to AGND); demo board v1.33 sheet 4 (L2/L3 beads USB5V -> DVDD/AVDD, DVDD 4.7 uF + 0.1 uF, AVDD 0.1 uF, AVDD36 10 uF, C23/C24 10 nF DVDD -> REGV/DVDD18 'close to IC')
+       - DREG18(8) -> DREG18: [('C118', '1uF')] to GND; [('C138', '10nF')] to DVDD (demo C23/C24 'close to IC')
+       - DREG33(9) -> DREG33: [('C119', '100nF')] to GND; [('C139', '10nF')] to DVDD (demo C23/C24 'close to IC')
+       -   also feeds [('R122', '2'), ('R123', '2')] (DREG33 drives up to 40 mA, p.7)
+       - AREG36(37) -> AREG36: [('C120', '10uF')] to GND
+       - VREF(26) -> VREF: [('C121', '10uF')] to GND
+       - LOBS(31) -> LOBS: [('C122', '10uF')] to GND
+[PASS] A03  CM108B jumper pins: TEST low, MODE (headset) and ADSEL (internal ADC) low when the mic is used, <= 3.3 V
+       source: CM108B_datasheet_v1.41.pdf p.7-8 (MODE PD: L = headset = playback + recording, H = speaker = playback only; PWRSEL PU; MSEL PU; ADSEL PD: L = internal ADC; TEST PD: L = normal operation; 'H: push up to 3.3V' i.e. to REGV/DREG33; MUTER/MUTEP/VOLUP/VOLDN PU), p.15 7.2 (mode table), p.12 (headset configuration: bus powered, 100 mA)
+       - U6: PWRSEL=H (pulled up by R122), MODE=L (pulled down by R120), MSEL=H (pulled up by R123), ADSEL=L (pulled down by R121), TEST=L (tied to GND)
+       - result: headset (playback + recording), 100 mA bus-powered (p.15 table), mixer enabled, muted by default (MSEL H)
+[PASS] A04  CM108B USBDP/USBDM: one 22-39 Ohm series resistor each to a USB port, no external D+ pull-up
+       source: CM108B_datasheet_v1.41.pdf p.8 (41 USBDP, 42 USBDM), p.20 (analog pins -0.3..3.96 V); CM108B_appnotes_v1.50.pdf p.9 3.5 (R1/R2 series resistors for PHY impedance matching; no pull-up on USBDP, it is inside the PHY), p.23 5.3; demo board v1.33 sheet 4 (R4/R66 22 Ohm in USBDP/USBDM)
+       - U6 USBDP (41) -> CM_DP
+       -   R110 22 Ohm in series to U5 pin 8 (DP2): as demo board R4/R66 (22 Ohm) / app note (39 Ohm)
+       - U6 USBDM (42) -> CM_DN
+       -   R111 22 Ohm in series to U5 pin 7 (DM2): as demo board R4/R66 (22 Ohm) / app note (39 Ohm)
+       - no external pull-up: the CM108B PHY has it inside (app note p.9 3.5 and p.23 5.3)
+[PASS] A05  CM108B LOL/LOR AC-coupled into the amplifier (LOL -> INL-, LOR -> INR-); LOBS only decoupled
+       source: CM108B_datasheet_v1.41.pdf p.7 (25 VBIAS 3 V 'small driving capability', 27 MICIN 10 kOhm input, 30 LOL / 32 LOR line out, 31 LOBS 1.75 V DC), p.21 (DAC output 0.94 Vrms into 10 kOhm), p.20 (analog pins -0.3..3.96 V); CM108B_appnotes_v1.50.pdf p.23 5.4 (R + C in series in the MIC path); demo board v1.33 sheet 4 (VBIAS - R13 2k2 - C15 4.7 uF - R14 8k2 - MIC; MIC - R10 0 R - C12 1 uF - MICIN; C16 100 pF on MIC; LOL/LOR via C9/C8 100 uF)
+       - LOL -> C123 1uF (series) -> U7 INL- (pin 1)
+       - LOR -> C126 1uF (series) -> U7 INR- (pin 4)
+       - LOBS only decoupled to GND ([('C122', '10uF')]): normal, not cap-less, output mode
+[WARN] A06  CM108B microphone: MICIN AC-coupled from the mic contact, VBIAS through resistors, bias current
+       source: CM108B_datasheet_v1.41.pdf p.7 (25 VBIAS 3 V 'small driving capability', 27 MICIN 10 kOhm input, 30 LOL / 32 LOR line out, 31 LOBS 1.75 V DC), p.21 (DAC output 0.94 Vrms into 10 kOhm), p.20 (analog pins -0.3..3.96 V); CM108B_appnotes_v1.50.pdf p.23 5.4 (R + C in series in the MIC path); demo board v1.33 sheet 4 (VBIAS - R13 2k2 - C15 4.7 uF - R14 8k2 - MIC; MIC - R10 0 R - C12 1 uF - MICIN; C16 100 pF on MIC; LOL/LOR via C9/C8 100 uF)
+       - MICIN <- C129 1uF <- R116 1k <- mic node MIC (jack [('J3', 'S')]): high-pass with the 10 kOhm input (p.7) 14.5 Hz
+       - VBIAS (3 V) -> ['R114', 'R115'] -> mic node: 3.4k from VBIAS to the mic node / GND; filter [('C127', '4.7uF')]
+       - mic contact shorted to GND (a 3-pole plug bridges ring 2 and sleeve): VBIAS sources 0.88 mA (demo board 2k2 + 8k2: 0.29 mA)
+       - VBIAS has only 'a small driving capability' (p.7) and no current rating: this bias network draws 3.1x the demo board's current, continuously whenever plain headphones are plugged in. Phone (CTIA) headsets do want ~2.2 kOhm; verify VBIAS (3 V level, recording noise) on the bench with both plug types
+[PASS] A11  TPA6132A2: pinout, PGND / pad / SGND grounding, SGND = jack ground, VDD 2.3-5.5 V with >= 2.2 uF
+       source: TPA6132A2_C69901.pdf p.3 (RTE pinout and pin functions: 1 INL-, 2 INL+, 3 INR+, 4 INR-, 5 OUTR, 6 G0, 7 G1, 8 HPVSS, 9 CPN, 10 PGND, 11 CPP, 12 HPVDD, 13 EN, 14 VDD, 15 SGND, 16 OUTL; thermal pad to ground or floating), p.18 10.1 (pad: same ground as PGND or floating, never VDD), p.18 10.3 (SGND must go to the headphone ground pin, within +-0.3 V), p.4 (VDD 2.3-5.5 V, abs max 6 V)
+       - U7 (TPA6132A2): PGND(10) GND | SGND(15) GND | VDD(14) AUD_5V[=VAUD] | pad {'17': 'GND'}
+       - SGND on the same net as the jack ground contact (J3); route it to the jack pin (p.18 10.3)
+       - VDD on VAUD (max 5.5 V): inside 2.3-5.5 V, abs max 6 V (p.4)
+       - VDD capacitors [('C113', '10uF'), ('C114', '100nF'), ('C133', '2.2uF')] = 12.3uF
+       - ['C113', 'C133'] >= 2.2 uF: keep it within 5 mm of pin 14 (layout, p.17)
+[PASS] A12  TPA6132A2 charge pump: 1 uF CPP-CPN, HPVSS cap >= flying cap, HPVDD only to a 2.2 uF cap (never VDD)
+       source: TPA6132A2_C69901.pdf p.3 (HPVSS: 1 uF to GND; 1 uF between CPP and CPN; HPVDD: 2.2 uF, do not connect to VDD), p.4 (HPVDD abs max 1.9 V, never an external supply), p.15 8.2.1.2.2 (HPVSS cap >= flying cap, 1-2.2 uF typical, >= 0.47 uF), p.17 9 / 9.1 (2.2 uF X5R at VDD within 5 mm; HPVDD only to a 2.2 uF capacitor; boxed warning: HPVDD to VDD can damage the device)
+       - U7: CPP(11) AMP_CPP, CPN(9) AMP_CPN, flying [('C136', '1uF')]
+       - HPVSS(8) AMP_VSS: [('C135', '1uF')]
+       - HPVDD(12) AMP_VDDH: [('C134', '2.2uF')]
+       - HPVDD only to 2.2uF (2.2 uF asked, p.17), HPVSS 1uF >= flying 1uF (p.15)
+[PASS] A13  TPA6132A2 single-ended inputs: INL+/INR+ grounded, INL-/INR- through series capacitors, low-frequency corner
+       source: TPA6132A2_C69901.pdf p.1 + p.3 (single-ended inputs: INL+ and INR+ to ground, signal into INL-/INR-), p.16 Fig.27 (1 uF in series with each single-ended input), p.15 8.2.1.2.1 (input capacitors block the DC of the source; fc = 1 / (2 pi RIN CIN)), p.5 (RIN 26.4 / 19.8 / 16.5 / 13.2 kOhm at -6 / 0 / 3 / 6 dB), p.4 (input voltage 0..HPVDD+0.3 V), p.12 7.3.2
+       - INL+ on GND: single-ended input (p.1, p.3)
+       - INL- <- C123 1uF <- LOL ; corner 1/(2 pi RIN C): ['-6 dB: RIN 26.4k -> 6.0 Hz', '0 dB: RIN 19.8k -> 8.0 Hz']
+       - INR+ on GND: single-ended input (p.1, p.3)
+       - INR- <- C126 1uF <- LOR ; corner 1/(2 pi RIN C): ['-6 dB: RIN 26.4k -> 6.0 Hz', '0 dB: RIN 19.8k -> 8.0 Hz']
+       - input capacitors also keep the turn-on pop inaudible (p.12 7.3.2)
+[WARN] A14  TPA6132A2 EN/G0/G1: defined levels (VIH >= 1.3 V, VIL <= 0.6 V, <= VDD + 0.3 V), gain per jumper state, EN delayed after the audio supply and dropped before it
+       source: TPA6132A2_C69901.pdf p.4 (EN/G0/G1: VIH >= 1.3 V, VIL <= 0.6 V, abs max -0.3..VDD+0.3 V), p.5 (EN/G0/G1 input current <= 1 uA; gain -0.5/-1.0/-1.41/-2.0 V/V), p.13 7.4.1 (G0/G1 <= 0.5 V or >= 1.3 V: -6 / 0 / 3 / 6 dB), p.12 7.3.2 (activate after the audio sources have settled, deactivate before the sources; tON 5 ms); C8598.pdf (B5819W) p.1; nrf52840_ps_a.pdf p.156 (IOL >= 1 mA standard / >= 6 mA high drive at 0.4 V); CM108B_datasheet_v1.41.pdf p.20 (37.25 mA); TPS22919_C2149796.pdf p.5 (tON, tOFF, RPD,QOD), p.13 8.3.3
+       - default (jumpers open): G0=1 G1=0 -> gain 0 dB (p.13 7.4.1) [G0 pulled up to VAUD by R112 100k: >= 4.90 V with the 1 uA input current (VIH 1.3 V); G1 on GND]
+       - JP3 closed: G0=0 G1=0 -> gain -6 dB (p.13 7.4.1) [JP3 closed: G0 shorted to GND; G1 on GND]
+       - EN <- R113 1M <- AUD_EN (module pin ['38'], also the ['U8'] ON pin); [('C137', '470nF')] to GND = 470nF
+       - steady EN level >= 2.30 V with the 1 uA input current: above VIH 1.3 V (p.4)
+       - turn-on: tau = 1M x 470nF = 470 ms -> EN passes the 0.6-1.3 V threshold 94-391 ms after the control rises; the load switch output is up after ~2 ms (TPS22919 p.5): the source gets >= 94 ms to settle (p.12; the CM108B output settling time is not specified - check for a turn-on pop)
+       - turn-off: D104 (anode EN, cathode AUD_EN) dumps the EN capacitor into the GPIO when it goes low
+       - power-down order: ~6 us after the control falls the switch is open (TPS22919 p.5); the 17.2uF on the rail then feeds ['U6'] (37 mA typ, CM108B p.20) + ['U7'] (2.1 mA, TPA p.5) + QOD (1.024k: 4.9 mA), so it drops below the CM108B's 4.5 V minimum in ~0.19 ms (QOD alone, without the loads: 1.86 ms); EN falls below VIL 0.6 V after ~0.38 ms with a standard-drive GPIO (IOL >= 1 mA at 0.4 V, PS p.156) or ~0.06 ms with high drive (>= 6 mA)
+       -   with standard drive the amplifier is disabled AFTER its source (the CM108B) has lost power: p.12 asks for the opposite order. Here the codec's own current, not the QOD resistor, sets the rail's fall; configure the GPIO as high drive (H0H1) - EN then falls in ~0.06 ms, before the rail - or drive EN from its own GPIO. Bench-check for a switch-off pop
+       - EN high (up to 3.3 V from the GPIO) while the amplifier VDD (VAUD) is off - USB unplugged with the sound card on, or during the rail's fall - exceeds VDD + 0.3 V (abs max p.4); R113 limits the steady current to 3.3 uA but 470nF dumps its charge into the EN clamp: firmware must drop AUD_EN as soon as VBUS goes away
+[PASS] S01  TPS22919: pinout, IN on VBUS (1.6-5.5 V), GND, NC open, 1 uF input capacitor, load and inrush
+       source: TPS22919_C2149796.pdf p.3 (DCK SC-70-6: 1 IN, 2 GND, 3 ON 'do not leave floating', 4 NC 'leave floating', 5 QOD, 6 VOUT), p.4 (abs max VIN/VOUT/VON/VQOD 6 V; VIN 1.6-5.5 V; IMAX 1.5 A), p.5 (RON 89 mOhm at 5 V; tON 1.95 ms and 3.2 mV/us at 5 V), p.17 10 (CIN 1 uF usually sufficient)
+       - U8 (TPS22919): IN(1) VBUS | GND(2) GND | ON(3) AUD_EN | NC(4) <unconnected> | QOD(5) AUD_QOD | VOUT(6) AUD_5V[=VAUD]
+       - IN on VBUS (<= 5.5 V): inside 1.6-5.5 V, abs max 6 V (p.4)
+       - input capacitance 6.7uF >= 1 uF (p.17 10)
+       - load capacitance 17.2uF (incl. behind beads); turn-on slew 3.2 mV/us at 5 V (p.5) -> inrush ~55 mA; loads ['U6', 'U7'] (CM108B 37 mA typ, TPA6132A2 2.2 mA + headphone current) << 1.5 A (p.4)
+[PASS] S02  TPS22919 ON (sound-card enable): module GPIO with a pull-down to GND, never floating
+       source: TPS22919_C2149796.pdf p.3 (ON: active high, do not leave floating), p.4 (ON VIH >= 1 V, VIL <= 0.35 V, abs max 6 V), p.5 (ON leakage <= 100 nA; smart pull-down 530 kOhm while ON <= VIL), p.13 8.3.1 (the smart pull-down exists only once VIN is applied); nrf52840_ps_a.pdf 6.9.3.1 p.156 (GPIO drive) and 9 p.612 (VI/O max VDD + 0.3 V); reference/bluemicro_nrf52840_board.h (pins the bootloader drives)
+       - U8 ON(3) -> AUD_EN
+       - driven by module pin 38 P1.02: 3.3 V high >= VIH 1 V, abs max 6 V (p.4)
+       - pull-down R117 100k: ON = 10 mV with 100 nA leakage (VIL 0.35 V, p.4); 33 uA from the GPIO when high
+       - the enable also feeds ['D104', 'R113'] (amplifier EN network, A14)
+       - if the GPIO goes high-Z while on (MCU reset), ['D104'] back-feeds ON from the EN capacitor 470nF: the switch opens only ~47 ms later (100k x 470nF)
+[PASS] S03  TPS22919 QOD: tied to VOUT (24 Ohm discharge), through a resistor to VOUT, or open
+       source: TPS22919_C2149796.pdf p.3 (QOD: resistor to VOUT, tied to VOUT, or floating = no discharge), p.13-14 8.3.3 + Table 2 (ON low: VOUT to GND through RPD,QOD (24 Ohm) + RQOD; tFALL = 2.2 * (RDIS || RL) * CL), p.5 (RPD,QOD 24 Ohm), p.6 (tFALL 0.4 ms with 10 uF)
+       - U8 QOD through R118 1k to VOUT: RDIS = 1.024k (p.13 eq.1)
+       - tFALL ~ 2.2 x 1.024k x 17.2uF = 38.75 ms without load (p.13 eq.2); peak discharge current 5 mA
+[PASS] J01  PJ-320D-4A contacts (from the drawing) wired as a CTIA headset jack: tip = left, ring 1 = right, ring 2 = ground, sleeve = microphone
+       source: PJ-320D-4A_C95562.pdf p.1 / PJ-320D-4A_C95562-p1.png (PJ-320D-A schematic: pin 1 = the long contact reaching the jack opening = sleeve; pins 4 / 3 / 2 = contacts at 3.20 / 6.20 / 10.20 mm from the front face = ring 2 / ring 1 / tip; pad 1 at 11.30 mm on the other side; 0.5 A 30 V); KiCad footprint Jack_3.5mm_KoreanHropartsElec_PJ-320D-4A_Horizontal: pads R2 / R1 / T / S sit on the drawing's pads 4 / 3 / 2 / 1; CTIA headset plug (tip L, ring 1 R, ring 2 GND, sleeve MIC) - convention, not in the datasheet set; TPA6132A2_C69901.pdf p.3 / p.18 10.3
+       - J3 (PJ-320D-4A): ring1(right) -> HP_R, ring2(ground) -> GND, sleeve(mic) -> MIC, tip(left) -> HP_L
+       - tip <- U7 OUTL via ['L103']
+       - ring1 <- U7 OUTR via ['L104']
+       - ring 2 on GND (= TPA6132A2 SGND net, checked in A11)
+       - sleeve -> ['R116', 'C129'] -> CM108B MICIN (bias and coupling checked in A06)
+       - rating 0.5 A / 30 V DC (drawing): far above headphone currents
+[PASS] D01  LEDs: polarity, series resistor, current within LED / driver limits
+       source: C2286.pdf (KT-0603R) p.3 (IF max 25 mA, VF 1.8-2.4 V at 20 mA, VR 5 V), p.4 (VF bins 1.9-2.0 V)
+       - D102 (LED white): anode(2) VBUS -> [supply] ; cathode(1) LED_CHG_K -> [stat via 1k]
+       -   I ~ 1.8 mA (5.0 V - Vf 2.85 V - 0.4 V MCP73831 STAT low) / 1k ; LED IF max 30 mA
+       -   charge indicator on the MCP73831 status pin (MCP73831_C424093.pdf p.15 5.2.1 Table 5-1; see C04)
+       - D103 (LED red): anode(2) LED_RED -> [gpio] ; cathode(1) LED_RED_K -> [gnd via 1k]
+       -   I ~ 1.3 mA (3.3 V - Vf 2.00 V) / 1k ; LED IF max 25 mA
+       -   above the guaranteed standard-drive minimum (1 mA): the LED may be slightly dimmer than computed unless the pin is configured high-drive (H0H1)
+       -   active-high LED on module pin 40 P1.04
+[WARN] R01  reset push button between RESET and GND, unused pads open
+       source: C318884.pdf (TS-1187A) p.1 (circuit diagram: A-B and C-D joined internally, contact between the two pairs; 50 mA 12 VDC)
+       - SW102 (reset): {'1': 'RESET', '2': '<unconnected>', '3': '<unconnected>', '4': 'GND'}
+       - datasheet: pads A-B and C-D are joined internally; it only shows letters, so the footprint's 1-4 numbering cannot be verified here - on the bare board measure that pad 1 to pad 4 is OPEN when not pressed (if they are an internal pair the MCU is held in reset)
+       - contact rating 50 mA / 12 V: fine for a logic input; no debouncing needed (reset)
+[PASS] T01  test points sit on real nets
+       source: netlist structure (no datasheet needed)
+       - TP1 (SWDIO) -> SWDIO
+       - TP2 (SWCLK) -> SWCLK
+       - TP3 (3V3) -> 3V3[=VDD]
+       - TP4 (GND) -> GND
+       - TP5 (RESET) -> RESET
+       - TP6 (VBUS) -> VBUS
+       - TP7 (VBAT) -> VBAT
+       - TP8 (VIN) -> VIN
+[PASS] N01  no floating passive / IC pin; single-pin nets only on NC or spare pins; no self-shorted part
+       source: netlist structure (no datasheet needed)
+       - U1.1 (module P1.11) unconnected - allowed
+       - U1.2 (module P1.10) unconnected - allowed
+       - U1.25 (module DCCH) unconnected - allowed
+       - U1.41 (module P0.09/NFC1) unconnected - allowed
+       - U1.42 (module P1.06) unconnected - allowed
+       - U1.43 (module P0.10/NFC2) unconnected - allowed
+       - J1.A8 (usbc SBU1) unconnected - allowed
+       - J1.B8 (usbc SBU2) unconnected - allowed
+       - J2.MP (conn MP) unconnected - allowed
+       - SW101.3 (slide C) unconnected - allowed
+       - U3.4 (ldo NC) unconnected - allowed
+       - SW102.2 (tact 2) unconnected - allowed
+       - SW102.3 (tact 3) unconnected - allowed
+       - U5.3 (hub DM4) unconnected - allowed
+       - U5.4 (hub DP4) unconnected - allowed
+       - U5.9 (hub DM1) unconnected - allowed
+       - U5.10 (hub DP1) unconnected - allowed
+       - U5.13 (hub RESET#/CDP) unconnected - allowed
+       - U5.14 (hub PGANG) unconnected - allowed
+       - U6.1 (codec SPDIFO) unconnected - allowed
+       - U6.2 (codec DR) unconnected - allowed
+       - U6.3 (codec DW) unconnected - allowed
+       - U6.4 (codec SK) unconnected - allowed
+       - U6.5 (codec CS) unconnected - allowed
+       - U6.6 (codec MUTER) unconnected - allowed
+       - U6.11 (codec NC) unconnected - allowed
+       - U6.12 (codec LEDO) unconnected - allowed
+       - U6.13 (codec GPIO3) unconnected - allowed
+       - U6.15 (codec GPIO4) unconnected - allowed
+       - U6.16 (codec SDIN) unconnected - allowed
+       - U6.17 (codec ADSCLK) unconnected - allowed
+       - U6.18 (codec MUTEP) unconnected - allowed
+       - U6.19 (codec ADLRCK) unconnected - allowed
+       - U6.20 (codec ADMCLK) unconnected - allowed
+       - U6.21 (codec LEDR) unconnected - allowed
+       - U6.28 (codec NC) unconnected - allowed
+       - U6.39 (codec VOLUP) unconnected - allowed
+       - U6.40 (codec PDSW) unconnected - allowed
+       - U6.43 (codec GPIO1) unconnected - allowed
+       - U6.44 (codec SDOUT) unconnected - allowed
+       - U6.45 (codec DAMCLK) unconnected - allowed
+       - U6.46 (codec DALRCK) unconnected - allowed
+       - U6.47 (codec DASCLK) unconnected - allowed
+       - U6.48 (codec VOLDN) unconnected - allowed
+       - U8.4 (loadsw NC) unconnected - allowed
+[PASS] K01  key matrix cells: pin1 on COL, pin2 on a private net with one diode anode, cathode on ROW
+       source: C81598.pdf (1N4148W) p.1 (PINNING: 1 cathode, 2 anode; VR 75 V, IF(AV) 150 mA, VF <= 0.715 V at 1 mA)
+       - 57 switch cells analysed (57 keys, 0 encoder pushes): col -> switch -> 1N4148W anode, cathode -> row
+       - every cell well formed; diode reverse rating 75 V / 150 mA far above matrix levels
+[PASS] K02  row/column nets pure (one module pin each), no duplicate cell, metadata agrees
+       source: C81598.pdf (1N4148W) p.1 (PINNING: 1 cathode, 2 anode; VR 75 V, IF(AV) 150 mA, VF <= 0.715 V at 1 mA)
+       - 4 rows x 17 columns, 57 cells occupied, rows ['P0.29', 'P1.09', 'P0.30', 'P0.05'], cols ['P1.00', 'P0.24', 'P0.22', 'P0.13', 'P0.20', 'P0.17', 'P0.15', 'P0.07', 'P0.12', 'P0.04', 'P0.08', 'P0.26', 'P0.02', 'P1.13', 'P0.28', 'P0.03', 'P0.06']
+       - gpio metadata (21 entries) agrees with the netlist
+[SKIP] K03  rotary encoders
+       source: C470754.pdf (Alps EC11) p.1 (rating 10 mA 5 V DC; A/B two-phase output), p.3 (terminals A C B, C common; separate push-switch terminals)
+       - no encoders in this netlist
+[PASS] B01  bluemicro_nrf52840 bootloader pin usage (LEDs, DFU button)
+       source: reference/bluemicro_nrf52840_board.h (LED_PRIMARY_PIN P1.04, LED_SECONDARY_PIN P1.10, LED_STATE_ON 1, BUTTON_DFU P0.18 = RESET, BUTTON_DFU_OTA P1.01 not on the module)
+       - LED_PRIMARY_PIN P1.04 (pin 40): D103 anode on it -> active-high, matches LED_STATE_ON 1
+       - BUTTON_DFU = P0.18 = RESET: DFU entered by double reset through the button
+       - BUTTON_DFU_OTA P1.01 is not bonded out on the E73 - nothing to wire
+----------------------------------------------------------------------------------------------------
+SUMMARY: 51 PASS, 0 FAIL, 4 WARN, 1 SKIP
+WARN:
+  M03 E73 VBUS pin on the USB-C VBUS (5 V) net
+  A06 CM108B microphone: MICIN AC-coupled from the mic contact, VBIAS through resistors, bias current
+  A14 TPA6132A2 EN/G0/G1: defined levels (VIH >= 1.3 V, VIL <= 0.6 V, <= VDD + 0.3 V), gain per jumper state, EN delayed after the audio supply and dropped before it
+  R01 reset push button between RESET and GND, unused pads open
+
