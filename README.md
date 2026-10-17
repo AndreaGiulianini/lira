@@ -111,3 +111,12 @@ make pcb            # or a single step: see source/README.md
 ```
 
 Technical details in [`source/README.md`](source/README.md).
+
+## License
+
+[MIT](LICENSE) — that covers everything in this repository that I made.
+
+Bundled third-party parts keep their own terms and are **not** relicensed by the above: `source/tools/KeyV2`
+(GPL-3.0, a git submodule), the kiswitch footprints and 3D models under `source/lib/` (CC BY-SA 4.0), and the
+vendor symbols/models (KiCad, LCSC). The [Lyra](https://github.com/PiKeeb/lyra-keyboard) and the KBDfans Agar Mini
+are cited as inspiration only — no files from either are included here.
