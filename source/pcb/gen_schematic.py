@@ -23,6 +23,7 @@ import layout as L  # noqa: E402
 from paths import BUILD  # noqa: E402
 
 G = 1.27  # schematic grid (mm)
+REVISION = "B"  # the board revision, in the title block (and on the PCB's silkscreen, pcb/electronics.py)
 FONT = "(effects (font (size 1.27 1.27)))"
 
 
@@ -85,6 +86,11 @@ def tps22919_symbol():
                       [(6, "VOUT", "power_out"), (5, "QOD", "passive"), (4, "NC", "no_connect")], width=15.24)
 
 
+def tps7a02_symbol():
+    return box_symbol("TPS7A02", [(1, "IN", "power_in"), (3, "EN", "input"), (2, "GND", "power_in")],
+                      [(5, "OUT", "power_out"), (4, "NC", "no_connect")], width=12.7)
+
+
 def tpa6132a2_symbol():
     left = [(14, "VDD", "power_in"), (13, "EN", "input"), (6, "G0", "input"), (7, "G1", "input"), (1, "INL-", "input"),
             (2, "INL+", "input"), (3, "INR+", "input"), (4, "INR-", "input"), (10, "PGND", "power_in"),
@@ -100,7 +106,7 @@ def sw_push_4_symbol():
 
 
 def ch334p_symbol():
-    left = [(15, "V5", "power_in"), (16, "VDD33", "power_out"), (2, "XI", "input"), (1, "XO", "output"),
+    left = [(15, "V5", "power_in"), (16, "VDD33", "power_in"), (2, "XI", "input"), (1, "XO", "output"),
             (13, "RESET#/CDP", "input"), (14, "PGANG", "bidirectional"), (17, "GND", "power_in")]
     right = [(12, "DPU", "bidirectional"), (11, "DMU", "bidirectional"), (10, "DP1", "bidirectional"),
              (9, "DM1", "bidirectional"), (8, "DP2", "bidirectional"), (7, "DM2", "bidirectional"),
@@ -128,8 +134,29 @@ def cm108b_symbol():
 
 
 CUSTOM = {"lira:E73": e73_symbol, "lira:MCP73831": mcp73831_symbol, "lira:SW_PUSH_4": sw_push_4_symbol,
-          "lira:TPS22919": tps22919_symbol, "lira:TPA6132A2": tpa6132a2_symbol,
+          "lira:TPS22919": tps22919_symbol, "lira:TPA6132A2": tpa6132a2_symbol, "lira:TPS7A02": tps7a02_symbol,
           "lira:CH334P": ch334p_symbol, "lira:CM108B": cm108b_symbol}
+
+
+def sexpr_end(text, start):
+    """Index just past the S-expression that opens at text[start]."""
+    depth, i, quoted = 0, start, False
+    while True:
+        c = text[i]
+        if quoted:
+            if c == "\\":
+                i += 1
+            elif c == '"':
+                quoted = False
+        elif c == '"':
+            quoted = True
+        elif c == "(":
+            depth += 1
+        elif c == ")":
+            depth -= 1
+            if depth == 0:
+                return i + 1
+        i += 1
 
 
 def library_symbol(spec):
@@ -141,10 +168,19 @@ def library_symbol(spec):
     if m:
         parent = m.group(1)
         pblock = kicad_sym.symbol_text(lib, parent)
-        # the derived symbol only redefines properties: take the parent's drawing with the derived properties
-        props = dict(re.findall(r'\(property "(Value|Datasheet|Description|ki_keywords)" "((?:[^"\\]|\\.)*)"', block))
+        # the derived symbol only redefines properties: take the parent's drawing with every property the derived
+        # one sets (value, footprint, datasheet, description, keywords, footprint filters), so that the embedded copy
+        # matches the library's (ERC: lib_symbol_mismatch)
+        props = dict(re.findall(r'\(property "([^"]+)" "((?:[^"\\]|\\.)*)"', block))
         for k, v in props.items():
-            pblock = re.sub(r'\(property "%s" "(?:[^"\\]|\\.)*"' % k, '(property "%s" "%s"' % (k, v.replace("\\", "\\\\")), pblock, count=1)
+            if '(property "%s" ' % k in pblock:
+                pblock = re.sub(r'\(property "%s" "(?:[^"\\]|\\.)*"' % re.escape(k),
+                                lambda _m: '(property "%s" "%s"' % (k, v), pblock, count=1)
+            else:  # a property only the derived symbol has (ki_fp_filters): copied whole after the parent's last one
+                at = pblock.rindex("(property ")
+                end = sexpr_end(pblock, at)
+                pblock = pblock[:end] + " " + block[block.index('(property "%s" ' % k):sexpr_end(block, block.index(
+                    '(property "%s" ' % k))] + pblock[end:]
         block = pblock.replace('(symbol "%s_' % parent, '(symbol "%s_' % name)
         block = block.replace('(symbol "%s"' % parent, '(symbol "%s"' % name, 1)
     pins = {num: (x, y, angle) for num, _, _, x, y, angle in kicad_sym.pins(block)}
@@ -160,6 +196,7 @@ class Sheet:
         self.root = uid()
         self.libs = {}  # symbol spec -> (text, pins)
         self.items = []
+        self.dy = 0  # added to every y from then on (room for the list of differences above the circuit)
 
     def symbol(self, spec):
         if spec not in self.libs:
@@ -173,6 +210,7 @@ class Sheet:
 
     def text(self, s, x, y, size=1.27, bold=False):
         s = s.replace("\\", "\\\\").replace('"', '\\"')
+        y += self.dy
         self.items.append('(text "%s" (exclude_from_sim no) (at %g %g 0) (effects (font (size %g %g)%s) '
                           '(justify left bottom)) (uuid "%s"))' % (s, x, y, size, size, " (bold yes)" if bold else "", uid()))
 
@@ -207,7 +245,7 @@ class Sheet:
         """Symbol instance of a circuit.Part at (x, y) (rotation 0) with a label or no-connect on every pin."""
         self.placed = getattr(self, "placed", set()) | {part.ref}
         text, pins = self.symbol(part.symbol)
-        x, y = snap(x), snap(y)
+        x, y = snap(x), snap(y + self.dy)
         # reference above the symbol, value below it (the pins' extent approximates the body)
         top = y - max(py for _, py, _ in pins.values()) - 1.5
         bottom = y - min(py for _, py, _ in pins.values()) + 3.0
@@ -239,7 +277,7 @@ class Sheet:
 
     def power_flag(self, net, x, y):
         text, pins = self.symbol("power:PWR_FLAG")
-        x, y = snap(x), snap(y)
+        x, y = snap(x), snap(y + self.dy)
         self.flags = getattr(self, "flags", 0) + 1
         n = self.flags
         self.items.append(
@@ -254,12 +292,12 @@ class Sheet:
             % (x, y, uid(), n, x, y - 5, x, y - 7.5, uid(), self.root, n))
         self.lead(net, x, y, 90)
 
-    def write(self, path, paper="A2"):
+    def write(self, path, paper="A1"):
         libs = "\n".join(t for t, _ in self.libs.values())
         out = ['(kicad_sch', '  (version 20250114)', '  (generator "eeschema")', '  (generator_version "9.0")',
                '  (uuid "%s")' % self.root, '  (paper "%s")' % paper,
                '  (title_block (title "%s") (date "%s") (rev "%s") (company "generated by source/pcb/gen_schematic.py"))'
-               % (self.title, datetime.date.today().isoformat(), "A"),
+               % (self.title, datetime.date.today().isoformat(), REVISION),
                '  (lib_symbols', libs, '  )'] + self.items + [
                '  (sheet_instances (path "/" (page "1")))', '  (embedded_fonts no)', ')']
         path.write_text("\n".join(out), encoding="utf-8")
@@ -278,6 +316,8 @@ def build():
             "module, assembled by JLCPCB and sold. Differences from it:", 20, 23)
     for i, d in enumerate(circuit.DEVIATIONS):
         sh.text("%d. %s" % (i + 1, d), 22, 27 + 3.2 * i)
+    # everything below starts 6 mm under the last difference (the layout was drawn for a list ending at y 56)
+    sh.dy = max(0.0, snap(27 + 3.2 * (len(circuit.DEVIATIONS) - 1) + 6 - 62))
 
     def block(title, x, y):
         sh.text(title, x, y, 1.778, True)
@@ -289,8 +329,10 @@ def build():
     sh.place(parts["R109"], 97, 80)
     sh.place(parts["R101"], 112, 80)
     sh.place(parts["U4"], 92, 108)
-    sh.place(parts["C107"], 112, 110)
-    sh.text("C107: VBUS bypass (deviation 10)", 100, 125)
+    sh.place(parts["R126"], 112, 110)
+    sh.place(parts["C107"], 121, 110)
+    sh.place(parts["D108"], 72, 122)
+    sh.text("C107: VBUS bypass (deviation 10), damped by R126 (deviation 17)", 100, 125)
     sh.text("R101: VBUS bleeder (BlueMicro840 R3)", 100, 92)
     # --- power path, charger, battery
     block("Power path: USB through the Schottky, battery through the P-MOSFET (off while VBUS is present)", 130, 62)
@@ -310,9 +352,10 @@ def build():
     sh.place(parts["R102"], 255, 110)
     sh.place(parts["TP6"], 268, 107)
     block("Battery: JST-PH, power switch (JP2 bypasses it), divider 10M / 10M + 10nF into P0.31 (BlueMicro840 R4 R6 C6: 806k / 2M + 1nF)", 130, 128)
-    sh.place(parts["J2"], 145, 140)
-    sh.place(parts["SW101"], 172, 140)
-    sh.place(parts["JP2"], 197, 140)
+    sh.place(parts["J2"], 136, 140)
+    sh.place(parts["Q2"], 162, 140)
+    sh.place(parts["SW101"], 184, 140)
+    sh.place(parts["JP2"], 203, 140)
     sh.place(parts["R105"], 220, 140)
     sh.place(parts["R106"], 235, 140)
     sh.place(parts["C104"], 250, 140)
@@ -343,10 +386,12 @@ def build():
     # --- USB hub (left, under the USB block) and sound card (right of the module)
     block("USB hub CH334P (datasheet V2.91)", 20, 135)
     sh.text("upstream from the receptacle, port 3 -> module, port 2 -> codec", 20, 139)
+    sh.text("V5 = VDD33 = 3.3 V from U9, only with VBUS (datasheet 6.4)", 20, 143)
     sh.place(parts["U5"], 50, 172)
     sh.place(parts["Y2"], 100, 150)
     for i, ref in enumerate(("C110", "C111", "C112")):
         sh.place(parts[ref], 85 + 15 * i, 178)
+    sh.place(parts["U9"], 104, 192)
     sh.text("12 MHz crystal without load capacitors (inside the CH334)", 20, 200)
     sh.text("RESET#, PGANG and ports 1 / 4 left open", 20, 204)
     block("Sound card CM108B (C-Media demo board v1.33 sheet 4, app notes v1.50); headset jack, CTIA", 440, 72)
@@ -366,12 +411,14 @@ def build():
     for i, ref in enumerate(("C130", "R117", "R118", "C113", "C114")):
         sh.place(parts[ref], 75 + 15 * i, y1 + 30)
     sh.place(parts["U7"], 175, y1 + 40)
-    amp = ("C123", "C126", "C133", "C134", "C135", "C136", "R112", "R113", "C137", "C124", "L103", "L104", "C125")
+    amp = ("C123", "C126", "C133", "C134", "C135", "C136", "R112", "R113", "C137", "R124", "R125", "C124", "L103",
+           "L104", "C125")
     for i, ref in enumerate(amp):
         col, row = divmod(i, 4)
         sh.place(parts[ref], 225 + 16 * col, y1 + 15 + 17 * row)
     sh.place(parts["JP3"], 305, y1 + 20)  # horizontal symbols, with room for their labels on both sides
     sh.place(parts["D104"], 305, y1 + 45)
+    sh.place(parts["Q3"], 305, y1 + 62)
     sh.place(parts["J3"], 345, y1 + 30)
     for i, ref in enumerate(("D105", "D106", "D107")):
         sh.place(parts[ref], 390, y1 + 20 + 10 * i)

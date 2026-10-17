@@ -22,7 +22,7 @@ make renders                  # Blender Cycles renders of the keyboard + KiCad p
 make review                   # images + files + posts for a human design review (../production/review/, local: not in git)
 make publish                  # copies the finished files into ../production/ and writes its README
 make sanitize                 # pins the build timestamps for reproducible output
-make commit m="..."           # commits with a fixed date (deterministic history)
+make commit m="..."           # commits everything (real date)
 ```
 
 Intermediate files live in `build/`; the finished ones are copied into `../production/`

@@ -75,8 +75,12 @@ def positions(top):
         # supply capacitors above it; ports 2 and 3 (front side) go down to the channel along the keys, port 3 to
         # the module, port 2 to the codec
         "U5": (X_USB + 6.5, top + 17.5, 180), "Y2": (X_USB + 10.55, top + 17.6, 90),
-        "C110": (X_USB + 6.9, top + 13.8, 90), "C112": (X_USB + 8.6, top + 13.8, 90),
-        "C111": (X_USB + 10.3, top + 13.8, 90),
+        "C112": (X_USB + 8.6, top + 13.8, 90), "C111": (X_USB + 10.3, top + 13.8, 90),
+        # the hub's 3.3 V regulator (VBUS in on its left, out towards C111 / C112), between the receptacle and the
+        # hub's capacitors; C110, its input capacitor, just behind it
+        "U9": (X_USB + 10.0, top + 9.6, 0), "C110": (X_USB + 9.8, top + 6.0, 0),
+        # VBUS TVS left of the receptacle, between it and the status LED
+        "D108": (X_USB - 6.8, top + 4.0, 90),
         # power switch on the back edge (actuator protrudes 2 mm), bypass jumper behind it, charging / status LEDs
         "SW101": (X_SW, top + 1.8, 0), "JP2": (X_SW - 4.5, top + 8.5, 90),
         "D102": (97.0, top + 2.0, 90), "R102": (97.0, top + 5.2, 90),
@@ -84,6 +88,7 @@ def positions(top):
         # power path and charger, its input (VBUS) and output (VBAT) capacitors next to its pins
         "D101": (X_SW, top + 9.5, 0), "Q1": (X_SW, top + 13.5, 0),
         "U2": (95.0, top + 12.0, 0), "C101": (91.6, top + 11.5, 270), "C107": (98.4, top + 11.5, 270),
+        "R126": (100.45, top + 11.5, 90),  # C107's damping resistor, right of it (its damped end next to C107)
         "R103": (91.5, top + 15.8, 0), "JP1": (95.0, top + 15.8, 0), "R104": (98.5, top + 15.8, 0),
         # 3.3 V regulator with its input and output capacitors next to its pins
         "U3": (103.0, top + 19.0, 0), "C102": (99.6, top + 19.0, 90), "C108": (106.4, top + 19.0, 90),
@@ -91,6 +96,8 @@ def positions(top):
         "C103": (m - 4.2, top + 20.4, 180), "C109": (m - 1.1, top + 20.4, 180),
         # battery connector on the left (the cell sits under the numpad), plug towards the back
         "J2": (65.0, top + 6.0, 180),
+        # reverse-battery P-MOSFET right of the connector's + pin
+        "Q2": (72.5, top + 4.5, 0),
     }
     pos.update(audio_positions(top))
     return pos
@@ -124,8 +131,12 @@ def audio_positions(top):
         "U7": (m, top + 10.0, 0),
         "JP3": (m - 1.4, top + 5.6, 0), "R112": (m + 1.8, top + 5.6, 270), "C135": (m + 4.0, top + 6.6, 90),
         "C136": (m + 3.4, top + 9.9, 90), "C134": (m + 3.4, top + 13.2, 270), "C133": (m, top + 14.6, 270),
-        # amplifier enable: 1M + 470 nF delay from P1.02, Schottky to switch it off at once
-        "C137": (m + 2.2, top + 16.4, 270), "R113": (m + 4.6, top + 16.4, 90), "D104": (m + 4.0, top + 20.2, 0),
+        # amplifier enable: 1M + 100 nF delay from P1.02, Schottky to switch it off at once, 33k into the EN pin;
+        # the codec's PDSW (suspend) holds it low through Q3, with its pull-up R125, right of the amplifier
+        "R124": (m + 1.7, top + 14.0, 90), "C137": (m + 2.2, top + 17.3, 270), "R113": (m + 4.6, top + 16.4, 90),
+        "D104": (m + 4.0, top + 20.2, 0),
+        # (behind the amplifier, by the back edge: in front of it run the two headphone lines to their ferrites)
+        "Q3": (m + 8.6, top + 2.05, 0), "R125": (m + 12.0, top + 2.3, 90),
         # supply switch (VBUS -> AUD_5V) with its input capacitor and pull-down, AUD_5V bulk
         "U8": (c + 12.6, top + 17.6, 0), "C130": (c + 12.6, top + 20.4, 270), "R117": (c + 14.8, top + 20.8, 90),
         "R118": (c + 14.86, top + 17.6, 90), "C113": (m, top + 18.8, 90), "C114": (c + 14.4, top + 14.4, 90),
@@ -182,6 +193,10 @@ def add_electronics(B, left, top, right, keys_top):
     # has its own via
     hx, hy = pad_xy(placed["U5"], 17)
     via(B, "GND", hx, hy)
+    paste_frame(placed["U5"], ep_half=0.9, inner=0.42, gap=0.1)
+    # the charger's ground pin carries the charge current: a short track outwards to a via into the top plane
+    gx, gy = pad_xy(placed["U2"], 2)
+    stub(B, "GND", gx, gy, gx + math.copysign(1.15, gx - pad_centre(placed["U2"])[0]), gy, width=0.3)
     for ref in ("C110", "C111", "C112"):
         gnd_via(B, placed[ref])
     x0, y0, x1, y1 = HUB_KEEPOUT
@@ -196,16 +211,16 @@ def add_electronics(B, left, top, right, keys_top):
             stub(B, "GND", x, y, cx + math.copysign(CODEC_VIA, x - cx), y)
         else:
             stub(B, "GND", x, y, x, cy + math.copysign(CODEC_VIA, y - cy))
-    # the amplifier's ground pins (IN+ of both channels, G1, PGND, SGND) to its exposed pad, which takes a via at its
-    # centre; G1 and SGND also get a via of their own just outside the package (ground that does not depend on the
-    # pad's solder joint); the top ground plane stays whole over the amplifier and its capacitors (keep-out)
+    # the amplifier's ground pins (IN+ of both channels, G1, PGND, SGND) to its exposed pad; G1 and SGND also get a
+    # via of their own just outside the package, which ties the pad to the top ground plane: no via in the pad
+    # itself (an open via there drains solder from the joint); the top ground plane stays whole over the amplifier
+    # and its capacitors (keep-out)
     u7 = placed["U7"]
     ax, ay = pad_centre(u7)
     for pin in (2, 3, 7, 10, 15):
         x, y = pad_xy(u7, pin)
         k = 0.55 / max(abs(x - ax), abs(y - ay))  # end 0.55 mm from the centre: well inside the 1.68 mm pad
         track(B, "GND", x, y, ax + (x - ax) * k, ay + (y - ay) * k, width=0.2)  # 0.2 mm: 0.5 mm pin pitch
-    via(B, "GND", ax, ay)
     for pin in (7, 15):
         x, y = pad_xy(u7, pin)
         out = math.copysign(1.15, y - ay)
@@ -283,16 +298,23 @@ def usb_pair(B, placed):
                                ((x_side, y_link), (x_side, uy)), ((x_side, uy), (ux - 0.2, uy))):
         track(B, "VBUS", x0, y0, x1, y1, width=0.4, locked=True, layer="F")
     via(B, "VBUS", x_side, uy)  # where the charger's VBUS joins, on the bottom layer
-    # the hub's V5 (pin 15) through its 1 uF: no top-layer track may cross the hub (keep-out in add_electronics), so
-    # the feed runs on the bottom layer to a via just outside that area, then on the top layer to the A9 via
-    v15, c110 = pad_xy(u5, 15), pad_xy(placed["C110"], 1)
-    hx, hy = pad_xy(u5, 17)
-    x_feed, y_feed = c110[0] + 0.85, hy + HUB_KEEPOUT[1] - 0.5  # down between C110 and C112, out of the keep-out
-    path(B, "VBUS", [v15, (v15[0], c110[1])], width=0.3)  # (between the hub's pins 14 and 16)
-    path(B, "VBUS", [(v15[0], c110[1]), (x_feed, c110[1]), (x_feed, y_feed)], width=0.4)
-    via(B, "VBUS", x_feed, y_feed)
-    x_turn = x_feed - (y_feed - y_link)  # 45 degrees up to the link's height
-    for (x0, y0), (x1, y1) in (((x_feed, y_feed), (x_turn, y_link)), ((x_turn, y_link), (vb[0], y_link))):
+    # the hub's V5 (pin 15) and VDD33 (pin 16), side by side, both on the 3.3 V of U9 (CH334 datasheet 6.4): joined
+    # just outside the pins, and on to C112 / C111 by the autorouter
+    v15, v16 = pad_xy(u5, 15), pad_xy(u5, 16)
+    out = -0.55 if v15[1] < pad_xy(u5, 17)[1] else 0.55  # away from the exposed pad
+    path(B, "HUB_3V3", [v15, (v15[0], v15[1] + out), (v16[0], v16[1] + out), v16], width=0.25)
+    # that regulator's IN and EN (pins 1 and 3, either side of its ground pin) from VBUS: joined on the bottom layer
+    # beside the pins, a via level with pin 2, then the top layer up to the link and on to the A9 via (left to
+    # itself, the autorouter takes the bottom layer between the receptacle and the regulator and shuts CC2 in)
+    u9 = placed["U9"]
+    p1, p2, p3 = pad_xy(u9, 1), pad_xy(u9, 2), pad_xy(u9, 3)
+    x_j = p1[0] + (1.25 if p1[0] > pad_centre(u9)[0] else -1.25)  # just outside the 1.3 mm long pads
+    path(B, "VBUS", [p1, (x_j, p1[1]), (x_j, p2[1]), (x_j, p3[1]), p3], width=0.3)
+    via(B, "VBUS", x_j, p2[1])
+    c1 = pad_xy(placed["C110"], 1)  # the input capacitor, straight behind pin 3
+    path(B, "VBUS", [c1, (c1[0], p3[1]), p3], width=0.3)
+    x_up = x_j - abs(p2[1] - y_link)  # 45 degrees up to the link's height
+    for (x0, y0), (x1, y1) in (((x_j, p2[1]), (x_up, y_link)), ((x_up, y_link), (vb[0], y_link))):
         track(B, "VBUS", x0, y0, x1, y1, width=0.4, locked=True, layer="F")
     # to the hub: D+ outside (right), D- inside, 0.5 mm apart; D+ with a 2.5 mm detour for the length
     x_dp, x_dn = dp1[0] + 2.21, dp1[0] + 1.71
@@ -382,6 +404,30 @@ def escape_inner_pads(B, u1):
         else:  # inner row at the front end: escape lengthwise, into the module body
             dx, dy = 0.0, (1.0 if cy > y else -1.0)
         stub(B, pad.GetNetname(), x, y, x + dx * reach, y + dy * reach)
+
+
+def paste_frame(fp, ep_half, inner, gap):
+    """Replace an exposed pad's paste windows by four strips framing its centre via: nothing printed within `inner`
+    of the centre (the via's 0.6 mm ring ends at 0.3), `gap` between the strips, coverage about 60 %."""
+    import pcbnew
+    layer = pcbnew.B_Paste if fp.IsFlipped() else pcbnew.F_Paste
+    for p in [p for p in fp.Pads() if not p.GetNumber() and p.IsOnLayer(layer)]:
+        fp.Remove(p)
+    e = ep_half - 0.05  # 0.05 mm inside the pad's edge
+    side = inner - gap  # the top and bottom strips stop `gap` short of the side strips
+    cx, cy = pcbnew_mm(fp.GetPosition().x), pcbnew_mm(fp.GetPosition().y)
+    pad17 = [p for p in fp.Pads() if p.GetNumber() == str(max(int(q.GetNumber()) for q in fp.Pads() if q.GetNumber()))][0]
+    ex, ey = pcbnew_mm(pad17.GetPosition().x), pcbnew_mm(pad17.GetPosition().y)
+    for x0, y0, x1, y1 in ((inner, -e, e, e), (-e, -e, -inner, e), (-side, inner, side, e), (-side, -e, side, -inner)):
+        p = pcbnew.PAD(fp)
+        p.SetAttribute(pcbnew.PAD_ATTRIB_SMD)
+        p.SetShape(pcbnew.PAD_SHAPE_RECT)
+        ls = pcbnew.LSET()
+        ls.AddLayer(layer)
+        p.SetLayerSet(ls)
+        p.SetSize(pcbnew.VECTOR2I(pcbnew.FromMM(x1 - x0), pcbnew.FromMM(y1 - y0)))
+        p.SetPosition(pcbnew.VECTOR2I(pcbnew.FromMM(ex + (x0 + x1) / 2), pcbnew.FromMM(ey + (y0 + y1) / 2)))
+        fp.Add(p)
 
 
 def gnd_via(B, fp, reach=0.95):
@@ -516,4 +562,4 @@ def labels(B, placed, top):
     for num, text in (("1", "+"), ("2", "-")):
         p = j2.FindPadByNumber(num).GetPosition()
         label(B, text, pcbnew.ToMM(p.x), pcbnew.ToMM(p.y) + 3.0, 1.2)
-    label(B, "LIRA  rev A", 168.0, top + 4.0, 1.5)
+    label(B, "LIRA  rev B", 168.0, top + 4.0, 1.5)

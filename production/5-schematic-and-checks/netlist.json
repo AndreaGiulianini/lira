@@ -347,7 +347,24 @@
    "footprint": "Capacitor_SMD:C_0603_1608Metric",
    "lcsc": "C19666",
    "dnp": false,
-   "note": "VBUS bypass for the charger and the module (deviation 10)",
+   "note": "VBUS bypass for the charger and the module (deviation 10), through R126",
+   "pins": {
+    "1": {
+     "name": "1",
+     "net": "VBUS_DAMP"
+    },
+    "2": {
+     "name": "2",
+     "net": "GND"
+    }
+   }
+  },
+  "R126": {
+   "value": "1",
+   "footprint": "Resistor_SMD:R_0603_1608Metric",
+   "lcsc": "C22936",
+   "dnp": false,
+   "note": "damps the hot-plug ring of the cable's inductance",
    "pins": {
     "1": {
      "name": "1",
@@ -355,6 +372,23 @@
     },
     "2": {
      "name": "2",
+     "net": "VBUS_DAMP"
+    }
+   }
+  },
+  "D108": {
+   "value": "SMF5.0A",
+   "footprint": "Diode_SMD:D_SOD-123F",
+   "lcsc": "C193402",
+   "dnp": false,
+   "note": "5 V TVS on VBUS at the receptacle",
+   "pins": {
+    "1": {
+     "name": "K",
+     "net": "VBUS"
+    },
+    "2": {
+     "name": "A",
      "net": "GND"
     }
    }
@@ -554,7 +588,7 @@
    "pins": {
     "1": {
      "name": "+",
-     "net": "BAT+"
+     "net": "BAT_IN"
     },
     "2": {
      "name": "-",
@@ -563,6 +597,27 @@
     "MP": {
      "name": "MP",
      "net": null
+    }
+   }
+  },
+  "Q2": {
+   "value": "SI2301CDS",
+   "footprint": "Package_TO_SOT_SMD:SOT-23",
+   "lcsc": "C10487",
+   "dnp": false,
+   "note": "reverse-battery protection: drain to the connector, gate to GND; off for a reversed cell",
+   "pins": {
+    "1": {
+     "name": "G",
+     "net": "GND"
+    },
+    "2": {
+     "name": "S",
+     "net": "BAT+"
+    },
+    "3": {
+     "name": "D",
+     "net": "BAT_IN"
     }
    }
   },
@@ -656,14 +711,14 @@
    }
   },
   "U3": {
-   "value": "AP2112K-3.3",
+   "value": "TPS7A0233",
    "footprint": "Package_TO_SOT_SMD:SOT-23-5",
-   "lcsc": "C51118",
+   "lcsc": "C2887324",
    "dnp": false,
-   "note": "EN tied to VIN: always on",
+   "note": "EN tied to VIN: always on; 25 nA quiescent (deviation 16)",
    "pins": {
     "1": {
-     "name": "VIN",
+     "name": "IN",
      "net": "VIN"
     },
     "2": {
@@ -679,15 +734,15 @@
      "net": null
     },
     "5": {
-     "name": "VOUT",
+     "name": "OUT",
      "net": "3V3"
     }
    }
   },
   "C103": {
-   "value": "10uF",
+   "value": "4.7uF",
    "footprint": "Capacitor_SMD:C_0603_1608Metric",
-   "lcsc": "C19702",
+   "lcsc": "C19666",
    "dnp": false,
    "note": "at the module's VDD / VDDH pins",
    "pins": {
@@ -1014,7 +1069,7 @@
     },
     "15": {
      "name": "V5",
-     "net": "VBUS"
+     "net": "HUB_3V3"
     },
     "16": {
      "name": "VDD33",
@@ -1051,12 +1106,41 @@
     }
    }
   },
+  "U9": {
+   "value": "TPS7A0233",
+   "footprint": "Package_TO_SOT_SMD:SOT-23-5",
+   "lcsc": "C2887324",
+   "dnp": false,
+   "note": "the hub's 3.3 V, on only with VBUS (CH334 datasheet 6.4)",
+   "pins": {
+    "1": {
+     "name": "IN",
+     "net": "VBUS"
+    },
+    "2": {
+     "name": "GND",
+     "net": "GND"
+    },
+    "3": {
+     "name": "EN",
+     "net": "VBUS"
+    },
+    "4": {
+     "name": "NC",
+     "net": null
+    },
+    "5": {
+     "name": "OUT",
+     "net": "HUB_3V3"
+    }
+   }
+  },
   "C110": {
    "value": "1uF",
    "footprint": "Capacitor_SMD:C_0603_1608Metric",
    "lcsc": "C15849",
    "dnp": false,
-   "note": "hub V5 input",
+   "note": "hub regulator input",
    "pins": {
     "1": {
      "name": "1",
@@ -1073,7 +1157,7 @@
    "footprint": "Capacitor_SMD:C_0603_1608Metric",
    "lcsc": "C19702",
    "dnp": false,
-   "note": "hub VDD33 (internal regulator output)",
+   "note": "hub regulator output, V5 / VDD33",
    "pins": {
     "1": {
      "name": "1",
@@ -1090,7 +1174,7 @@
    "footprint": "Capacitor_SMD:C_0603_1608Metric",
    "lcsc": "C14663",
    "dnp": false,
-   "note": "hub VDD33",
+   "note": "hub V5 / VDD33",
    "pins": {
     "1": {
      "name": "1",
@@ -1267,7 +1351,7 @@
     },
     "40": {
      "name": "PDSW",
-     "net": null
+     "net": "CM_PDSW"
     },
     "41": {
      "name": "USBDP",
@@ -1784,7 +1868,7 @@
     },
     "13": {
      "name": "EN",
-     "net": "AMP_EN"
+     "net": "AMP_ENI"
     },
     "14": {
      "name": "VDD",
@@ -1945,7 +2029,7 @@
    "footprint": "Resistor_SMD:R_0603_1608Metric",
    "lcsc": "C22935",
    "dnp": false,
-   "note": "amplifier on about 0.25 s after the supply",
+   "note": "amplifier on about 50 ms after the supply",
    "pins": {
     "1": {
      "name": "1",
@@ -1958,9 +2042,9 @@
    }
   },
   "C137": {
-   "value": "470nF",
+   "value": "100nF",
    "footprint": "Capacitor_SMD:C_0603_1608Metric",
-   "lcsc": "C1623",
+   "lcsc": "C14663",
    "dnp": false,
    "note": "",
    "pins": {
@@ -1971,6 +2055,61 @@
     "2": {
      "name": "2",
      "net": "GND"
+    }
+   }
+  },
+  "R124": {
+   "value": "33k",
+   "footprint": "Resistor_SMD:R_0603_1608Metric",
+   "lcsc": "C4216",
+   "dnp": false,
+   "note": "limits the current into EN's clamp to VDD when the 5 V goes first (EN <= VDD + 0.3 V)",
+   "pins": {
+    "1": {
+     "name": "1",
+     "net": "AMP_EN"
+    },
+    "2": {
+     "name": "2",
+     "net": "AMP_ENI"
+    }
+   }
+  },
+  "Q3": {
+   "value": "2N7002",
+   "footprint": "Package_TO_SOT_SMD:SOT-23",
+   "lcsc": "C8545",
+   "dnp": false,
+   "note": "amplifier off while the codec is suspended (PDSW open)",
+   "pins": {
+    "1": {
+     "name": "G",
+     "net": "CM_PDSW"
+    },
+    "2": {
+     "name": "S",
+     "net": "GND"
+    },
+    "3": {
+     "name": "D",
+     "net": "AMP_EN"
+    }
+   }
+  },
+  "R125": {
+   "value": "100k",
+   "footprint": "Resistor_SMD:R_0603_1608Metric",
+   "lcsc": "C25803",
+   "dnp": false,
+   "note": "PDSW pull-up (open drain, 1.8-5 V)",
+   "pins": {
+    "1": {
+     "name": "1",
+     "net": "CM_PDSW"
+    },
+    "2": {
+     "name": "2",
+     "net": "AUD_5V"
     }
    }
   },
@@ -4237,7 +4376,21 @@
     "2"
    ],
    [
+    "Q3",
+    "3"
+   ],
+   [
     "R113",
+    "2"
+   ],
+   [
+    "R124",
+    "1"
+   ]
+  ],
+  "AMP_ENI": [
+   [
+    "R124",
     "2"
    ],
    [
@@ -4336,6 +4489,10 @@
    ],
    [
     "R118",
+    "2"
+   ],
+   [
+    "R125",
     "2"
    ],
    [
@@ -4445,16 +4602,26 @@
   ],
   "BAT+": [
    [
-    "J2",
-    "1"
-   ],
-   [
     "JP2",
     "1"
    ],
    [
+    "Q2",
+    "2"
+   ],
+   [
     "SW101",
     "1"
+   ]
+  ],
+  "BAT_IN": [
+   [
+    "J2",
+    "1"
+   ],
+   [
+    "Q2",
+    "3"
    ]
   ],
   "BAT_SENSE": [
@@ -4543,6 +4710,20 @@
    [
     "U6",
     "38"
+   ]
+  ],
+  "CM_PDSW": [
+   [
+    "Q3",
+    "1"
+   ],
+   [
+    "R125",
+    "1"
+   ],
+   [
+    "U6",
+    "40"
    ]
   ],
   "CM_PWRSEL": [
@@ -5059,6 +5240,10 @@
     "2"
    ],
    [
+    "D108",
+    "2"
+   ],
+   [
     "J1",
     "A1"
    ],
@@ -5088,6 +5273,14 @@
    ],
    [
     "JP3",
+    "2"
+   ],
+   [
+    "Q2",
+    "1"
+   ],
+   [
+    "Q3",
     "2"
    ],
    [
@@ -5215,6 +5408,10 @@
     "2"
    ],
    [
+    "U9",
+    "2"
+   ],
+   [
     "Y2",
     "2"
    ],
@@ -5290,7 +5487,15 @@
    ],
    [
     "U5",
+    "15"
+   ],
+   [
+    "U5",
     "16"
+   ],
+   [
+    "U9",
+    "5"
    ]
   ],
   "HUB_XI": [
@@ -6425,10 +6630,6 @@
   ],
   "VBUS": [
    [
-    "C107",
-    "1"
-   ],
-   [
     "C110",
     "1"
    ],
@@ -6443,6 +6644,10 @@
    [
     "D102",
     "2"
+   ],
+   [
+    "D108",
+    "1"
    ],
    [
     "J1",
@@ -6469,6 +6674,10 @@
     "1"
    ],
    [
+    "R126",
+    "1"
+   ],
+   [
     "TP6",
     "1"
    ],
@@ -6485,12 +6694,26 @@
     "5"
    ],
    [
-    "U5",
-    "15"
-   ],
-   [
     "U8",
     "1"
+   ],
+   [
+    "U9",
+    "1"
+   ],
+   [
+    "U9",
+    "3"
+   ]
+  ],
+  "VBUS_DAMP": [
+   [
+    "C107",
+    "1"
+   ],
+   [
+    "R126",
+    "2"
    ]
   ],
   "VIN": [
@@ -6612,7 +6835,7 @@
   "36": "COL0"
  },
  "deviations_from_bluemicro840": [
-  "Second AP2112K (switched 3.3 V for external devices, P0.12 enable) omitted: nothing external to power.",
+  "Second regulator (switched 3.3 V for external devices, P0.12 enable) omitted: nothing external to power.",
   "USBLC6-2SC6 ESD array added on D+ / D- / VBUS at the USB-C receptacle.",
   "Power switch SW101 (C&K JS102011SAQN, 300 mA) in the battery + line, as on ZMK keyboards; JP2 bypasses it.",
   "JP1 + R104: closing the solder jumper puts a second 10k on PROG: charge current 100 mA -> 200 mA.",
@@ -6622,9 +6845,12 @@
   "DCCH inductor pads (DNP on the BlueMicro840) not fitted at all; P1.10 is a free GPIO here, P1.02 switches the sound card.",
   "Test points added on VBUS, VBAT and VIN (BlueMicro840: SWDIO, SWCLK, VCC, GND, RESET, P1.02).",
   "C107 4.7 uF added on VBUS at the charger's VDD pin (the MCP73831 datasheet asks for 4.7 uF; Nordic's reference circuit has 4.7 uF on VBUS; the BlueMicro840 has none).",
-  "C108 1 uF at the regulator output and C109 100 nF at the module: the 10 uF C103 sits at the module's supply pins (VDD / VDDH), 25 mm away. C102 on VIN is 1 uF instead of 10 uF: together they keep the capacitance charged at USB attach near USB 2.0's 10 uF.",
+  "C108 1 uF at the regulator output and C109 100 nF at the module: the 4.7 uF C103 sits at the module's supply pins (VDD / VDDH), 25 mm away (the module has about 12 uF inside: the TPS7A02 allows 1-22 uF on its output). C102 on VIN is 1 uF instead of 10 uF: together they keep the capacitance charged at USB attach near USB 2.0's 10 uF.",
   "Charger MCP73831 instead of the TP4054, same pins and same PROG resistor (1000 V / R_PROG): it is stable with no battery, so the board also works when built without one (its STAT pin, and the white LED, stay off).",
   "Battery divider 10M + 10M with 10 nF (BlueMicro840: 806k + 2M, 1 nF): the MCP73831 recognises a missing battery only if VBAT sees more than 7 MOhm (datasheet 4.2); 10 nF >= 2^12 x the SAADC's 2.5 pF keeps the reading within 1 LSB (Nordic, 'Measuring Lithium battery voltage with nRF52'), and RMK samples it every 30 s. Drain 0.2 uA.",
-  "Built-in USB sound card: the USB-C data lines go (through the ESD array) to a CH334P hub; hub port 3 goes to the module's D+ / D-, port 2 to a CM108B codec (C-Media demo board v1.33) with a 3.5 mm headset jack."
+  "Built-in USB sound card: the USB-C data lines go (through the ESD array) to a CH334P hub; hub port 3 goes to the module's D+ / D-, port 2 to a CM108B codec (C-Media demo board v1.33) with a 3.5 mm headset jack.",
+  "Reverse-battery P-MOSFET Q2 (SI2301) between the battery connector and the switch, gate to GND: a cell plugged in the wrong way round finds it off (its body diode blocks), so the charger's VBAT pin never sees a negative voltage; the right way round it is on (Vgs = -Vbat) and charging goes through it.",
+  "Regulator TPS7A0233 (25 nA quiescent, 200 mA) instead of the AP2112K (55 uA): same SOT-23-5 pins (IN, GND, EN, NC, OUT); the 3.3 V rail needs < 50 mA (module, status LED).",
+  "VBUS: an SMF5.0A TVS at the receptacle, and C107 (4.7 uF) through 1 ohm: a ceramic-only VBUS rings on hot plug to 6-8 V through the cable's inductance (simulated, 0.5-1 uH); damped, 5.0-6.6 V, without adding capacitance."
  ]
 }

@@ -3,7 +3,7 @@ check_circuit.py - build/netlist.json (design=Lira variant=?)
 ====================================================================================================
 [PASS] N00  netlist self-consistency (parts vs nets tables)
        source: netlist structure (no datasheet needed)
-       - 211 parts, 142 nets
+       - 218 parts, 146 nets
 [PASS] M01  E73 ground pads 5/21/24 all on the single ground net
        source: E73-2G4M08S1C_C356849.pdf p.7 (ch.3 pin table, nRF52840 ball per pin)
        - pin 5 -> GND
@@ -13,9 +13,9 @@ check_circuit.py - build/netlist.json (design=Lira variant=?)
        source: nrf52840_ps_a.pdf 5.3.1 p.61 (normal voltage mode = VDD shorted to VDDH), 5.3.8 p.80 (VDD 1.7-3.6 V), 9 p.612 Table 173 (VDD abs max 3.9 V)
        - VDD (pin 19) -> 3V3[=VDD] ; VDDH (pin 23) -> 3V3[=VDD]
        - same net -> normal voltage mode (allowed: PS 5.3.1 'pin VDD shorted to pin VDDH'); VDD operating range 1.7-3.6 V, abs max 3.9 V
-       - rail from U3 (AP2112K-3.3): 3.30 V +-1.5 % -> max 3.349 V (<= 3.6 V operating, < 3.9 V abs max)
+       - rail from U3 (TPS7A0233): 3.30 V +-1.5 % -> max 3.349 V (<= 3.6 V operating, < 3.9 V abs max)
        - E73 datasheet: >= 3.3 V supply guarantees the rated output power (p.5)
-       - capacitance VDD-GND on the board: 11.1uF (C103, C109, C108)
+       - capacitance VDD-GND on the board: 5.8uF (C103, C109, C108)
 [WARN] M03  E73 VBUS pin on the USB-C VBUS (5 V) net
        source: nrf52840_ps_a.pdf 5.3.2 p.66 (5 V on VBUS for USB), 8 p.611 (VBUS 4.35-5.5 V), 9 p.612 (VBUS abs max 5.8 V), 7.1 p.577 (AD2 VBUS, AD4 D-, AD6 D+), 7.3 p.583 (series resistor on VBUS recommended for new designs)
        - VBUS (pin 27) -> VBUS
@@ -70,9 +70,10 @@ check_circuit.py - build/netlist.json (design=Lira variant=?)
        - MCP73831T-2ACI/OT: VREG 4.20 V +-0.75 % (4.168-4.232 V, p.3); option AC: precondition 10 %, VPTH 66.5 %, termination 7.5 %, recharge at 96.5 % (p.26)
 [PASS] C02  MCP73831 VDD: bypass >= 4.7 uF and a transient clamp on the hot-pluggable USB input
        source: MCP73831_C424093.pdf p.11 3.1 (VDD: bypass to VSS with a minimum of 4.7 uF), p.18 6.1.1.2 (input overvoltage protection must be used with hot-pluggable sources, USB cables included: a transzorb from V+ to 0 V), p.17 Fig.6-1 (SMAJ5.0A); usblc6.pdf p.2 (VBUS-GND breakdown >= 6 V at 1 mA)
-       - capacitors VBUS-GND: [('C107', '4.7uF'), ('C110', '1uF'), ('C130', '1uF')] = 6.7uF
+       - capacitors VBUS-GND: [('C110', '1uF'), ('C130', '1uF')] = 2uF
+       - and C107 through R126 1 ohm (hot-plug damping, see U04): 4.7uF of bypass with 1 ohm of added series resistance, like a tantalum's ESR (the datasheet sets no ESR limit for the VDD bypass)
        - >= 4.7 uF (p.11 3.1); nominal values: 0603 X5R parts lose capacitance under 5 V bias, keep the largest one next to pin 4 (layout)
-       - transient clamp: U4 pin 5 clamps VBUS to GND (VBR >= 6 V at 1 mA, usblc6.pdf p.2) = the 'transzorb from V+ to 0 V' of p.18; an ESD-class clamp, smaller than the SMAJ5.0A of Fig.6-1
+       - transient clamp: ['D108'], a 5 V TVS from VBUS to GND = the 'transzorb from V+ to 0 V' of p.18, the same class as the SMAJ5.0A of Fig.6-1
 [PASS] C03  MCP73831 PROG: RPROG to GND within 2-67 kOhm -> charge current, jumper options, switch rating, heat
        source: MCP73831_C424093.pdf p.15 5.1.2 (IREG [mA] = 1000 V / RPROG [kOhm]), p.4 (RPROG charge range 2-67 kOhm, shutdown impedance 70-200 kOhm), p.3 (IREG 90-110 mA at 10k, 450-550 mA at 2k), p.13 4.3 / p.15 5.2.2 (PROG open = charger disabled), p.18 6.1.1.3 (P = (VDDMAX - VPTHMIN) * IREGMAX), p.5 (SOT-23-5 theta-JA 230 C/W), p.14 Fig.4-2 (thermal regulation); C221660.pdf p.1 (slide switch 0.3 A)
        - PROG(5) -> PROG
@@ -98,16 +99,24 @@ check_circuit.py - build/netlist.json (design=Lira variant=?)
        - Q1 drain on VBAT: off while USB is present; its body diode (VBAT -> VIN) stays reverse biased as long as VIN (VBUS - Schottky, ~4.6 V) is above the 4.3 V no-battery level
        - resistive load on VBAT: 20M through ['R105', 'R106']
        - >= 7 MOhm: even the minimum detection current (0.6 uA) lifts VBAT above VREG + 100 mV -> no battery detected, STAT Hi-Z (p.13 4.2)
-[PASS] L01  AP2112K-3.3: VIN/GND/EN/NC/VOUT wiring, EN level
-       source: C51118.pdf (AP2112) p.2 (SOT25 pins: 1 VIN, 2 GND, 3 EN, 4 NC, 5 VOUT; typical application CIN = COUT = 1 uF), p.1 (stable with 1.0 uF ceramic)
-       - U3 (AP2112K-3.3): VIN(1) VIN | GND(2) GND | EN(3) VIN | NC(4) <unconnected> | VOUT(5) 3V3[=VDD]
-       - U3 EN tied to VIN: always on (VIH >= 1.5 V satisfied for VIN >= 2.5 V)
-[PASS] L02  AP2112K-3.3: input and output capacitors >= 1 uF
-       source: C51118.pdf (AP2112) p.2 (SOT25 pins: 1 VIN, 2 GND, 3 EN, 4 NC, 5 VOUT; typical application CIN = COUT = 1 uF), p.1 (stable with 1.0 uF ceramic)
-       - U3: CIN ['C102'] = 1uF ; COUT ['C103', 'C109', 'C108'] = 11.1uF
-[PASS] L03  AP2112K-3.3: input voltage within 2.5-6.0 V, output feeds the module
-       source: C51118.pdf (AP2112) p.3 (abs max VCC 6.5 V, recommended VIN 2.5-6.0 V), p.8 (AP2112-3.3: VOUT 3.3 V +-1.5 %, dropout 250 mV typ at 600 mA, VEN high >= 1.5 V, low <= 0.4 V, EN pull-down 3 MOhm)
-       - U3: VIN max ~5.2 V (USB 5.5 V minus Schottky) <= 6.0 V recommended / 6.5 V abs max; min from battery ~3.0 V >= 2.5 V (at VBAT < 3.55 V the 3.3 V output drops out gracefully)
+[PASS] L01  3.3 V regulators (TPS7A02): IN/GND/EN/NC/OUT wiring, EN level
+       source: tps7a02.pdf (TI SBVS277C) p.3 Table 5-1 (DBV: 1 IN, 2 GND, 3 EN, 4 NC, 5 OUT), p.4 6.1 (abs max IN 6.5 V) and 6.3 (VIN 1.5-6.0 V; CIN 1 uF; COUT 1-22 uF, >= 0.5 uF effective), p.6 (accuracy +-1.5 % for VOUT >= 1.5 V), p.7 (VEN(HI) >= 1.1 V, VEN(LOW) <= 0.3 V), p.19 7.3.2 (smart enable pull-down; active output discharge when disabled); E73-2G4M08S1C_C356849.pdf p.7 (module schematic: 4.7 uF on VDD, 4.7 uF on VDDH and 3 x 100 nF inside the module)
+       - U3 (TPS7A0233): IN(1) VIN | GND(2) GND | EN(3) VIN | NC(4) <unconnected> | OUT(5) 3V3[=VDD]
+       - U3 EN tied to IN: on whenever VIN is up (VEN(HI) >= 1.1 V)
+       - U9 (TPS7A0233): IN(1) VBUS | GND(2) GND | EN(3) VBUS | NC(4) <unconnected> | OUT(5) HUB_3V3
+       - U9 EN tied to IN: on whenever VBUS is up (VEN(HI) >= 1.1 V)
+[PASS] L02  3.3 V regulators: input and output capacitors within the datasheet range
+       source: tps7a02.pdf (TI SBVS277C) p.3 Table 5-1 (DBV: 1 IN, 2 GND, 3 EN, 4 NC, 5 OUT), p.4 6.1 (abs max IN 6.5 V) and 6.3 (VIN 1.5-6.0 V; CIN 1 uF; COUT 1-22 uF, >= 0.5 uF effective), p.6 (accuracy +-1.5 % for VOUT >= 1.5 V), p.7 (VEN(HI) >= 1.1 V, VEN(LOW) <= 0.3 V), p.19 7.3.2 (smart enable pull-down; active output discharge when disabled); E73-2G4M08S1C_C356849.pdf p.7 (module schematic: 4.7 uF on VDD, 4.7 uF on VDDH and 3 x 100 nF inside the module)
+       - U3: CIN ['C102'] = 1uF ; COUT ['C103', 'C109', 'C108'] = 5.8uF (+ 9.7uF inside the module = 15.5uF)
+       - U3: within the 1-22uF output range (nominal values; X5R parts lose some under bias, which only adds margin to the maximum)
+       - U9: CIN ['C110', 'C130'] = 2uF ; COUT ['C111', 'C112'] = 10.1uF
+       - U9: within the 1-22uF output range (nominal values; X5R parts lose some under bias, which only adds margin to the maximum)
+[PASS] L03  3.3 V regulators: input voltage within the operating range, what each output feeds
+       source: tps7a02.pdf (TI SBVS277C) p.3 Table 5-1 (DBV: 1 IN, 2 GND, 3 EN, 4 NC, 5 OUT), p.4 6.1 (abs max IN 6.5 V) and 6.3 (VIN 1.5-6.0 V; CIN 1 uF; COUT 1-22 uF, >= 0.5 uF effective), p.6 (accuracy +-1.5 % for VOUT >= 1.5 V), p.7 (VEN(HI) >= 1.1 V, VEN(LOW) <= 0.3 V), p.19 7.3.2 (smart enable pull-down; active output discharge when disabled); E73-2G4M08S1C_C356849.pdf p.7 (module schematic: 4.7 uF on VDD, 4.7 uF on VDDH and 3 x 100 nF inside the module)
+       - U3 (TPS7A02): IN max ~5.2 V (USB 5.5 V minus Schottky) <= 6.0 V recommended / 6.5 V abs max; min ~3.0 V (from the battery: below ~3.4 V the output follows the cell) >= 1.5 V
+       - U3: output 3V3[=VDD] feeds ['module']; quiescent current 25 nA
+       - U9 (TPS7A02): IN max ~5.5 V (USB 5.5 V) <= 6.0 V recommended / 6.5 V abs max; min ~4.3 V (USB low limit) >= 1.5 V
+       - U9: output HUB_3V3 feeds ['hub']; quiescent current 25 nA
 [PASS] P01  B5819W Schottky: anode on VBUS, cathode on VIN (USB feeds VIN, no back-feed into VBUS)
        source: C8598.pdf (B5819W) p.1 (marking bar = cathode; IO 1 A, VRRM 40 V, VF 0.6 V at 1 A)
        - D101 (B5819W): anode(2) -> VBUS ; cathode(1) -> VIN
@@ -120,6 +129,8 @@ check_circuit.py - build/netlist.json (design=Lira variant=?)
        - correct: USB present -> VGS = VBUS - VIN ~ +0.4 V -> channel off, body diode (D->S) reverse biased since VIN (~4.6 V) > VBAT (<= 4.2 V): USB cannot reach the battery except through the charger
        - USB absent -> gate pulled to 0 V, VGS = -VBAT (-3.0..-4.2 V, |VGS| <= 8 V) -> channel on, RDS(on) 0.11-0.14 Ohm; body diode D->S also conducts battery -> VIN at start-up
        - gate pull-down: [('R101', '100k')]
+       - Q2 (SI2301CDS): G(1) -> GND ; S(2) -> BAT+ ; D(3) -> BAT_IN
+       - the reverse-battery FET between the connector and BAT+ (checked in P07)
 [PASS] P03  power rails GND/VBUS/VIN/VBAT/VDD are distinct nets, no hard bridge between them
        source: netlist structure (no datasheet needed)
        - GND = GND
@@ -128,6 +139,7 @@ check_circuit.py - build/netlist.json (design=Lira variant=?)
        - VIN = VIN
        - VBAT = VBAT
        - BAT+ = BAT+
+       - BAT_IN = BAT_IN
        - VAUD = AUD_5V
        - R101 100k between GND and VBUS (bleeder / divider, fine)
        - solder jumper JP2 between VBAT and BAT+ (open by default)
@@ -136,9 +148,10 @@ check_circuit.py - build/netlist.json (design=Lira variant=?)
        - USB present: no conduction path VBUS -> VBAT except the MCP73831 (VDD->BAT, regulated)
        - battery only: no conduction path VBAT -> VBUS (Schottky blocks, MCP73831 reverse-blocking, < 2 uA from VBAT in UVLO (MCP73831_C424093.pdf p.13 4.1, p.18 6.1.1.5))
        - battery only: no conduction path BAT+ -> VBUS (Schottky blocks, MCP73831 reverse-blocking, < 2 uA from VBAT in UVLO (MCP73831_C424093.pdf p.13 4.1, p.18 6.1.1.5))
+       - battery only: no conduction path BAT_IN -> VBUS (Schottky blocks, MCP73831 reverse-blocking, < 2 uA from VBAT in UVLO (MCP73831_C424093.pdf p.13 4.1, p.18 6.1.1.5))
 [PASS] P05  battery connector polarity, power switch uses its common terminal, bypass jumper
        source: C221660.pdf (C&K JS series) p.1 (contact rating 6 VDC at 0.3 A), p.4 (JS102011SAQN SPDT circuit diagram: C = common = centre terminal 2)
-       - battery connector J2 (battery JST-PH): + -> BAT+ ; - -> GND
+       - battery connector J2 (battery JST-PH): + -> BAT_IN ; - -> GND (then Q2 to BAT+, see P07)
        - positive on pin 1 ('Circuit No.1' on the JST footprint); the lead order of the cell itself must still be checked with a meter before plugging it in
        - mounting pads ['MP'] -> ['<unconnected>'] (mechanical only)
        - SW101 (JS102011SAQN): 1 -> BAT+ ; 2(common) -> VBAT ; 3 -> <unconnected>
@@ -153,6 +166,12 @@ check_circuit.py - build/netlist.json (design=Lira variant=?)
        - firmware conditions (not visible in the netlist): sample this pin no faster than every ~10 x tau = 10 x 5M x 10nF = 0.50 s so the reservoir recharges (the averaged input resistance 1/(f CSAMPLE) then stays >> 5M; the PS 'RINPUT > 1 MOhm' is that figure at 200 ksps); keep RESP/RESN at Bypass (160 kOhm ladder, p.398); any TACQ works; first reading valid ~5 tau = 0.25 s after the cell is switched on
        - DC accuracy: the PS gives no leakage figure for an analog pin; at 5M every 10 nA of pin/PCB leakage shifts the reading by 50 mV at the pin (100 mV on VBAT) - compare with a meter on the first board and keep the node free of flux residue
        - divider drain from the cell: 0.2 uA
+[PASS] P07  reverse-battery P-MOSFET: drain on the connector, gate on GND, source towards the board; on for a cell, off reversed
+       source: C10487.pdf (Si2301CDS) p.1 (SOT-23: 1 G, 2 S, 3 D; VDS -20 V, VGS +-8 V; PD 0.86 W at 25 C), p.2 (VGS(th) -0.4..-1 V; RDS(on) 0.112 Ohm max at VGS -4.5 V, 0.142 Ohm at -2.5 V; body diode VSD -0.8 V); MCP73831_C424093.pdf p.3 (inputs and outputs -0.3..VDD+0.3 V), p.4 (preconditioning below VPTH), p.26 (option AC: preconditioning 10 %, VPTH 66.5 %)
+       - Q2 (SI2301CDS): G(1) -> GND ; S(2) -> BAT+ ; D(3) -> BAT_IN
+       - cell the right way round: the body diode (D->S) conducts first, then VGS = -(cell) = -3.0..-4.2 V (|VGS| <= 8 V abs max, beyond the -1 V threshold) turns the channel on: RDS(on) <= 0.142 Ohm at -2.5 V -> <= 28 mV at the 200 mA charge current, <= 7 mV at the board's ~50 mA; charging flows S->D through the on channel
+       - cell reversed: the drain sits at -(cell); the body diode is reverse-biased (VDS rating -20 V) and with the gate at 0 V and the source at 0 V the channel is off: nothing reaches BAT+ or the charger's VBAT pin
+       - reversed with USB in and the switch on: the charger raises VBAT, the channel opens only while the source is a threshold (0.4-1 V) above the gate, so VBAT settles there instead of at -(cell): the charger's pin stays >= 0 V (-0.3 V abs max) and it preconditions at 10 % = 20 mA (VBAT < VPTH, p.4, p.26): 0.10 W in the FET (0.86 W rating)
 [PASS] U01  USB-C receptacle: VBUS/GND/D+/D- pads, 5.1k on CC1 and CC2, SBU open, shield
        source: C165948.pdf (HRO TYPE-C-31-M-12) p.1 pin table (A1/B1/A12/B12 GND, A4/A9/B4/B9 VBUS, A5 CC1, B5 CC2, A6/B6 DP, A7/B7 DN, A8/B8 SBU; 5 A / 20 V rating); USB Type-C specification (sink: Rd = 5.1 kOhm +-10 % on each CC) - not in the datasheet set
        - J1 (USB-C)
@@ -175,15 +194,19 @@ check_circuit.py - build/netlist.json (design=Lira variant=?)
        - port 2 -> codec U6 (CM108B): D+ <- DP2, D- <- DM2 ; DP2 via R110 22 Ohm; DM2 via R111 22 Ohm (C-Media demo board R4/R66 22 Ohm, app note 3.5 39 Ohm)
        - port 3 -> module U1 (E73-2G4M08S1C): D+ <- DP3, D- <- DM3 (straight, as PS 7.3 Fig.210)
        - port 4 (DP4 pin 4 / DM4 pin 3): unused, left open (host pull-downs inside, CH334 p.1)
-[PASS] H01  CH334P: pinout, GND pad, V5 on VBUS (4.5-5.25 V, abs max 5.5 V) with >= 1 uF, VDD33 0.1 uF + 10 uF (or >= 1 uF), no load on the internal LDO
+[PASS] U04  VBUS: 5 V TVS to GND, damped bulk capacitor (R <= 2.2 ohm), at most 10 uF at attach
+       source: MCP73831_C424093.pdf p.18 6.1.1.2 and p.17 Fig.6-1 (hot-pluggable inputs: a transzorb, SMAJ5.0A, from V+ to 0 V); SMF5.0A (LCSC C193402 listing): unidirectional, VRWM 5.0 V, VC 9.2 V at 21.7 A, 200 W 10/1000 us; nrf52840_ps_a.pdf 9 p.612 (VBUS abs max 5.8 V); TPS22919_C2149796.pdf p.4 (VIN abs max 6 V); tps7a02.pdf p.4 (IN abs max 6.5 V); MCP73831_C424093.pdf p.3 (VDD abs max 7.0 V); USB 2.0 spec 7.2.4.1 (at most 10 uF across VBUS at attach)
+       - ['D108'] (SMF5.0A): cathode on VBUS, anode on GND; breakdown >= 6.4 V, above USB's 5.25 V (5.5 V for USB-C), so it only conducts on surges, ESD and what is left of the hot-plug ring; standoff 5.0 V like the SMAJ5.0A of the charger's datasheet (leakage at 5 V: 0.4 mA max, typically far less)
+       - VBUS capacitors: ['C110', 'C130'] = 2uF directly; 4.7uF through ['R126 1 ohm']
+       - the damped branch (series resistance comparable to sqrt(L/C) of a 0.5-1 uH cable with the board's capacitance, 0.3-0.7 ohm) takes the energy out of the hot-plug ring: simulated peak 6.0-8.3 V undamped, 5.0-6.6 V damped; the TVS then clamps what remains
+       - 6.7uF on VBUS at attach (USB 2.0: at most 10 uF)
+[PASS] H01  CH334P: pinout, GND pad, V5 on VBUS (4.5-5.25 V, abs max 5.5 V) or V5 = VDD33 on a 3.3 V rail, >= 1 uF on V5, VDD33 0.1 uF + 10 uF (or >= 1 uF), no load on the internal LDO
        source: CH334_C5373042.pdf p.4 Table 1-3 (V5: 5 V or 3.3 V input, 1 uF or more; VDD33: LDO output and 3.3 V input, 0.1 uF + 10 uF or 1 uF; GND pad), p.19 4.1 (abs max V5 5.5 V, VDD33 4.0 V), p.19 4.2 (V5 4.5-5.0-5.25 V with the internal LDO, 3.15-3.5 V without; LDO external load <= 20 mA), p.26 6.1 (bus-powered application: V5 from the upstream VBUS, C1 1 uF, C2 0.1 uF + C8 10 uF on VDD33), p.28 6.4 (embedded hub: V5 = VDD33 = on-board 3.3 V suggested)
        - U5 exposed pad ['17'] -> GND (the CH334P's only ground pin)
-       - U5 (CH334P): V5(15) -> VBUS ; VDD33(16) -> HUB_3V3
-       - internal LDO in use: V5 from VBUS (USB 2.0 VBUS 4.75-5.25 V inside 4.5-5.25 V, p.19 4.2; a USB-C source may give up to 5.5 V = the V5 absolute maximum of 5.5 V, p.19 4.1)
-       - V5 capacitance 6.7uF (['C107', 'C110', 'C130'])
-       - VDD33 capacitors [('C111', '10uF'), ('C112', '100nF')] = 10.1uF
-       - 0.1 uF + 10 uF as in p.4 / p.26 6.1 (10 uF or more also helps against hot-plug dips, p.26)
-       - V5 straight from VBUS (as p.26 6.1); p.28 6.4 suggests the on-board 3.3 V for embedded hubs, but here that rail is battery-backed and the hub would then draw its 0.12-0.4 mA sleep current from the cell: the VBUS supply is the better choice
+       - U5 (CH334P): V5(15) -> HUB_3V3 ; VDD33(16) -> HUB_3V3
+       - V5 = VDD33 = HUB_3V3 from U9 (TPS7A0233) (3.30 V +-1.5 % = 3.25-3.35 V, inside 3.15-3.5 V with the internal LDO unused, p.19 4.2; p.28 6.4): V5 never sees VBUS, so a hot-plug overshoot cannot reach its 5.5 V absolute maximum (p.19 4.1)
+       - U9 is fed and enabled by VBUS: the hub is powered only with USB, nothing from the cell (its 0.12-0.4 mA sleep current would otherwise drain it)
+       - V5 capacitance 10.1uF (['C111', 'C112'])
 [PASS] H02  CH334P clock: 12 MHz crystal between XI and XO, no external load capacitors (~16 pF inside), case to GND
        source: CH334_C5373042.pdf p.1 (crystal oscillator with built-in capacitors), p.4 Table 1-3 (XI/XO: 12 MHz crystal, 24 MHz only on the CH334X), p.26 6.1 (XI and XO have ~16 pF built in: no external load capacitors), p.27 6.2 (crystal-free option only on parts ordered with it: XO open and XI to GND)
        - U5 (CH334P): XI(2) -> HUB_XI ; XO(1) -> HUB_XO
@@ -252,22 +275,28 @@ check_circuit.py - build/netlist.json (design=Lira variant=?)
        - INR+ on GND: single-ended input (p.1, p.3)
        - INR- <- C126 1uF <- LOR ; corner 1/(2 pi RIN C): ['-6 dB: RIN 26.4k -> 6.0 Hz', '0 dB: RIN 19.8k -> 8.0 Hz']
        - input capacitors also keep the turn-on pop inaudible (p.12 7.3.2)
-[WARN] A14  TPA6132A2 EN/G0/G1: defined levels (VIH >= 1.3 V, VIL <= 0.6 V, <= VDD + 0.3 V), gain per jumper state, EN delayed after the audio supply and dropped before it
+[PASS] A14  TPA6132A2 EN/G0/G1: defined levels (VIH >= 1.3 V, VIL <= 0.6 V, <= VDD + 0.3 V), gain per jumper state, EN delayed after the audio supply and dropped before it
        source: TPA6132A2_C69901.pdf p.4 (EN/G0/G1: VIH >= 1.3 V, VIL <= 0.6 V, abs max -0.3..VDD+0.3 V), p.5 (EN/G0/G1 input current <= 1 uA; gain -0.5/-1.0/-1.41/-2.0 V/V), p.13 7.4.1 (G0/G1 <= 0.5 V or >= 1.3 V: -6 / 0 / 3 / 6 dB), p.12 7.3.2 (activate after the audio sources have settled, deactivate before the sources; tON 5 ms); C8598.pdf (B5819W) p.1; nrf52840_ps_a.pdf p.156 (IOL >= 1 mA standard / >= 6 mA high drive at 0.4 V); CM108B_datasheet_v1.41.pdf p.20 (37.25 mA); TPS22919_C2149796.pdf p.5 (tON, tOFF, RPD,QOD), p.13 8.3.3
        - default (jumpers open): G0=1 G1=0 -> gain 0 dB (p.13 7.4.1) [G0 pulled up to VAUD by R112 100k: >= 4.90 V with the 1 uA input current (VIH 1.3 V); G1 on GND]
        - JP3 closed: G0=0 G1=0 -> gain -6 dB (p.13 7.4.1) [JP3 closed: G0 shorted to GND; G1 on GND]
-       - EN <- R113 1M <- AUD_EN (module pin ['38'], also the ['U8'] ON pin); [('C137', '470nF')] to GND = 470nF
-       - steady EN level >= 2.30 V with the 1 uA input current: above VIH 1.3 V (p.4)
-       - turn-on: tau = 1M x 470nF = 470 ms -> EN passes the 0.6-1.3 V threshold 94-391 ms after the control rises; the load switch output is up after ~2 ms (TPS22919 p.5): the source gets >= 94 ms to settle (p.12; the CM108B output settling time is not specified - check for a turn-on pop)
+       - EN pin on AMP_ENI, through R124 33k from the control node AMP_EN
+       - EN <- R113 1M <- AUD_EN (module pin ['38'], also the ['U8'] ON pin); [('C137', '100nF')] to GND = 100nF
+       - steady EN level >= 2.27 V with the 1 uA input current: above VIH 1.3 V (p.4)
+       - turn-on: tau = 1M x 100nF = 100 ms -> EN passes the 0.6-1.3 V threshold 20-85 ms after the control rises; the load switch output is up after ~2 ms (TPS22919 p.5): the source gets >= 20 ms to settle (p.12; the CM108B output settling time is not specified - check for a turn-on pop)
        - turn-off: D104 (anode EN, cathode AUD_EN) dumps the EN capacitor into the GPIO when it goes low
-       - power-down order: ~6 us after the control falls the switch is open (TPS22919 p.5); the 17.2uF on the rail then feeds ['U6'] (37 mA typ, CM108B p.20) + ['U7'] (2.1 mA, TPA p.5) + QOD (1.024k: 4.9 mA), so it drops below the CM108B's 4.5 V minimum in ~0.19 ms (QOD alone, without the loads: 1.86 ms); EN falls below VIL 0.6 V after ~0.38 ms with a standard-drive GPIO (IOL >= 1 mA at 0.4 V, PS p.156) or ~0.06 ms with high drive (>= 6 mA)
-       -   with standard drive the amplifier is disabled AFTER its source (the CM108B) has lost power: p.12 asks for the opposite order. Here the codec's own current, not the QOD resistor, sets the rail's fall; configure the GPIO as high drive (H0H1) - EN then falls in ~0.06 ms, before the rail - or drive EN from its own GPIO. Bench-check for a switch-off pop
-       - EN high (up to 3.3 V from the GPIO) while the amplifier VDD (VAUD) is off - USB unplugged with the sound card on, or during the rail's fall - exceeds VDD + 0.3 V (abs max p.4); R113 limits the steady current to 3.3 uA but 470nF dumps its charge into the EN clamp: firmware must drop AUD_EN as soon as VBUS goes away
+       - power-down order: ~6 us after the control falls the switch is open (TPS22919 p.5); the 17.2uF on the rail then feeds ['U6'] (37 mA typ, CM108B p.20) + ['U7'] (2.1 mA, TPA p.5) + QOD (1.024k: 4.9 mA), so it drops below the CM108B's 4.5 V minimum in ~0.19 ms (QOD alone, without the loads: 1.86 ms); EN falls below VIL 0.6 V after ~0.08 ms with a standard-drive GPIO (IOL >= 1 mA at 0.4 V, PS p.156) or ~0.01 ms with high drive (>= 6 mA)
+       - EN high (up to 3.3 V on AUD_EN) while the amplifier VDD (VAUD) is off - USB unplugged with the sound card on: the pin is clamped to VDD by its protection diode, and R124 33k limits the current into that clamp to <= 0.08 mA (the 100nF cannot dump its charge into it); the pin sits a diode drop above VDD instead of 0.3 V for those milliseconds, at a current far below what CMOS clamps carry (latch-up tests: 100 mA)
+[PASS] A15  headphone amplifier off in USB suspend: codec PDSW -> pull-up -> N-MOSFET holding the amplifier's EN low
+       source: CM108B_datasheet_v1.41.pdf p.8 (pin 40 PDSW: DO, 4 mA, open drain; 0 = normal operation, 1 = power-down / suspend mode); CM108B_appnotes_v1.50.pdf p.8 (PDSW power control supports DC 1.8-5 V; operation: drive low, suspend: open); 2N7002 (LCSC C8545 listing): VDS 60 V, VGS +-20 V, VGS(th) <= 2.5 V; TPA6132A2_C69901.pdf p.4 (EN VIL <= 0.6 V), p.1 (shutdown current < 1 uA)
+       - U6 PDSW (pin 40) -> CM_PDSW
+       - pull-up R125 100k to AUD_5V[=VAUD] (5.0 V): PDSW supports 1.8-5 V (app note p.8); 50 uA while it drives low
+       - Q3 (2N7002): G(1) -> CM_PDSW ; S(2) -> GND ; D(3) -> AMP_EN
+       - operation: PDSW low -> VGS 0 V -> off, EN follows its control; suspend: PDSW open -> gate at the pull-up (>= 2.5 V threshold) -> on, EN below VIL 0.6 V -> amplifier shut down (< 1 uA instead of 2.1 mA), the codec stays enumerated (no re-enumeration when the host wakes)
 [PASS] S01  TPS22919: pinout, IN on VBUS (1.6-5.5 V), GND, NC open, 1 uF input capacitor, load and inrush
        source: TPS22919_C2149796.pdf p.3 (DCK SC-70-6: 1 IN, 2 GND, 3 ON 'do not leave floating', 4 NC 'leave floating', 5 QOD, 6 VOUT), p.4 (abs max VIN/VOUT/VON/VQOD 6 V; VIN 1.6-5.5 V; IMAX 1.5 A), p.5 (RON 89 mOhm at 5 V; tON 1.95 ms and 3.2 mV/us at 5 V), p.17 10 (CIN 1 uF usually sufficient)
        - U8 (TPS22919): IN(1) VBUS | GND(2) GND | ON(3) AUD_EN | NC(4) <unconnected> | QOD(5) AUD_QOD | VOUT(6) AUD_5V[=VAUD]
        - IN on VBUS (<= 5.5 V): inside 1.6-5.5 V, abs max 6 V (p.4)
-       - input capacitance 6.7uF >= 1 uF (p.17 10)
+       - input capacitance 2uF >= 1 uF (p.17 10)
        - load capacitance 17.2uF (incl. behind beads); turn-on slew 3.2 mV/us at 5 V (p.5) -> inrush ~55 mA; loads ['U6', 'U7'] (CM108B 37 mA typ, TPA6132A2 2.2 mA + headphone current) << 1.5 A (p.4)
 [PASS] S02  TPS22919 ON (sound-card enable): module GPIO with a pull-down to GND, never floating
        source: TPS22919_C2149796.pdf p.3 (ON: active high, do not leave floating), p.4 (ON VIH >= 1 V, VIL <= 0.35 V, abs max 6 V), p.5 (ON leakage <= 100 nA; smart pull-down 530 kOhm while ON <= VIL), p.13 8.3.1 (the smart pull-down exists only once VIN is applied); nrf52840_ps_a.pdf 6.9.3.1 p.156 (GPIO drive) and 9 p.612 (VI/O max VDD + 0.3 V); reference/bluemicro_nrf52840_board.h (pins the bootloader drives)
@@ -275,7 +304,7 @@ check_circuit.py - build/netlist.json (design=Lira variant=?)
        - driven by module pin 38 P1.02: 3.3 V high >= VIH 1 V, abs max 6 V (p.4)
        - pull-down R117 100k: ON = 10 mV with 100 nA leakage (VIL 0.35 V, p.4); 33 uA from the GPIO when high
        - the enable also feeds ['D104', 'R113'] (amplifier EN network, A14)
-       - if the GPIO goes high-Z while on (MCU reset), ['D104'] back-feeds ON from the EN capacitor 470nF: the switch opens only ~47 ms later (100k x 470nF)
+       - if the GPIO goes high-Z while on (MCU reset), ['D104'] back-feeds ON from the EN capacitor 100nF: the switch opens only ~10 ms later (100k x 100nF)
 [PASS] S03  TPS22919 QOD: tied to VOUT (24 Ohm discharge), through a resistor to VOUT, or open
        source: TPS22919_C2149796.pdf p.3 (QOD: resistor to VOUT, tied to VOUT, or floating = no discharge), p.13-14 8.3.3 + Table 2 (ON low: VOUT to GND through RPD,QOD (24 Ohm) + RQOD; tFALL = 2.2 * (RDIS || RL) * CL), p.5 (RPD,QOD 24 Ohm), p.6 (tFALL 0.4 ms with 10 uF)
        - U8 QOD through R118 1k to VOUT: RDIS = 1.024k (p.13 eq.1)
@@ -333,6 +362,7 @@ check_circuit.py - build/netlist.json (design=Lira variant=?)
        - U5.10 (hub DP1) unconnected - allowed
        - U5.13 (hub RESET#/CDP) unconnected - allowed
        - U5.14 (hub PGANG) unconnected - allowed
+       - U9.4 (ldo NC) unconnected - allowed
        - U6.1 (codec SPDIFO) unconnected - allowed
        - U6.2 (codec DR) unconnected - allowed
        - U6.3 (codec DW) unconnected - allowed
@@ -351,7 +381,6 @@ check_circuit.py - build/netlist.json (design=Lira variant=?)
        - U6.21 (codec LEDR) unconnected - allowed
        - U6.28 (codec NC) unconnected - allowed
        - U6.39 (codec VOLUP) unconnected - allowed
-       - U6.40 (codec PDSW) unconnected - allowed
        - U6.43 (codec GPIO1) unconnected - allowed
        - U6.44 (codec SDOUT) unconnected - allowed
        - U6.45 (codec DAMCLK) unconnected - allowed
@@ -376,10 +405,9 @@ check_circuit.py - build/netlist.json (design=Lira variant=?)
        - BUTTON_DFU = P0.18 = RESET: DFU entered by double reset through the button
        - BUTTON_DFU_OTA P1.01 is not bonded out on the E73 - nothing to wire
 ----------------------------------------------------------------------------------------------------
-SUMMARY: 51 PASS, 0 FAIL, 4 WARN, 1 SKIP
+SUMMARY: 55 PASS, 0 FAIL, 3 WARN, 1 SKIP
 WARN:
   M03 E73 VBUS pin on the USB-C VBUS (5 V) net
   A06 CM108B microphone: MICIN AC-coupled from the mic contact, VBIAS through resistors, bias current
-  A14 TPA6132A2 EN/G0/G1: defined levels (VIH >= 1.3 V, VIL <= 0.6 V, <= VDD + 0.3 V), gain per jumper state, EN delayed after the audio supply and dropped before it
   R01 reset push button between RESET and GND, unused pads open
 

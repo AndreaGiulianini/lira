@@ -22,14 +22,15 @@ port), follows the manufacturer's reference design (C-Media CM108B demo board).
 | Block | Choice | Notes |
 |---|---|---|
 | Microcontroller | Ebyte **E73-2G4M08S1C** module (nRF52840 + ceramic antenna) | Bluetooth already certified, JLCPCB can assemble it (LCSC C356849) |
-| Power | **AP2112K** 3.3 V regulator on VDD and VDDH (like the BlueMicro840) | The chip runs at 3.3 V from the start: to load the bootloader, an SWD probe costing a few euros is enough (for example a Raspberry Pi Pico, §4) |
+| Power | **TPS7A0233** 3.3 V regulator on VDD and VDDH (the BlueMicro840's AP2112K has the same pins but draws 55 µA; this one 25 nA) | The chip runs at 3.3 V from the start: to load the bootloader, an SWD probe costing a few euros is enough (for example a Raspberry Pi Pico, §4) |
 | USB / battery selection | B5819W Schottky diode from USB, SI2301 MOSFET from the battery | With USB connected, the battery is cut off automatically |
 | Charging | **MCP73831**, 100 mA (200 mA if you close jumper JP1): same pins as the BlueMicro840's TP4054, but stable without a battery | The white LED is on while charging and off when the battery is full, without USB and without a battery. It only charges with the power switch ON |
 | Without a battery | The board also works from the USB cable alone: simply do not fit the battery | Bluetooth works too, but only while the cable powers the keyboard; the battery level then reads at random |
-| USB-C | HRO TYPE-C-31-M-12, USBLC6-2SC6 ESD protection, 4.7 µF on VBUS | Standard JLCPCB parts |
-| USB hub | WCH **CH334P** (USB 2.0), 12 MHz crystal, right behind the USB-C port | The module is on hub port 3, the sound card on port 2: over the cable the computer sees a hub with a keyboard and a headset |
-| Sound card | C-Media **CM108B** (USB audio, no drivers on macOS / Windows / Linux) + TI **TPA6132A2** headphone amplifier, 3.5 mm **headset jack** at the back | Headphones and microphone (4-pole CTIA plugs, as on phones and Macs; plain 3-pole headphones work too). A switch (TPS22919) controlled by the firmware powers it **only in USB mode**: in Bluetooth mode, even with the cable plugged in, the computer sees no sound card |
+| USB-C | HRO TYPE-C-31-M-12, USBLC6-2SC6 ESD protection, SMF5.0A TVS and 4.7 µF through 1 Ω on VBUS | The 1 Ω damps the ringing of the cable when it is plugged in (a USB cable's inductance and ceramic capacitors ring well above 5 V) |
+| USB hub | WCH **CH334P** (USB 2.0), 12 MHz crystal, right behind the USB-C port, powered at 3.3 V by its own TPS7A0233 from VBUS | The module is on hub port 3, the sound card on port 2: over the cable the computer sees a hub with a keyboard and a headset. At 3.3 V the hub never sees the plug-in ringing (its 5 V input is rated 5.5 V at most), and it is off on battery |
+| Sound card | C-Media **CM108B** (USB audio, no drivers on macOS / Windows / Linux) + TI **TPA6132A2** headphone amplifier, 3.5 mm **headset jack** at the back | Headphones and microphone (4-pole CTIA plugs, as on phones and Macs; plain 3-pole headphones work too). A switch (TPS22919) controlled by the firmware powers it **only in USB mode**: in Bluetooth mode, even with the cable plugged in, the computer sees no sound card. While the computer sleeps, the sound chip's suspend output switches the amplifier off |
 | Power switch | **C&K JS102011SAQN** (300 mA) on the battery + line, as in ZMK keyboards | OFF = battery disconnected (no charging); on USB the keyboard works anyway. JP2 bypasses it |
+| Battery protection | SI2301 P-MOSFET (Q2) between the battery connector and the switch, gate to ground | A cell plugged in the wrong way round finds it off: nothing happens. The firmware switches the keyboard off below 3.40 V when there is no cable; plugging the cable in wakes it up |
 | Battery level | 10 MΩ / 10 MΩ divider with 10 nF on P0.31 (BlueMicro840: 806 kΩ / 2 MΩ; higher here so the charger can tell when no battery is fitted) | macOS shows the percentage in the Bluetooth menu |
 | Clock | 32.768 kHz crystal with 2 × 18 pF | 18 pF centres the 12.5 pF load (the BlueMicro840 uses 22 pF) |
 | Matrix | 4 rows × 17 columns, 1N4148W diodes (column → row) | The firmware takes the pins from the PCB automatically |
@@ -56,13 +57,14 @@ switches.
      their cathode mark, not by the dot;
    - 12 MHz crystal of the hub (4 pads, next to the hub): pin-1 mark as in the footprint; turned by 90° its
      contacts land on the ground pads and the hub does not start;
-   - MCP73831, AP2112K, SI2301, USBLC6, CH334P (hub), CM108B (sound chip), TPA6132A2 (amplifier), TPS22919
-     (switch): pin 1 in the right corner (compare with
+   - MCP73831, TPS7A0233 (U3 and U9), SI2301 (Q1 and Q2), 2N7002 (Q3), USBLC6, CH334P (hub), CM108B (sound
+     chip), TPA6132A2 (amplifier), TPS22919 (switch): pin 1 in the right corner (compare with
      `kicad/lira.kicad_pcb`);
-   - battery connector J2: its pin 1 is + (marked on the silkscreen); turned by 180° it reverses the battery and destroys the charger;
+   - D108, the TVS next to the USB-C port: cathode band on the side the silkscreen marks, like the key diodes;
+   - battery connector J2: its pin 1 is + (marked on the silkscreen); turned by 180° it reverses the battery (Q2 then blocks it, but the keyboard would not run from the cell);
    - headset jack: opening at the rear edge (it sticks out of the board by 1.8 mm; the USB-C by 0.4 mm);
    - hot-swap sockets: their two pads on top of the PCB pads.
-5. Choose **Standard** assembly: the E73 module is a Standard-only part and JLCPCB X-rays it; with Standard assembly every part type has a loading fee, and JLCPCB adds the edge rails and fiducials the board needs. "Extended" parts: module, sockets, charger, regulator, 18 pF capacitors, USB-C, ESD, JST, power switch, and for the
+5. Choose **Standard** assembly: the E73 module is a Standard-only part and JLCPCB X-rays it; with Standard assembly every part type has a loading fee, and JLCPCB adds the edge rails and fiducials the board needs. "Extended" parts: module, sockets, charger, regulator (TPS7A0233, used twice), TVS, 18 pF capacitors, USB-C, ESD, JST, power switch, and for the
    sound card the hub, the sound chip, the amplifier, the switch and the jack. This is normal for a wireless
    keyboard.
 
@@ -297,21 +299,27 @@ Before ordering 5 boards, it is wise to order 2.
   and if the hub ever fell back to full speed (12 Mbit/s), the keyboard and the sound card would not notice.
   Between the hub and the module and the sound chip the lines run at 12 Mbit/s, where controlled impedance is not
   needed. No track runs on the top layer over the hub or the headphone amplifier, so the ground plane there is
-  whole (both chips take their ground through a via in their exposed pad).
+  whole. The hub takes its only ground through a via in the middle of its exposed pad: the via is covered by solder mask on
+  the top side and the solder paste on the pad is a frame of four strips that keeps 0.12 mm away from it (so the
+  paste is not printed into the hole). The amplifier's pad has no via: its ground pins join it on the bottom layer
+  and two of them have vias of their own just outside the package.
 - **Sound card**: designed from the datasheets and C-Media's reference design, not tested yet. The CM108B is
   rated 0–70 °C. Listen to the headphones the first time with the keyboard in USB mode and also connected over
   Bluetooth to another device (a phone on profile 2), so that the radio transmits while you listen: it is 7 cm away. The
   microphone bias (1.2 kΩ + 2.2 kΩ) suits phone headsets; try a couple of headsets. Very sensitive in-ear
   earphones may hiss slightly at 0 dB gain: close JP3 (−6 dB).
-- **USB hub**: the CH334P always announces itself as self-powered (this package has no pin to say otherwise) and declares 100 mA, which is what lets the keyboard ask for 450 mA; the board draws about 0.3 A while charging (0.4 A with JP1 closed). Fine on a computer's port; avoid phones, tablets and bus-powered hubs. Check it on the first board (macOS: System Information → USB; Linux: `lsusb -v`).
+- **USB hub**: the CH334P always announces itself as self-powered (this package has no pin to say otherwise) and declares 100 mA, which is what lets the keyboard ask for 450 mA; the board draws about 0.3 A while charging (0.4 A with JP1 closed). Fine on a computer's port; avoid phones, tablets and bus-powered hubs. Check it on the first board (macOS: System Information → USB; Linux: `lsusb -v`). The charger also starts as soon as the cable is in, before the computer has set the keyboard up (USB allows 100 mA until then; the board draws about 130 mA, 230 mA with JP1), and keeps charging while the computer sleeps (USB allows 2.5 mA in suspend): most devices that charge do the same, and computers tolerate it. While the computer sleeps the headphone amplifier is switched off (see Suspend above); without charging the board then draws about 1–2 mA.
 - **Bluetooth range**: try it with no cable, with a charger cable and with a computer cable (the USB hub's 480 Mbit/s link is 13–21 mm from the antenna), with the sound card playing, and with the plate you chose.
-- **Battery polarity**: a cell plugged in reversed with the switch ON destroys the charger: measure the cell's plug before connecting it, every time.
-- **Battery life**: measure the current from the cell when idle; `dcdc_reg1 = true` in `keyboard.toml` (once the board works) roughly halves the radio's current.
+- **Battery polarity**: Q2 blocks a reversed cell. Check it once on the first board with a bench supply set to 4 V and 50 mA, connected reversed to the battery connector: no current should flow and the keyboard should not start. Still measure each cell's plug before connecting it: reversed, it neither runs nor charges the keyboard.
+- **Battery life**: measure the current from the cell when idle (REG1 DC/DC is on: the module has its inductors inside; if a module ever does not start with it, rebuild with `dcdc_reg1 = false` in `source/firmware/gen_firmware.py`).
+- **Low-battery cut-off**: with no cable, feed the battery connector from a bench supply and lower it below 3.40 V: about a minute later (two readings, 30 s apart) the keyboard switches itself off and draws almost nothing; plugging the cable in wakes it up.
+- **Plug-in ringing**: if you have an oscilloscope, look at VBUS (test point TP6) while plugging a 1 m cable into a computer a few times: it should stay below about 6.5 V.
+- **Suspend**: with the sound card on (USB mode) and headphones on, put the computer to sleep: the amplifier switches off (the codec's suspend signal, through Q3); when the computer wakes up, the headset must still be there without being reconnected.
 - **Headset jack**: its four contacts were matched to the drawing of a near-identical jack (the maker's drawing
   does not name them). Before ordering many boards, check one loose PJ-320D-4A with a meter and a 4-pole plug:
   pad S = sleeve, R2 = ring 2, R1 = ring 1, T = tip.
-- **Battery**: the charging circuit does not protect against reversed polarity (a cell connected the wrong way round
-  destroys the charger, as on the reference boards). Always measure before connecting. Use a cell with a
-  protection circuit: the keyboard has no low-battery shutdown.
+- **Battery**: a cell connected the wrong way round is blocked by Q2 (on the reference boards it destroys the
+  charger); still measure before connecting. The firmware switches the keyboard off below 3.40 V when there is no
+  cable; a cell with its own protection circuit is still the better choice.
 - **Spare jumpers**: if the power switch does not work, JP2 bypasses it; if charging at 100 mA
   is too slow, JP1 raises it to 200 mA. Close them with a blob of solder.

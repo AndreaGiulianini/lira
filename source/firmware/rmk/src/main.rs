@@ -2,6 +2,7 @@
 #![no_main]
 
 mod audio_gate;
+mod battery_guard;
 
 use rmk::macros::rmk_keyboard;
 
@@ -12,16 +13,24 @@ mod keyboard {
     // `use` items are hoisted to the crate root by the macro; other items (structs, impls) are dropped,
     // so the processor lives in src/audio_gate.rs.
     use crate::audio_gate::AudioGate;
+    use crate::battery_guard::BatteryGuard;
 
     // The body is pasted into the generated `main` (after chip init), so `p` (the embassy-nrf peripherals) is in scope.
-    // P1.02 sinks with high drive: switching the sound card off, it pulls the amplifier's EN down through the Schottky
-    // in ~0.06 ms, before the codec's 5 V has fallen (TPA6132A2: amplifier off before its source); 1 = standard drive.
+    // P1.02 with standard drive (Nordic allows no more on this pin): switching the sound card off, it pulls the
+    // amplifier's EN down through the Schottky (100 nF) in well under 0.1 ms, before the codec's 5 V has fallen
+    // (~3 ms: TPA6132A2, amplifier off before its source).
     #[register_processor(event)]
     fn audio_gate() -> AudioGate {
         AudioGate::new(::embassy_nrf::gpio::Output::new(
             p.P1_02,
             ::embassy_nrf::gpio::Level::Low,
-            ::embassy_nrf::gpio::OutputDrive::HighDrive0Standard1,
+            ::embassy_nrf::gpio::OutputDrive::Standard,
         ))
+    }
+
+    // Low-battery cut-off (src/battery_guard.rs): System OFF below 3.40 V without USB power.
+    #[register_processor(event)]
+    fn battery_guard() -> BatteryGuard {
+        BatteryGuard::new()
     }
 }

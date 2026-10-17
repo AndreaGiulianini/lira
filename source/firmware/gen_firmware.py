@@ -108,12 +108,12 @@ chip = "nrf52840"
 usb_enable = true
 
 [chip.nrf52840]
-# Normal-voltage mode (VDD = VDDH = 3.3 V from the AP2112K): REG0 is not used -> OFF.
+# Normal-voltage mode (VDD = VDDH = 3.3 V from the TPS7A0233): REG0 is not used -> OFF.
 dcdc_reg0 = false
-# REG1 DC/DC left OFF for the first bring-up (safe whatever the module contains: Nordic says a DC/DC enabled
-# without its inductor blocks the chip). The Ebyte datasheet shows the REG1 inductor inside the module:
-# once the board works, dcdc_reg1 = true saves a few mA.
-dcdc_reg1 = false
+# REG1 DC/DC ON: the module has its inductors inside (Ebyte E73-2G4M08S1C datasheet p.7, module schematic: L2 10 uH
+# + L1 15 nH between DCC and DEC4), as on the nice!nano; it saves a few mA in radio bursts. If a module ever does not
+# start with it, the bootloader still does (it sets its own regulator): flash a build with false here.
+dcdc_reg1 = true
 
 [matrix]
 row_pins = %s
@@ -153,6 +153,8 @@ unlock_keys = [[%d, %d], [%d, %d]]
 # subscriber slots of the connection status: the audio switch (src/audio_gate.rs, sound card only in USB mode through
 # the load switch on P1.02) is its only listener in this build (RMK adds its own slots for a display, rynk or a split)
 connection_status_change.subs = 2
+# battery readings: RMK's battery processor and the low-battery cut-off (src/battery_guard.rs)
+battery_adc.subs = 2
 ''' % (q(m["rows"]), q(m["cols"]), lay, layers, m["status_led"], m["battery_adc"],
        esc.row, esc.col, ret.row, ret.col)
 

@@ -1,1 +1,1 @@
-211 parts, 524 connected pins, 142 nets — PCB and schematic match the circuit
+218 parts, 543 connected pins, 146 nets — PCB and schematic match the circuit

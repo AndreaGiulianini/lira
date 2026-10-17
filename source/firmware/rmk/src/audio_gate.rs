@@ -7,7 +7,8 @@ use rmk::macros::processor;
 use rmk::types::connection::UsbState;
 
 /// Audio is allowed only when the user-selected output is USB *and* a USB host has configured the keyboard.
-/// `Suspended` (host asleep) keeps audio on so the codec does not re-enumerate on every host sleep/wake.
+/// `Suspended` (host asleep) keeps the codec powered so it does not re-enumerate on every host sleep/wake: the codec
+/// suspends itself, and its PDSW output switches the headphone amplifier off through Q3 meanwhile (hardware).
 pub fn audio_allowed(s: &ConnectionStatus) -> bool {
     let usb_up = matches!(s.usb, UsbState::Configured | UsbState::Suspended);
     usb_up && s.preferred == ConnectionType::Usb && s.decide_active() == Some(ConnectionType::Usb)

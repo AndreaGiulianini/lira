@@ -81,7 +81,7 @@ def tp(ref, net, d="1.5"):
 
 
 LCSC = {
-    "e73": "C356849", "mcp73831": "C424093", "ap2112k": "C51118", "usblc6": "C7519", "si2301": "C10487",
+    "e73": "C356849", "mcp73831": "C424093", "tps7a02": "C2887324", "usblc6": "C7519", "si2301": "C10487",
     "b5819w": "C8598", "led_white": "C2290", "led_red": "C2286", "usbc": "C165948", "jst": "C295747",
     "sw_power": "C221660", "sw_reset": "C318884", "xtal": "C32346",
     "r100k": "C25803", "r1k": "C21190", "r10k": "C25804", "r10M": "C7250", "r5k1": "C23186",
@@ -90,13 +90,15 @@ LCSC = {
     # sound card: hub, codec, jack, 12 MHz crystal, and the passives not used elsewhere
     "ch334p": "C5373042", "cm108b": "C371347", "jack": "C95562", "xtal12": "C9002",
     "c1u": "C15849", "c100p": "C14858", "r22": "C23345", "r2k2": "C4190", "bead": "C1002",
-    "tps22919": "C2149796", "tpa6132": "C69901", "c2u2": "C23630", "c470n": "C1623", "c10n": "C57112",
+    "tps22919": "C2149796", "tpa6132": "C69901", "c2u2": "C23630", "c10n": "C57112",
     "r1M": "C22935", "r1k2": "C22765",
     "c18p": "C53084486", "esd_jack": "C19224",
+    # reverse-battery and amplifier-suspend transistors, VBUS damping and TVS, amplifier EN resistor
+    "n2n7002": "C8545", "r1R": "C22936", "r33k": "C4216", "tvs5v": "C193402",
 }
 
 DEVIATIONS = [
-    "Second AP2112K (switched 3.3 V for external devices, P0.12 enable) omitted: nothing external to power.",
+    "Second regulator (switched 3.3 V for external devices, P0.12 enable) omitted: nothing external to power.",
     "USBLC6-2SC6 ESD array added on D+ / D- / VBUS at the USB-C receptacle.",
     "Power switch SW101 (C&K JS102011SAQN, 300 mA) in the battery + line, as on ZMK keyboards; JP2 bypasses it.",
     "JP1 + R104: closing the solder jumper puts a second 10k on PROG: charge current 100 mA -> 200 mA.",
@@ -108,9 +110,10 @@ DEVIATIONS = [
     "Test points added on VBUS, VBAT and VIN (BlueMicro840: SWDIO, SWCLK, VCC, GND, RESET, P1.02).",
     "C107 4.7 uF added on VBUS at the charger's VDD pin (the MCP73831 datasheet asks for 4.7 uF; Nordic's "
     "reference circuit has 4.7 uF on VBUS; the BlueMicro840 has none).",
-    "C108 1 uF at the regulator output and C109 100 nF at the module: the 10 uF C103 sits at the module's supply "
-    "pins (VDD / VDDH), 25 mm away. C102 on VIN is 1 uF instead of 10 uF: together they keep the capacitance charged "
-    "at USB attach near USB 2.0's 10 uF.",
+    "C108 1 uF at the regulator output and C109 100 nF at the module: the 4.7 uF C103 sits at the module's supply "
+    "pins (VDD / VDDH), 25 mm away (the module has about 12 uF inside: the TPS7A02 allows 1-22 uF on its output). "
+    "C102 on VIN is 1 uF instead of 10 uF: together they keep the capacitance charged at USB attach near USB 2.0's "
+    "10 uF.",
     "Charger MCP73831 instead of the TP4054, same pins and same PROG resistor (1000 V / R_PROG): it is stable with "
     "no battery, so the board also works when built without one (its STAT pin, and the white LED, stay off).",
     "Battery divider 10M + 10M with 10 nF (BlueMicro840: 806k + 2M, 1 nF): the MCP73831 recognises a missing battery "
@@ -118,6 +121,13 @@ DEVIATIONS = [
     "1 LSB (Nordic, 'Measuring Lithium battery voltage with nRF52'), and RMK samples it every 30 s. Drain 0.2 uA.",
     "Built-in USB sound card: the USB-C data lines go (through the ESD array) to a CH334P hub; hub port 3 goes to "
     "the module's D+ / D-, port 2 to a CM108B codec (C-Media demo board v1.33) with a 3.5 mm headset jack.",
+    "Reverse-battery P-MOSFET Q2 (SI2301) between the battery connector and the switch, gate to GND: a cell plugged "
+    "in the wrong way round finds it off (its body diode blocks), so the charger's VBAT pin never sees a negative "
+    "voltage; the right way round it is on (Vgs = -Vbat) and charging goes through it.",
+    "Regulator TPS7A0233 (25 nA quiescent, 200 mA) instead of the AP2112K (55 uA): same SOT-23-5 pins (IN, GND, "
+    "EN, NC, OUT); the 3.3 V rail needs < 50 mA (module, status LED).",
+    "VBUS: an SMF5.0A TVS at the receptacle, and C107 (4.7 uF) through 1 ohm: a ceramic-only VBUS rings on hot plug "
+    "to 6-8 V through the cable's inductance (simulated, 0.5-1 uH); damped, 5.0-6.6 V, without adding capacitance.",
 ]
 
 
@@ -154,7 +164,11 @@ def electronics(gpio=None):
              note="ESD protection, placed next to the receptacle"),
         r0603("R101", "100k", LCSC["r100k"], "VBUS", "GND", "VBUS bleeder (BlueMicro840 R3)"),
         # (the data lines continue to the hub, audio(): the module is on hub port 3)
-        c0603("C107", "4.7uF", LCSC["c4u7"], "VBUS", "GND", "VBUS bypass for the charger and the module (deviation 10)"),
+        c0603("C107", "4.7uF", LCSC["c4u7"], "VBUS_DAMP", "GND",
+              "VBUS bypass for the charger and the module (deviation 10), through R126"),
+        r0603("R126", "1", LCSC["r1R"], "VBUS", "VBUS_DAMP", "damps the hot-plug ring of the cable's inductance"),
+        Part("D108", "SMF5.0A", "Diode_SMD:D_SOD-123F", {1: ("K", "VBUS"), 2: ("A", "GND")}, LCSC["tvs5v"],
+             "Device:D_Zener", note="5 V TVS on VBUS at the receptacle"),
         # --- power path: USB through the Schottky, battery through the P-MOSFET (off while USB is present)
         Part("D101", "B5819W", "Diode_SMD:D_SOD-123", {1: ("K", "VIN"), 2: ("A", "VBUS")}, LCSC["b5819w"],
              "Device:D_Schottky", note="BlueMicro840 D1"),
@@ -179,8 +193,11 @@ def electronics(gpio=None):
         r0603("R102", "1k", LCSC["r1k"], "LED_CHG_K", "STAT"),
         # --- battery: connector, power switch (bypass jumper), voltage divider into AIN7 (BlueMicro840 R4/R6/C6)
         Part("J2", "battery JST-PH", "Connector_JST:JST_PH_S2B-PH-SM4-TB_1x02-1MP_P2.00mm_Horizontal",
-             {1: ("+", "BAT+"), 2: ("-", "GND"), "MP": ("MP", None)}, LCSC["jst"], "Connector:Conn_01x02_Pin",
+             {1: ("+", "BAT_IN"), 2: ("-", "GND"), "MP": ("MP", None)}, LCSC["jst"], "Connector:Conn_01x02_Pin",
              note="1 = +, 2 = -: check the cell's lead order with a meter"),
+        Part("Q2", "SI2301CDS", "Package_TO_SOT_SMD:SOT-23", {1: ("G", "GND"), 2: ("S", "BAT+"), 3: ("D", "BAT_IN")},
+             LCSC["si2301"], "Transistor_FET:AO3401A",
+             note="reverse-battery protection: drain to the connector, gate to GND; off for a reversed cell"),
         Part("SW101", "JS102011SAQN", "Button_Switch_SMD:SW_SPDT_CK_JS102011SAQN",
              {1: ("A", "BAT+"), 2: ("B", "VBAT"), 3: ("C", None)}, LCSC["sw_power"], "Switch:SW_SPDT",
              note="power switch, 300 mA contacts, common pin 2"),
@@ -190,11 +207,11 @@ def electronics(gpio=None):
         r0603("R105", "10M", LCSC["r10M"], "VBAT", "BAT_SENSE", "divider 10M / 10M -> firmware 10000 / 20000"),
         r0603("R106", "10M", LCSC["r10M"], "BAT_SENSE", "GND"),
         c0603("C104", "10nF", LCSC["c10n"], "BAT_SENSE", "GND", "charge reservoir for the ADC (high-impedance divider)"),
-        # --- 3.3 V regulator (BlueMicro840 U3)
-        Part("U3", "AP2112K-3.3", "Package_TO_SOT_SMD:SOT-23-5",
-             {1: ("VIN", "VIN"), 2: ("GND", "GND"), 3: ("EN", "VIN"), 4: ("NC", None), 5: ("VOUT", "3V3")},
-             LCSC["ap2112k"], "Regulator_Linear:AP2112K-3.3", note="EN tied to VIN: always on"),
-        c0603("C103", "10uF", LCSC["c10u"], "3V3", "GND", "at the module's VDD / VDDH pins"),
+        # --- 3.3 V regulator (BlueMicro840 U3, there an AP2112K)
+        Part("U3", "TPS7A0233", "Package_TO_SOT_SMD:SOT-23-5",
+             {1: ("IN", "VIN"), 2: ("GND", "GND"), 3: ("EN", "VIN"), 4: ("NC", None), 5: ("OUT", "3V3")},
+             LCSC["tps7a02"], "lira:TPS7A02", note="EN tied to VIN: always on; 25 nA quiescent (deviation 16)"),
+        c0603("C103", "4.7uF", LCSC["c4u7"], "3V3", "GND", "at the module's VDD / VDDH pins"),
         c0603("C109", "100nF", LCSC["c100n"], "3V3", "GND", "at the module's VDD pin (deviation 11)"),
         c0603("C108", "1uF", LCSC["c1u"], "3V3", "GND", "regulator output (deviation 11)"),
         # --- 32.768 kHz crystal (BlueMicro840 Y2 / C1 / C2)
@@ -223,9 +240,17 @@ AUDIO_DEVIATIONS = [
     "would dip VBUS enough to reset the hub (CH334 datasheet 6.1).",
     "Headphones: a TPA6132A2 DirectPath amplifier after LOL / LOR (demo board: 100 uF + 39R straight to the jack): "
     "about 0 ohm output impedance, no coupling capacitors, 0 dB gain (-6 dB with JP3 closed, for very sensitive "
-    "earphones). Inputs single-ended through 1 uF (8 Hz); EN about 0.25 s after the supply (1M + 470 nF from P1.02) "
-    "and off at once through a Schottky. The switch's output discharge goes through 1k (TPS22919 9.2.2.2): the 5 V falls in "
-    "about 3 ms, so the amplifier is off before the codec loses its supply (TPA6132A2 p.12, no pop).",
+    "earphones). Inputs single-ended through 1 uF (8 Hz); EN about 50 ms after the supply (1M + 100 nF from P1.02, "
+    "into the pin through 33k: EN may not exceed VDD + 0.3 V, and C137 still holds 3.3 V for a moment when the "
+    "cable is pulled) and off at once through a Schottky. The switch's output discharge goes through 1k (TPS22919 "
+    "9.2.2.2): the 5 V falls in about 3 ms, so the amplifier is off before the codec loses its supply (TPA6132A2 "
+    "p.12, no pop).",
+    "Amplifier off in USB suspend: the codec's PDSW (open drain, low in operation, open in suspend; app note 1.50) "
+    "with a 100k pull-up to AUD_5V drives a 2N7002 that holds the amplifier's EN low while the host sleeps (2 mA "
+    "-> < 1 uA); the codec itself stays enumerated and draws its suspend current.",
+    "Hub supply: V5 and VDD33 both on a 3.3 V regulator (TPS7A0233) fed from VBUS (CH334 datasheet 6.4), instead "
+    "of V5 on VBUS: V5's absolute maximum is 5.5 V and a USB hot plug rings above it; the regulator's input is "
+    "rated 6.5 V. The regulator is on only with VBUS (the hub draws nothing from the battery).",
     "Microphone: bias 1.2k + 2.2k (demo board 2.2k + 8.2k, for PC microphones) for phone headsets (Android: "
     "1.8-2.9 V through 2.2k); 1k in series before MICIN against the step when a plug goes in.",
     "The demo board's two 10 nF capacitors DVDD - DREG18 and DVDD - DREG33 ('close to IC', for ESD) are fitted.",
@@ -241,11 +266,12 @@ AUDIO_DEVIATIONS = [
 def audio():
     """The sound card: CH334P USB 2.0 hub between the receptacle and the module, CM108B USB audio codec on a hub port,
     TPA6132A2 headphone amplifier, 3.5 mm headset jack (CTIA: tip = left, ring 1 = right, ring 2 = ground, sleeve =
-    microphone). The codec and the amplifier run from AUD_5V, switched by a TPS22919 from P1.02."""
+    microphone). The codec and the amplifier run from AUD_5V, switched by a TPS22919 from P1.02; the hub runs from
+    its own 3.3 V regulator on VBUS."""
     hub = {1: ("XO", "HUB_XO"), 2: ("XI", "HUB_XI"), 3: ("DM4", None), 4: ("DP4", None),
            5: ("DM3", "MCU_DN"), 6: ("DP3", "MCU_DP"), 7: ("DM2", "AUD_DN"), 8: ("DP2", "AUD_DP"), 9: ("DM1", None),
            10: ("DP1", None), 11: ("DMU", "USB_DN"), 12: ("DPU", "USB_DP"), 13: ("RESET#/CDP", None),
-           14: ("PGANG", None), 15: ("V5", "VBUS"), 16: ("VDD33", "HUB_3V3"), 17: ("GND", "GND")}
+           14: ("PGANG", None), 15: ("V5", "HUB_3V3"), 16: ("VDD33", "HUB_3V3"), 17: ("GND", "GND")}
     names = {1: "SPDIFO", 2: "DR", 3: "DW", 4: "SK", 5: "CS", 6: "MUTER", 7: "PWRSEL", 8: "DREG18", 9: "DREG33",
              10: "MODE", 11: "NC", 12: "LEDO", 13: "GPIO3", 14: "DVSS", 15: "GPIO4", 16: "SDIN", 17: "ADSCLK",
              18: "MUTEP", 19: "ADLRCK", 20: "ADMCLK", 21: "LEDR", 22: "ADSEL", 23: "TEST", 24: "AVSS", 25: "VBIAS",
@@ -256,14 +282,14 @@ def audio():
     # pulls: MODE/ADSEL low = headset mode (playback + record) and internal ADC; PWRSEL/MSEL high (to DREG33, so
     # they are only driven while the codec is on) = 100 mA bus-powered and mixer enabled. Every other unlisted pin
     # is left open (outputs / N.C. / unused audio functions).
-    nets = {7: "CM_PWRSEL", 8: "DREG18", 9: "DREG33", 10: "CM_MODE", 14: "GND", 22: "CM_ADSEL", 23: "GND",
+    nets = {7: "CM_PWRSEL", 8: "DREG18", 9: "DREG33", 10: "CM_MODE", 14: "GND", 22: "CM_ADSEL", 23: "GND", 40: "CM_PDSW",
             24: "GND", 25: "VBIAS", 26: "VREF", 27: "MICIN", 29: "AUD_AVDD", 30: "LOL", 31: "LOBS", 32: "LOR",
             33: "GND", 34: "AUD_AVDD", 35: "AUD_DVDD", 36: "GND", 37: "AREG36", 38: "CM_MSEL", 41: "CM_DP",
             42: "CM_DN"}
     codec = {n: (names[n], nets.get(n)) for n in names}
     amp = {1: ("INL-", "AMP_INL"), 2: ("INL+", "GND"), 3: ("INR+", "GND"), 4: ("INR-", "AMP_INR"),
            5: ("OUTR", "HPR2"), 6: ("G0", "AMP_G0"), 7: ("G1", "GND"), 8: ("HPVSS", "AMP_VSS"), 9: ("CPN", "AMP_CPN"),
-           10: ("PGND", "GND"), 11: ("CPP", "AMP_CPP"), 12: ("HPVDD", "AMP_VDDH"), 13: ("EN", "AMP_EN"),
+           10: ("PGND", "GND"), 11: ("CPP", "AMP_CPP"), 12: ("HPVDD", "AMP_VDDH"), 13: ("EN", "AMP_ENI"),
            14: ("VDD", "AUD_5V"), 15: ("SGND", "GND"), 16: ("OUTL", "HPL2"), 17: ("EP", "GND")}
     return [
         # --- hub (CH334P datasheet V2.91): 12 MHz crystal without load capacitors (they are inside the chip)
@@ -272,9 +298,12 @@ def audio():
         Part("Y2", "12MHz", "Crystal:Crystal_SMD_3225-4Pin_3.2x2.5mm",
              {1: ("1", "HUB_XI"), 2: ("G", "GND"), 3: ("3", "HUB_XO"), 4: ("G", "GND")}, LCSC["xtal12"],
              "Device:Crystal_GND24", note="no load capacitors: the CH334 has them inside"),
-        c0603("C110", "1uF", LCSC["c1u"], "VBUS", "GND", "hub V5 input"),
-        c0603("C111", "10uF", LCSC["c10u"], "HUB_3V3", "GND", "hub VDD33 (internal regulator output)"),
-        c0603("C112", "100nF", LCSC["c100n"], "HUB_3V3", "GND", "hub VDD33"),
+        Part("U9", "TPS7A0233", "Package_TO_SOT_SMD:SOT-23-5",
+             {1: ("IN", "VBUS"), 2: ("GND", "GND"), 3: ("EN", "VBUS"), 4: ("NC", None), 5: ("OUT", "HUB_3V3")},
+             LCSC["tps7a02"], "lira:TPS7A02", note="the hub's 3.3 V, on only with VBUS (CH334 datasheet 6.4)"),
+        c0603("C110", "1uF", LCSC["c1u"], "VBUS", "GND", "hub regulator input"),
+        c0603("C111", "10uF", LCSC["c10u"], "HUB_3V3", "GND", "hub regulator output, V5 / VDD33"),
+        c0603("C112", "100nF", LCSC["c100n"], "HUB_3V3", "GND", "hub V5 / VDD33"),
         # --- codec (CM108B): USB through 22R, supplies from VBUS through ferrite beads
         Part("U6", "CM108B", "Package_QFP:LQFP-48_7x7mm_P0.5mm", codec, LCSC["cm108b"], "lira:CM108B",
              note="USB audio codec, crystal-free; operating 0-70 C"),
@@ -320,8 +349,13 @@ def audio():
         Part("JP3", "-6 dB", "Jumper:SolderJumper-2_P1.3mm_Open_RoundedPad1.0x1.5mm",
              {1: ("A", "AMP_G0"), 2: ("B", "GND")}, symbol="Jumper:SolderJumper_2_Open",
              note="closed: amplifier gain -6 dB, for very sensitive earphones"),
-        r0603("R113", "1M", LCSC["r1M"], "AUD_EN", "AMP_EN", "amplifier on about 0.25 s after the supply"),
-        c0603("C137", "470nF", LCSC["c470n"], "AMP_EN", "GND"),
+        r0603("R113", "1M", LCSC["r1M"], "AUD_EN", "AMP_EN", "amplifier on about 50 ms after the supply"),
+        c0603("C137", "100nF", LCSC["c100n"], "AMP_EN", "GND"),
+        r0603("R124", "33k", LCSC["r33k"], "AMP_EN", "AMP_ENI",
+              "limits the current into EN's clamp to VDD when the 5 V goes first (EN <= VDD + 0.3 V)"),
+        Part("Q3", "2N7002", "Package_TO_SOT_SMD:SOT-23", {1: ("G", "CM_PDSW"), 2: ("S", "GND"), 3: ("D", "AMP_EN")},
+             LCSC["n2n7002"], "Transistor_FET:2N7002", note="amplifier off while the codec is suspended (PDSW open)"),
+        r0603("R125", "100k", LCSC["r100k"], "CM_PDSW", "AUD_5V", "PDSW pull-up (open drain, 1.8-5 V)"),
         Part("D104", "B5819W", "Diode_SMD:D_SOD-123", {1: ("K", "AUD_EN"), 2: ("A", "AMP_EN")}, LCSC["b5819w"],
              "Device:D_Schottky", note="amplifier off at once when the sound card is switched off"),
         bead("L103", LCSC["bead"], "HPL2", "HP_L"),

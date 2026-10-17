@@ -38,6 +38,20 @@ sound card's 5 V: high (sound card on) only when the chosen output is USB and a 
 asleep); low in Bluetooth mode (also while the keyboard types over the cable because no Bluetooth host is
 connected: fn + R selects USB), on a charger, and in the bootloader (a pull-down keeps the switch off). keyboard.toml
 sets the subscriber slots of the connection status (`[event]`, written by `../gen_firmware.py`): the audio switch is
-its only listener in this build (RMK adds its own slots when a display, rynk or a split is enabled). P1.02 sinks with
-high drive (`src/main.rs`): switching off, it pulls the amplifier's EN down before the sound card's 5 V has fallen,
-so the amplifier is off before its source (no pop).
+its only listener in this build (RMK adds its own slots when a display, rynk or a split is enabled). P1.02 uses
+standard drive (`src/main.rs`; Nordic allows no more on this pin): switching off, it pulls the amplifier's EN down
+through a Schottky from a 100 nF capacitor in under 0.1 ms, before the sound card's 5 V has fallen (about 0.2 ms), so
+the amplifier is off before its source (no pop). While the host sleeps (USB suspend) the sound card stays powered and
+enumerated: the codec suspends itself and its PDSW output switches the amplifier off through Q3 (hardware).
+
+### Lira: low-battery cut-off
+
+`src/battery_guard.rs` reads the battery measurements RMK takes every 30 s (`battery_adc.subs = 2` in `[event]`):
+below 3.40 V twice in a row, with no USB power, it puts the nRF52840 into System OFF (every GPIO released first, so
+the Caps Lock LED does not stay on). Plugging the cable in wakes it up (VBUS detection is a System OFF wake-up
+source), as do the power switch (off and on) and the reset button.
+
+### Lira: regulator
+
+`dcdc_reg1 = true`: the E73 module has the REG1 DC/DC inductors inside (Ebyte datasheet p.7). The 32.768 kHz crystal
+on the board is not used by this firmware: RMK 0.9 runs the Bluetooth stack on the internal RC oscillator (calibrated).

@@ -19,7 +19,7 @@
 
 | Folder | Files | What to do with them |
 |---|---|---|
-| `1-pcb-jlcpcb/` | `gerber-pcb.zip`, `bom.csv`, `cpl.csv` | PCB order at JLCPCB: 2 layers, 1.6 mm, assembly of the **bottom side** (200 parts, 41 different part numbers). |
+| `1-pcb-jlcpcb/` | `gerber-pcb.zip`, `bom.csv`, `cpl.csv` | PCB order at JLCPCB: 2 layers, 1.6 mm, assembly of the **bottom side** (207 parts, 44 different part numbers). |
 | `2-plate/` | | The plate carries the keyboard (6 ears and 3 back tabs screw it to the top frame). Three ways to make it, all interchangeable (guide, §2): |
 | | `jlcpcb/gerber-plate.zip` | cut by JLCPCB: 1.6 mm FR4, ordered like a PCB with no copper and no assembly (black or white) |
 | | `laser-cut/plate.dxf` | laser cut in metal or plastic (1.5 mm aluminium or steel, POM…), e.g. JLCCNC sheet metal |

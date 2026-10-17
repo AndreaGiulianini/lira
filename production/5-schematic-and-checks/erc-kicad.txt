@@ -2,11 +2,8 @@ ERC report (2026-10-15T00:00:00, Encoding UTF8)
 Report includes: Errors, Warnings, Exclusions
 
 ***** Sheet /
-[lib_symbol_mismatch]: Symbol 'USBLC6-2SC6' doesn't match copy in library 'Power_Protection'
-    ; warning
-    @(91.44 mm, 107.95 mm): Symbol U4 [USBLC6-2SC6]
 
- ** ERC messages: 1  Errors 0  Warnings 1
+ ** ERC messages: 0  Errors 0  Warnings 0
 
  ** Ignored checks:
     - Global label only appears once in the schematic

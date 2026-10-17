@@ -211,6 +211,24 @@ SRC = {
     "SI_pins": "C10487.pdf (Si2301CDS) p.1 (SOT-23: 1 G, 2 S, 3 D; VDS -20 V, VGS +-8 V), "
                "p.2 (VGS(th) -0.4..-1 V, body diode VSD -0.8 V), p.7 (AN807: pin 1 gate, "
                "pin 2 source, pin 3 drain)",
+    "TPS_ldo": "tps7a02.pdf (TI SBVS277C) p.3 Table 5-1 (DBV: 1 IN, 2 GND, 3 EN, 4 NC, 5 OUT), p.4 6.1 (abs max "
+               "IN 6.5 V) and 6.3 (VIN 1.5-6.0 V; CIN 1 uF; COUT 1-22 uF, >= 0.5 uF effective), p.6 (accuracy "
+               "+-1.5 % for VOUT >= 1.5 V), p.7 (VEN(HI) >= 1.1 V, VEN(LOW) <= 0.3 V), p.19 7.3.2 (smart enable "
+               "pull-down; active output discharge when disabled); E73-2G4M08S1C_C356849.pdf p.7 (module "
+               "schematic: 4.7 uF on VDD, 4.7 uF on VDDH and 3 x 100 nF inside the module)",
+    "REV_fet": "C10487.pdf (Si2301CDS) p.1 (SOT-23: 1 G, 2 S, 3 D; VDS -20 V, VGS +-8 V; PD 0.86 W at 25 C), "
+               "p.2 (VGS(th) -0.4..-1 V; RDS(on) 0.112 Ohm max at VGS -4.5 V, 0.142 Ohm at -2.5 V; body diode "
+               "VSD -0.8 V); MCP73831_C424093.pdf p.3 (inputs and outputs -0.3..VDD+0.3 V), p.4 (preconditioning "
+               "below VPTH), p.26 (option AC: preconditioning 10 %, VPTH 66.5 %)",
+    "VBUS_prot": "MCP73831_C424093.pdf p.18 6.1.1.2 and p.17 Fig.6-1 (hot-pluggable inputs: a transzorb, SMAJ5.0A, "
+                 "from V+ to 0 V); SMF5.0A (LCSC C193402 listing): unidirectional, VRWM 5.0 V, VC 9.2 V at 21.7 A, "
+                 "200 W 10/1000 us; nrf52840_ps_a.pdf 9 p.612 (VBUS abs max 5.8 V); TPS22919_C2149796.pdf p.4 "
+                 "(VIN abs max 6 V); tps7a02.pdf p.4 (IN abs max 6.5 V); MCP73831_C424093.pdf p.3 (VDD abs max "
+                 "7.0 V); USB 2.0 spec 7.2.4.1 (at most 10 uF across VBUS at attach)",
+    "CM_pdsw": "CM108B_datasheet_v1.41.pdf p.8 (pin 40 PDSW: DO, 4 mA, open drain; 0 = normal operation, "
+               "1 = power-down / suspend mode); CM108B_appnotes_v1.50.pdf p.8 (PDSW power control supports DC "
+               "1.8-5 V; operation: drive low, suspend: open); 2N7002 (LCSC C8545 listing): VDS 60 V, VGS +-20 V, "
+               "VGS(th) <= 2.5 V; TPA6132A2_C69901.pdf p.4 (EN VIL <= 0.6 V), p.1 (shutdown current < 1 uA)",
     "B58_pins": "C8598.pdf (B5819W) p.1 (marking bar = cathode; IO 1 A, VRRM 40 V, VF 0.6 V at 1 A)",
     "USBC": "C165948.pdf (HRO TYPE-C-31-M-12) p.1 pin table (A1/B1/A12/B12 GND, A4/A9/B4/B9 VBUS, "
             "A5 CC1, B5 CC2, A6/B6 DP, A7/B7 DN, A8/B8 SBU; 5 A / 20 V rating); "
@@ -279,6 +297,27 @@ USBC_ROLE = {"A1": "GND", "A4": "VBUS", "A5": "CC1", "A6": "D+", "A7": "D-", "A8
              "B9": "VBUS", "B12": "GND"}
 USBLC6_ROLE = {"1": "IO1", "2": "GND", "3": "IO2", "4": "IO2", "5": "VBUS", "6": "IO1"}
 AP2112_ROLE = {"1": "VIN", "2": "GND", "3": "EN", "4": "NC", "5": "VOUT"}
+# the 3.3 V regulators: both SOT-23-5 with the same functions per pin (AP2112K names them VIN/VOUT, the TPS7A02
+# IN/OUT); input range, enable threshold, capacitors and output accuracy per datasheet
+LDO_MODELS = {
+    "AP2112K": dict(names=AP2112_ROLE, vin=(2.5, 6.0), abs_max=6.5, en_hi=1.5, cout_max=None, acc=0.015,
+                    src="AP_pins", iq="55 uA"),
+    "TPS7A02": dict(names={"1": "IN", "2": "GND", "3": "EN", "4": "NC", "5": "OUT"}, vin=(1.5, 6.0), abs_max=6.5,
+                    en_hi=1.1, cout_max=22e-6, acc=0.015, src="TPS_ldo", iq="25 nA"),
+}
+E73_INTERNAL_VDD_CAP = 9.7e-6  # inside the module on VDD / VDDH: 4.7 + 4.7 uF + 3 x 100 nF (Ebyte datasheet p.7)
+
+
+def ldo_model(nl, ref):
+    vu, lcsc = nl.value(ref).upper(), (nl.parts[ref].get("lcsc") or "").upper()
+    return "TPS7A02" if ("TPS7A02" in vu or lcsc == "C2887324") else "AP2112K"
+
+
+def ldo_vout(nl, ref):
+    """Nominal output voltage from the part's value (AP2112K-3.3, TPS7A0233), None if unreadable."""
+    vu = nl.value(ref).upper()
+    m = re.search(r"-(\d)\.(\d)\b", vu) or re.search(r"TPS7A02(\d)(\d)", vu)
+    return float("%s.%s" % m.groups()) if m else None
 SOT23_PMOS_ROLE = {"1": "G", "2": "S", "3": "D"}
 
 # Single-cell Li-ion chargers in SOT-23-5.  Both models put the same functions on the same pins
@@ -455,8 +494,12 @@ def classify(p):
         return "loadsw"
     if lcsc == "C95562" or "PJ-320D" in vu or "PJ-320D" in fp:
         return "jack"
-    if "AP2112" in vu or lcsc == "C51118":
+    if "AP2112" in vu or lcsc == "C51118" or "TPS7A02" in vu or lcsc == "C2887324":
         return "ldo"
+    if lcsc == "C8545" or re.search(r"2N7002|BSS138", vu):
+        return "nmos"
+    if lcsc == "C193402" or re.search(r"^SM[FAB]J?\d", vu):
+        return "tvs"
     if lcsc == "C10487" or re.search(r"SI2301|AO3407|AO3401|DMG2301|DMG3415", vu):
         return "pmos"
     if lcsc == "C8598" or re.search(r"B58(17|18|19)W|1N5819|SS1[24]|MBR0520", vu):
@@ -630,6 +673,8 @@ class Netlist:
     def _roles(self):
         self.gnd = self.vbus = self.vdd = self.vddh = None
         self.vin = self.vbat = self.batp = None
+        self.batin = self.revfet = None  # the connector's + before a reverse-battery P-MOSFET, and that FET
+        self.revfet_swapped = False  # that FET fitted with source and drain the wrong way round
         self.ldo_main = None
         u = self.first("usbc")
         if self.module:
@@ -676,8 +721,21 @@ class Netlist:
                     self.batconn = ref
                     self.batp = other
                     break
+                # a reverse-battery P-MOSFET between the connector and the rest: drain on the connector, gate on
+                # GND, source on the battery side (BAT+)
+                for q in self.refs("pmos"):
+                    g, s, dr = self.net(q, "1"), self.net(q, "2"), self.net(q, "3")
+                    for conn_side, load in ((dr, s), (s, dr)):  # (the second: fitted the wrong way round)
+                        if conn_side == other and load and (load == self.vbat or self._reaches_vbat(load)):
+                            self.batconn, self.batin, self.revfet, self.batp = ref, other, q, load
+                            self.revfet_swapped = conn_side == s
+                            break
+                    if self.batconn:
+                        break
+                if self.batconn:
+                    break
         for net, role in ((self.gnd, "GND"), (self.vbus, "VBUS"), (self.vdd, "VDD"), (self.vin, "VIN"),
-                          (self.vbat, "VBAT"), (self.batp, "BAT+"), (self.vaud, "VAUD")):
+                          (self.vbat, "VBAT"), (self.batp, "BAT+"), (self.batin, "BAT_IN"), (self.vaud, "VAUD")):
             if net is not None and net not in self.labels:
                 self.labels[net] = role
 
@@ -695,7 +753,7 @@ class Netlist:
     def power_nets(self):
         return {n: r for n, r in ((self.gnd, "GND"), (self.vbus, "VBUS"), (self.vdd, "VDD"),
                                   (self.vin, "VIN"), (self.vbat, "VBAT"), (self.batp, "BAT+"),
-                                  (self.vaud, "VAUD")) if n}
+                                  (self.batin, "BAT_IN"), (self.vaud, "VAUD")) if n}
 
     # --- helpers for the IC checks ---------------------------------------------
     def fitted(self, kind):
@@ -828,7 +886,7 @@ class Netlist:
             return V_VBUS_MAX
         if net == self.vin:
             return V_VBUS_MAX - 0.3
-        if net in (self.vbat, self.batp):
+        if net in (self.vbat, self.batp, self.batin):
             return V_VBAT_MAX
         if net == self.vdd:
             return V_VDD
@@ -843,7 +901,7 @@ class Netlist:
             return V_VBUS_NOM
         if net == self.vin:
             return V_VBUS_NOM - V_SCHOTTKY
-        if net in (self.vbat, self.batp):
+        if net in (self.vbat, self.batp, self.batin):
             return 3.8
         if net == self.vdd:
             return V_VDD
@@ -946,13 +1004,12 @@ def check_module_supply(nl, rep):
                  "VDD operating range 1.7-3.6 V, abs max 3.9 V")
         ldo = nl.ldo_main
         if ldo:
-            vu = nl.value(ldo).upper()
-            vout = 3.3 if "3.3" in vu else None
+            vout = ldo_vout(nl, ldo)
             if vout is None:
                 status = WARN
                 d.append("LDO %s feeding VDD: output voltage not recognisable from value '%s'" % (ldo, nl.value(ldo)))
             else:
-                hi = vout * 1.015
+                hi = vout * (1 + LDO_MODELS[ldo_model(nl, ldo)]["acc"])
                 d.append("rail from %s: %.2f V +-1.5 %% -> max %.3f V (<= 3.6 V operating, < 3.9 V abs max)"
                          % (nl.desc(ldo), vout, hi))
                 if hi > 3.6:
@@ -962,7 +1019,7 @@ def check_module_supply(nl, rep):
             sources = [(r, p) for r, p in nl.mems(vdd) if nl.kind[r] in ("ldo", "pmos", "conn", "jumper", "ind", "res", "other")]
             if sources:
                 status = WARN
-                d.append("no AP2112 LDO drives the VDD net; possible sources %s - rail voltage not verified" % sources)
+                d.append("no LDO drives the VDD net; possible sources %s - rail voltage not verified" % sources)
             else:
                 status = FAIL
                 d.append("the VDD net has no supply at all (only module pins, capacitors, test points)")
@@ -1398,10 +1455,15 @@ def check_charger_bypass(nl, rep):
         return
     vdd = chg_net(nl, ch, "VDD")
     caps = nl.cap_list(vdd)
-    tot = sum(c for _, c in caps if c)
+    damped = damped_caps(nl, vdd)
+    tot = sum(c for _, c in caps if c) + sum(c for _, _, _, c in damped if c)
     need = CHARGER_MODELS[nl.chg_model]["vdd_cap"]
     d = ["capacitors %s-GND: %s = %s" % (nl.label(vdd), [(r, fmt_c(c)) for r, c in caps] or "none",
-                                        fmt_c(tot) if caps else "0")]
+                                        fmt_c(sum(c for _, c in caps if c)) if caps else "0")]
+    for rr, rv, cr, cv in damped:
+        d.append("and %s through %s %s (hot-plug damping, see U04): %s of bypass with %s of added series "
+                 "resistance, like a tantalum's ESR (the datasheet sets no ESR limit for the VDD bypass)"
+                 % (cr, rr, fmt_ohm(rv), fmt_c(cv), fmt_ohm(rv)))
     status = PASS
     if tot < need * 0.999:
         status = FAIL
@@ -1409,8 +1471,14 @@ def check_charger_bypass(nl, rep):
     else:
         d.append(">= 4.7 uF (p.11 3.1); nominal values: 0603 X5R parts lose capacitance under 5 V bias, keep the "
                  "largest one next to pin 4 (layout)")
+    tvs = [r for r in nl.fitted("tvs") if tvs_on(nl, r) == (vdd, nl.gnd)]
+    if tvs:
+        d.append("transient clamp: %s, a 5 V TVS from %s to GND = the 'transzorb from V+ to 0 V' of p.18, the "
+                 "same class as the SMAJ5.0A of Fig.6-1" % (tvs, nl.label(vdd)))
     clamps = [(r, p) for r, p in nl.mems(vdd) if nl.kind[r] == "esd" and USBLC6_ROLE.get(p) == "VBUS"]
-    if not clamps:
+    if tvs:
+        pass
+    elif not clamps:
         status = FAIL
         d.append("p.18 6.1.1.2: input over-voltage protection 'must be used' when the source is hot-pluggable "
                  "(USB cables included): no transient clamp (TVS / ESD array VBUS pin) on %s" % nl.label(vdd))
@@ -1688,24 +1756,210 @@ def check_charger_detect(nl, rep):
 
 
 # -------------------------------------------------------------------- LDO ---
+def fmt_ohm(v):
+    return fmt_r(v) if v >= 1000 else "%s ohm" % fmt_r(v)
+
+
+def damped_caps(nl, net, max_ohm=2.2):
+    """[(resistor, ohm, capacitor, farad)]: capacitors to GND reached from `net` through one low-value resistor
+    (an RC damping branch: the resistor is the capacitor's only other connection)."""
+    out = []
+    for r, pin, mid in nl.two_pin_parts_on(net, ("res",)):
+        rv = parse_number(nl.value(r), "R")
+        if rv is None or rv > max_ohm or mid is None or mid in nl.power_nets():
+            continue
+        others = nl.mems(mid, exclude=r)
+        caps = [(c, parse_number(nl.value(c), "F")) for c, _, o in nl.two_pin_parts_on(mid, ("cap",)) if o == nl.gnd]
+        if caps and len(others) == len(caps):
+            out += [(r, rv, c, cv) for c, cv in caps]
+    return out
+
+
+def tvs_on(nl, ref):
+    """(cathode net, anode net) of a unidirectional TVS."""
+    a, k, _ = nl.diode_ak(ref)
+    return nl.net(ref, k), nl.net(ref, a)
+
+
+def hub_ldo(nl, net):
+    """The regulator whose output is `net` and whose input and enable are VBUS, or None."""
+    for r in nl.fitted("ldo"):
+        if nl.net(r, "5") == net and nl.net(r, "1") == nl.vbus and nl.net(r, "3") == nl.vbus:
+            return r
+    return None
+
+
+def charger_rprog_min(nl):
+    """Smallest PROG resistance (jumpers closed): the highest charge current the board can be set to."""
+    if not nl.charger:
+        return None
+    prog = chg_net(nl, nl.charger, "PROG")
+    rs = [v for _, v in nl.resistors_between(prog, nl.gnd) if v]
+    for jp in nl.fitted("jumper"):
+        nets = [nl.net(jp, p) for p in nl.pins_of(jp)]
+        if prog in nets:
+            other = [n for n in nets if n != prog][0]
+            rs += [v for _, v in nl.resistors_between(other, nl.gnd) if v]
+    return 1.0 / sum(1.0 / v for v in rs) if rs else None
+
+
+def check_reverse_battery(nl, rep):
+    """P07: a reversed cell must not reach the board: series P-MOSFET, drain on the connector, gate on GND."""
+    title = "reverse-battery P-MOSFET: drain on the connector, gate on GND, source towards the board; on for a cell, off reversed"
+    if nl.batconn is None:
+        rep.add("P07", title, SKIP, "REV_fet", ["no battery connector"])
+        return
+    q = nl.revfet
+    if q is None:
+        rep.add("P07", title, WARN, "REV_fet", [
+            "the connector's + (%s) reaches the board with no series protection: a reversed cell drives the "
+            "charger's VBAT pin negative (abs max -0.3 V, MCP73831 p.3)" % nl.label(nl.batp)])
+        return
+    g, s, dr = nl.net(q, "1"), nl.net(q, "2"), nl.net(q, "3")
+    d = ["%s: G(1) -> %s ; S(2) -> %s ; D(3) -> %s" % (nl.desc(q), nl.label(g), nl.label(s), nl.label(dr))]
+    status = PASS
+    if nl.revfet_swapped:
+        rep.add("P07", title, FAIL, "REV_fet", d + [
+            "SOURCE/DRAIN SWAPPED: the source is on the connector, so the body diode (D->S) points from the board to "
+            "the connector and conducts a reversed cell straight into %s: no protection" % nl.label(nl.batp)])
+        return
+    other = [(r, p) for r, p in nl.mems(nl.batin) if r not in (nl.batconn, q) and nl.kind[r] != "tp"]
+    if other:
+        status = FAIL
+        d.append("%s also reaches %s: it would bypass the protection" % (other, nl.label(nl.batin)))
+    d.append("cell the right way round: the body diode (D->S) conducts first, then VGS = -(cell) = -3.0..-4.2 V "
+             "(|VGS| <= 8 V abs max, beyond the -1 V threshold) turns the channel on: RDS(on) <= 0.142 Ohm at -2.5 V "
+             "-> <= 28 mV at the 200 mA charge current, <= 7 mV at the board's ~50 mA; charging flows S->D through "
+             "the on channel")
+    d.append("cell reversed: the drain sits at -(cell); the body diode is reverse-biased (VDS rating -20 V) and with "
+             "the gate at 0 V and the source at 0 V the channel is off: nothing reaches %s or the charger's VBAT pin"
+             % nl.label(nl.batp))
+    rprog = charger_rprog_min(nl)
+    pre = 0.10 * mcp_ireg_mA(rprog) if rprog and nl.chg_model and nl.chg_model.startswith("MCP") else None
+    if pre:
+        d.append("reversed with USB in and the switch on: the charger raises VBAT, the channel opens only while the "
+                 "source is a threshold (0.4-1 V) above the gate, so VBAT settles there instead of at -(cell): the "
+                 "charger's pin stays >= 0 V (-0.3 V abs max) and it preconditions at 10 %% = %.0f mA (VBAT < VPTH, "
+                 "p.4, p.26): %.2f W in the FET (0.86 W rating)" % (pre, pre * 1e-3 * (V_VBAT_MAX + 1.0)))
+    if g != nl.gnd:
+        status = FAIL
+        d.append("gate must be on GND")
+    rep.add("P07", title, status, "REV_fet", d)
+
+
+def check_vbus_protection(nl, rep):
+    """U04: the hot-pluggable VBUS: TVS at the receptacle, RC damping of the cable's inductance, capacitance."""
+    title = "VBUS: 5 V TVS to GND, damped bulk capacitor (R <= 2.2 ohm), at most 10 uF at attach"
+    if nl.vbus is None:
+        rep.add("U04", title, SKIP, "VBUS_prot", [])
+        return
+    status = PASS
+    d = []
+    tvs = [r for r in nl.fitted("tvs") if tvs_on(nl, r) == (nl.vbus, nl.gnd)]
+    rev = [r for r in nl.fitted("tvs") if tvs_on(nl, r) == (nl.gnd, nl.vbus)]
+    if rev:
+        status = FAIL
+        d.append("%s reversed: a unidirectional TVS with its anode on VBUS conducts at 0.7 V" % rev)
+    if tvs:
+        d.append("%s (%s): cathode on VBUS, anode on GND; breakdown >= 6.4 V, above USB's 5.25 V (5.5 V for USB-C), "
+                 "so it only conducts on surges, ESD and what is left of the hot-plug ring; standoff 5.0 V like the "
+                 "SMAJ5.0A of the charger's datasheet (leakage at 5 V: 0.4 mA max, typically far less)"
+                 % (tvs, ", ".join(nl.value(r) for r in tvs)))
+    elif not rev:
+        status = WARN
+        d.append("no TVS on VBUS: only the ESD array's VBUS pin clamps it")
+    direct = nl.cap_list(nl.vbus)
+    damped = damped_caps(nl, nl.vbus)
+    c_dir = sum(c for _, c in direct if c)
+    c_dmp = sum(c for _, _, _, c in damped if c)
+    d.append("VBUS capacitors: %s = %s directly%s" % ([r for r, _ in direct], fmt_c(c_dir), "; %s through %s" % (
+        fmt_c(c_dmp), sorted({"%s %s" % (r, fmt_ohm(v)) for r, v, _, _ in damped})) if damped else ""))
+    if damped:
+        d.append("the damped branch (series resistance comparable to sqrt(L/C) of a 0.5-1 uH cable with the board's "
+                 "capacitance, 0.3-0.7 ohm) takes the energy out of the hot-plug ring: simulated peak 6.0-8.3 V "
+                 "undamped, 5.0-6.6 V damped; the TVS then clamps what remains")
+    else:
+        status = WARN if status == PASS else status
+        d.append("ceramic only: the cable's inductance rings the capacitance up to ~1.5x the step on hot plug")
+    if c_dir + c_dmp > 10e-6 * 1.001:
+        status = WARN if status == PASS else status
+        d.append("%s on VBUS: more than USB 2.0's 10 uF at attach" % fmt_c(c_dir + c_dmp))
+    else:
+        d.append("%s on VBUS at attach (USB 2.0: at most 10 uF)" % fmt_c(c_dir + c_dmp))
+    hubs = [h for h in nl.fitted("hub") if ic_net(nl, h, CH334P_PINS, "V5") == nl.vbus]
+    if hubs:
+        status = WARN if status == PASS else status
+        d.append("the hub's V5 (abs max 5.5 V) is on VBUS: a damped ring can still pass it - power it at 3.3 V (H01)")
+    rep.add("U04", title, status, "VBUS_prot", d)
+
+
+def check_amp_suspend(nl, rep):
+    """A15: the amplifier off while the codec is suspended: PDSW (open drain) drives an N-MOSFET that pulls EN low."""
+    title = "headphone amplifier off in USB suspend: codec PDSW -> pull-up -> N-MOSFET holding the amplifier's EN low"
+    amps, codecs = nl.fitted("hpamp"), nl.fitted("codec")
+    if not (amps and codecs):
+        rep.add("A15", title, SKIP, "CM_pdsw", ["no amplifier / codec"])
+        return
+    c = codecs[0]
+    pd = nl.net(c, "40")
+    if pd is None:
+        rep.add("A15", title, WARN, "CM_pdsw", ["PDSW (pin 40) unused: the amplifier stays on (2.1 mA) while the "
+                                                "host sleeps; USB suspend allows 2.5 mA for the whole device"])
+        return
+    d = ["%s PDSW (pin 40) -> %s" % (c, nl.label(pd))]
+    status = PASS
+    ups = [(r, v, o) for r, p, o in nl.two_pin_parts_on(pd, ("res",))
+           for v in [parse_number(nl.value(r), "R")] if o in nl.power_nets()]
+    if not ups:
+        status = FAIL
+        d.append("no pull-up: PDSW is open drain, the gate would float in suspend")
+    else:
+        r, v, o = ups[0]
+        vu = nl.net_voltage_nom(o)
+        d.append("pull-up %s %s to %s (%.1f V): PDSW supports 1.8-5 V (app note p.8); %.0f uA while it drives low"
+                 % (r, fmt_r(v), nl.label(o), vu or 0, (vu or 0) / v * 1e6))
+        if vu is None or not 1.8 <= vu <= 5.5:
+            status = FAIL
+    fets = [q for q in nl.fitted("nmos") if nl.net(q, "1") == pd]
+    if not fets:
+        status = FAIL
+        d.append("no N-MOSFET gate on PDSW")
+    a = amps[0]
+    en_pin = amp_net(nl, a, "EN")
+    for q in fets:
+        s, dr = nl.net(q, "2"), nl.net(q, "3")
+        d.append("%s: G(1) -> %s ; S(2) -> %s ; D(3) -> %s" % (nl.desc(q), nl.label(pd), nl.label(s), nl.label(dr)))
+        reach = {en_pin} | {o for r, p, o in nl.two_pin_parts_on(en_pin, ("res",))}
+        if s != nl.gnd or dr not in reach:
+            status = FAIL
+            d.append("must pull the amplifier's EN (or its RC node) to GND")
+        else:
+            d.append("operation: PDSW low -> VGS 0 V -> off, EN follows its control; suspend: PDSW open -> gate at the "
+                     "pull-up (>= 2.5 V threshold) -> on, EN below VIL 0.6 V -> amplifier shut down (< 1 uA instead "
+                     "of 2.1 mA), the codec stays enumerated (no re-enumeration when the host wakes)")
+    rep.add("A15", title, status, "CM_pdsw", d)
+
+
 def check_ldo(nl, rep):
     ldos = nl.refs("ldo")
     if not ldos:
-        rep.add("L01", "AP2112K pin wiring", SKIP, "AP_pins", [])
-        rep.add("L02", "AP2112K input/output capacitors", SKIP, "AP_pins", [])
-        rep.add("L03", "AP2112K input voltage / enable level", SKIP, "AP_limits", [])
+        rep.add("L01", "3.3 V regulator pin wiring", SKIP, "AP_pins", [])
+        rep.add("L02", "3.3 V regulator input/output capacitors", SKIP, "AP_pins", [])
+        rep.add("L03", "3.3 V regulator input voltage / enable level", SKIP, "AP_limits", [])
         return
     s1 = s2 = s3 = PASS
     d1, d2, d3 = [], [], []
+    models = sorted({ldo_model(nl, r) for r in ldos})
     for ldo in ldos:
+        m = LDO_MODELS[ldo_model(nl, ldo)]
         vin, gnd, en, nc, vout = (nl.net(ldo, p) for p in ("1", "2", "3", "4", "5"))
-        d1.append("%s: VIN(1) %s | GND(2) %s | EN(3) %s | NC(4) %s | VOUT(5) %s"
+        d1.append("%s: IN(1) %s | GND(2) %s | EN(3) %s | NC(4) %s | OUT(5) %s"
                   % (nl.desc(ldo), nl.label(vin), nl.label(gnd), nl.label(en), nl.label(nc), nl.label(vout)))
-        for p, role in AP2112_ROLE.items():
-            nm = nl.pin_name(ldo, p).upper()
+        for pin, role in m["names"].items():
+            nm = nl.pin_name(ldo, pin).upper()
             if nm and nm != role:
                 s1 = FAIL
-                d1.append("%s pin %s named '%s' but SOT25 pin %s is %s" % (ldo, p, nm, p, role))
+                d1.append("%s pin %s named '%s' but SOT-23-5 pin %s is %s" % (ldo, pin, nm, pin, role))
         if gnd != nl.gnd:
             s1 = FAIL
             d1.append("%s GND not on ground" % ldo)
@@ -1717,14 +1971,15 @@ def check_ldo(nl, rep):
             d1.append("%s NC pin connected to %s (datasheet: No Connection)" % (ldo, nl.label(nc)))
         if en is None:
             s1 = FAIL
-            d1.append("%s EN floating: internal 3 MOhm pull-down keeps the regulator OFF" % ldo)
+            d1.append("%s EN floating: the internal pull-down keeps the regulator OFF" % ldo)
         elif en == vin:
-            d1.append("%s EN tied to VIN: always on (VIH >= 1.5 V satisfied for VIN >= 2.5 V)" % ldo)
+            d1.append("%s EN tied to IN: on whenever %s is up (VEN(HI) >= %.1f V)" % (ldo, nl.label(vin), m["en_hi"]))
         elif en == nl.gnd:
             s1 = FAIL
             d1.append("%s EN tied to GND: regulator permanently off" % ldo)
         elif nl.module and nl.module in [r for r, _ in nl.mems(en)]:
-            d1.append("%s EN driven by module pin %s (GPIO high >= 1.5 V enables)" % (ldo, [p for r, p in nl.mems(en) if r == nl.module]))
+            d1.append("%s EN driven by module pin %s (GPIO high >= %.1f V enables)"
+                      % (ldo, [p for r, p in nl.mems(en) if r == nl.module], m["en_hi"]))
         else:
             s1 = WARN if s1 == PASS else s1
             d1.append("%s EN on %s" % (ldo, nl.label(en)))
@@ -1733,32 +1988,50 @@ def check_ldo(nl, rep):
         cout = nl.caps_between(vout, nl.gnd) if vout else []
         tin = sum(c for _, c in cin if c)
         tout = sum(c for _, c in cout if c)
-        d2.append("%s: CIN %s = %s ; COUT %s = %s" % (ldo, [r for r, _ in cin] or "-", fmt_c(tin) if cin else "none",
-                                                    [r for r, _ in cout] or "-", fmt_c(tout) if cout else "none"))
+        inside = E73_INTERNAL_VDD_CAP if (vout == nl.vdd and nl.module) else 0.0
+        d2.append("%s: CIN %s = %s ; COUT %s = %s%s" % (
+            ldo, [r for r, _ in cin] or "-", fmt_c(tin) if cin else "none", [r for r, _ in cout] or "-",
+            fmt_c(tout) if cout else "none", " (+ %s inside the module = %s)" % (fmt_c(inside), fmt_c(tout + inside))
+            if inside else ""))
         if tin < 1e-6:
             s2 = FAIL
-            d2.append("%s: input capacitor >= 1 uF required (p.1/p.2)" % ldo)
+            d2.append("%s: input capacitor >= 1 uF required" % ldo)
         if tout < 1e-6:
             s2 = FAIL
-            d2.append("%s: output capacitor >= 1 uF required for stability (p.1 'stable with 1.0 uF', p.2 COUT)%s"
+            d2.append("%s: output capacitor >= 1 uF required for stability%s"
                       % (ldo, " - the BlueMicro840 reference leaves its second LDO output (Vout header pin) without a capacitor"
                          if vout != nl.vdd else ""))
-        # input voltage: from USB through the Schottky, or from the battery
+        if m["cout_max"] and tout + inside > m["cout_max"] * 1.001:
+            s2 = FAIL
+            d2.append("%s: %s on the output exceeds the %s the datasheet allows (stability)"
+                      % (ldo, fmt_c(tout + inside), fmt_c(m["cout_max"])))
+        elif m["cout_max"]:
+            d2.append("%s: within the 1-%s output range (nominal values; X5R parts lose some under bias, which "
+                      "only adds margin to the maximum)" % (ldo, fmt_c(m["cout_max"])))
+        # input voltage: from USB (directly, or through the Schottky), or from the battery
         if vin == nl.vin or vin == nl.vbus:
             hi = V_VBUS_MAX - (0.3 if vin == nl.vin else 0.0)
-            d3.append("%s: VIN max ~%.1f V (USB 5.5 V%s) <= 6.0 V recommended / 6.5 V abs max; min from battery ~3.0 V "
-                      ">= 2.5 V (at VBAT < 3.55 V the 3.3 V output drops out gracefully)"
-                      % (ldo, hi, " minus Schottky" if vin == nl.vin else ""))
-            if hi > 6.0:
+            lo = 3.0 if vin == nl.vin else 4.35
+            d3.append("%s (%s): IN max ~%.1f V (USB 5.5 V%s) <= %.1f V recommended / %.1f V abs max; min ~%.1f V "
+                      "(%s) >= %.1f V" % (ldo, ldo_model(nl, ldo), hi, " minus Schottky" if vin == nl.vin else "",
+                                          m["vin"][1], m["abs_max"], lo,
+                                          "from the battery: below ~3.4 V the output follows the cell"
+                                          if vin == nl.vin else "USB low limit", m["vin"][0]))
+            if hi > m["vin"][1]:
                 s3 = FAIL
         elif vin == nl.vbat:
             d3.append("%s: VIN = VBAT (<= 4.2 V)" % ldo)
         else:
             s3 = WARN if s3 == PASS else s3
             d3.append("%s: VIN net %s not a known rail; voltage not verified" % (ldo, nl.label(vin)))
-    rep.add("L01", "AP2112K-3.3: VIN/GND/EN/NC/VOUT wiring, EN level", s1, "AP_pins", d1)
-    rep.add("L02", "AP2112K-3.3: input and output capacitors >= 1 uF", s2, "AP_pins", d2)
-    rep.add("L03", "AP2112K-3.3: input voltage within 2.5-6.0 V, output feeds the module", s3, "AP_limits", d3)
+        feeds = sorted({nl.kind[r] for r, _ in nl.mems(vout, exclude=ldo) if nl.kind[r] not in ("cap", "tp")})
+        d3.append("%s: output %s feeds %s; quiescent current %s" % (ldo, nl.label(vout), feeds or "nothing",
+                                                                   m["iq"]))
+    src = LDO_MODELS[models[-1]]["src"]
+    rep.add("L01", "3.3 V regulators (%s): IN/GND/EN/NC/OUT wiring, EN level" % "/".join(models), s1, src, d1)
+    rep.add("L02", "3.3 V regulators: input and output capacitors within the datasheet range", s2, src, d2)
+    rep.add("L03", "3.3 V regulators: input voltage within the operating range, what each output feeds", s3,
+            src if models == ["TPS7A02"] else "AP_limits", d3)
 
 
 # ------------------------------------------------------------- power path ---
@@ -1833,6 +2106,8 @@ def check_pmos(nl, rep):
             status = FAIL
             d.append("SOURCE/DRAIN SWAPPED: the body diode (D->S) would conduct from VIN into the battery whenever "
                      "USB is present (unregulated charging) and the channel could not block it")
+        elif ref == nl.revfet:
+            d.append("the reverse-battery FET between the connector and BAT+ (checked in P07)")
         else:
             status = WARN if status == PASS else status
             d.append("not in the VBUS-gate / VIN-source / VBAT-drain position")
@@ -1896,7 +2171,7 @@ def check_backfeed(nl, rep):
             continue
         k = nl.kind[ref]
         pins = nl.pins_of(ref)
-        if k in ("schottky", "mdiode", "led"):
+        if k in ("schottky", "mdiode", "led", "tvs"):  # (a unidirectional TVS conducts forward like any diode)
             a, kk, _ = nl.diode_ak(ref)
             add(nl.net(ref, a), nl.net(ref, kk), "%s A->K" % ref)
         elif k == "pmos":
@@ -1961,7 +2236,7 @@ def check_backfeed(nl, rep):
         d.append("USB present: VBUS reaches the battery outside the charger: " + " ; ".join(p1))
     else:
         d.append("USB present: no conduction path VBUS -> VBAT except the %s (VDD->BAT, regulated)" % model)
-    for src in dict.fromkeys(n for n in (nl.vbat, nl.batp) if n):  # in this order, not a set's
+    for src in dict.fromkeys(n for n in (nl.vbat, nl.batp, nl.batin) if n):  # in this order, not a set's
         p2 = path(src, nl.vbus)
         if p2:
             status = FAIL
@@ -1982,9 +2257,12 @@ def check_battery(nl, rep):
         rep.add("P05", "battery connector / power switch", SKIP, "JST", ["no 2-pin battery connector found"])
         return
     j = nl.batconn
-    d.append("battery connector %s: + -> %s ; - -> %s" % (nl.desc(j), nl.label(nl.batp), "GND"))
+    cplus = nl.batin or nl.batp
+    d.append("battery connector %s: + -> %s ; - -> %s%s" % (nl.desc(j), nl.label(cplus), "GND",
+                                                          " (then %s to %s, see P07)" % (nl.revfet, nl.label(nl.batp))
+                                                          if nl.revfet else ""))
     names = {p: nl.pin_name(j, p) for p in nl.pins_of(j)}
-    plus = [p for p, n in names.items() if nl.net(j, p) == nl.batp]
+    plus = [p for p, n in names.items() if nl.net(j, p) == cplus]
     if plus and plus[0] != "1" and names[plus[0]] not in ("+", "Pin_1", "1"):
         status = WARN
         d.append("the positive pin is %s; verify it is pin 1 ('Circuit No.1' on a JST footprint) and matches the cell lead order" % plus)
@@ -2495,8 +2773,8 @@ def check_usb_topology(nl, rep):
 
 # ---------------------------------------------------------------- CH334P hub --
 def check_hub_power(nl, rep):
-    title = ("CH334P: pinout, GND pad, V5 on VBUS (4.5-5.25 V, abs max 5.5 V) with >= 1 uF, VDD33 0.1 uF + 10 uF "
-             "(or >= 1 uF), no load on the internal LDO")
+    title = ("CH334P: pinout, GND pad, V5 on VBUS (4.5-5.25 V, abs max 5.5 V) or V5 = VDD33 on a 3.3 V rail, "
+             ">= 1 uF on V5, VDD33 0.1 uF + 10 uF (or >= 1 uF), no load on the internal LDO")
     hubs = nl.fitted("hub")
     if not hubs:
         rep.add("H01", title, SKIP, "CH_power", ["no CH334/CH335 hub"])
@@ -2530,6 +2808,18 @@ def check_hub_power(nl, rep):
                      % (nl.labels.get(v5, v5), V_VBUS_MAX))
         elif v5 == v33 and v5 == nl.vdd and v5 is not None:
             d.append("V5 = VDD33 = the 3.3 V rail: LDO bypassed (3.15-3.5 V, p.19; p.28 6.4)")
+        elif v5 == v33 and hub_ldo(nl, v5):
+            reg = hub_ldo(nl, v5)
+            vout = ldo_vout(nl, reg) or 0
+            lo, hi = vout * 0.985, vout * 1.015
+            d.append("V5 = VDD33 = %s from %s (%.2f V +-1.5 %% = %.2f-%.2f V, inside 3.15-3.5 V with the internal LDO "
+                     "unused, p.19 4.2; p.28 6.4): V5 never sees VBUS, so a hot-plug overshoot cannot reach its "
+                     "5.5 V absolute maximum (p.19 4.1)" % (nl.label(v5), nl.desc(reg), vout, lo, hi))
+            if not 3.15 <= lo <= hi <= 3.5:
+                status = FAIL
+                d.append("%s output outside 3.15-3.5 V" % reg)
+            d.append("%s is fed and enabled by %s: the hub is powered only with USB, nothing from the cell (its "
+                     "0.12-0.4 mA sleep current would otherwise drain it)" % (reg, nl.label(nl.net(reg, "1"))))
         elif five:
             status = FAIL
             d.append("V5 on 5 V but VDD33 tied to the %s rail: the LDO output would fight that rail (VDD33 is either "
@@ -2560,9 +2850,10 @@ def check_hub_power(nl, rep):
             if load and five:
                 status = WARN if status == PASS else status
                 d.append("VDD33 also feeds %s: the internal LDO supplies at most 20 mA to outside loads (p.19 4.2)" % load)
-        d.append("V5 straight from VBUS (as p.26 6.1); p.28 6.4 suggests the on-board 3.3 V for embedded hubs, but "
-                 "here that rail is battery-backed and the hub would then draw its 0.12-0.4 mA sleep current from the "
-                 "cell: the VBUS supply is the better choice")
+        if five:
+            d.append("V5 straight from VBUS (as p.26 6.1); p.28 6.4 suggests the on-board 3.3 V for embedded hubs, "
+                     "but here that rail is battery-backed and the hub would then draw its 0.12-0.4 mA sleep current "
+                     "from the cell: the VBUS supply is the better choice")
     rep.add("H01", title, status, "CH_power", d)
 
 
@@ -3371,9 +3662,23 @@ def check_amp_ctl(nl, rep):
             status = FAIL
             d.append("EN tied to GND: amplifier permanently off")
             continue
+        # EN through a series resistor from the RC node: the pin itself has nothing else on it
+        rser = None
+        pin_mem = nl.mems(en, exclude=a)
+        if len(pin_mem) == 1 and nl.kind[pin_mem[0][0]] == "res":
+            r0 = pin_mem[0][0]
+            node = nl.other_end(r0, pin_mem[0][1])[1]
+            if node and nl.cap_list(node):
+                rser = (r0, parse_number(nl.value(r0), "R"))
+                d.append("EN pin on %s, through %s %s from the control node %s" % (
+                    nl.label(en), r0, fmt_r(rser[1]), nl.label(node)))
+                en = node
         mem = nl.mems(en, exclude=a)
+        if rser:
+            mem = [(r, p) for r, p in mem if r != rser[0]]
         gp = [p for r, p in mem if r == nl.module]
-        rs = [(r, o, parse_number(nl.value(r), "R")) for r, p, o in nl.two_pin_parts_on(en, ("res",))]
+        rs = [(r, o, parse_number(nl.value(r), "R")) for r, p, o in nl.two_pin_parts_on(en, ("res",))
+              if not rser or r != rser[0]]
         cs_ = [(r, parse_number(nl.value(r), "F")) for r, p, o in nl.two_pin_parts_on(en, ("cap",)) if o == nl.gnd]
         ds = [r for r, p in mem if nl.kind[r] in ("schottky", "mdiode")]
         if gp:
@@ -3395,7 +3700,7 @@ def check_amp_ctl(nl, rep):
             d.append("EN control net %s is not driven by a module GPIO" % nl.label(cnet))
             continue
         vgpio = V_VDD
-        v_inf = vgpio - (rv or 0) * 1e-6         # 1 uA EN input current (p.5)
+        v_inf = vgpio - ((rv or 0) + (rser[1] if rser else 0)) * 1e-6         # 1 uA EN input current (p.5)
         d.append("EN <- %s %s <- %s (module pin %s%s); %s to GND = %s" % (
             rref, fmt_r(rv), nl.label(cnet), cgp, ", also the %s ON pin" % sw if sw else "",
             [(r, fmt_c(x)) for r, x in cs_], fmt_c(ctot)))
@@ -3476,7 +3781,15 @@ def check_amp_ctl(nl, rep):
                     d.append("  with standard drive the amplifier is disabled AFTER its source (the CM108B) has lost "
                              "power: p.12 asks for the opposite order. Here %s; %s. Bench-check for a switch-off pop"
                              % (why, fix))
-        if vdd != cnet and vdd in nl.power_nets():
+        if vdd != cnet and vdd in nl.power_nets() and rser and rser[1] and rser[1] >= 10e3:
+            i_max = (vgpio - 0.6) / rser[1]
+            d.append("EN high (up to %.1f V on %s) while the amplifier VDD (%s) is off - USB unplugged with the "
+                     "sound card on: the pin is clamped to VDD by its protection diode, and %s %s limits the current "
+                     "into that clamp to <= %.2f mA (the %s cannot dump its charge into it); the pin sits a diode "
+                     "drop above VDD instead of 0.3 V for those milliseconds, at a current far below what CMOS clamps "
+                     "carry (latch-up tests: 100 mA)" % (vgpio, nl.label(cnet), nl.labels.get(vdd, vdd), rser[0],
+                                                      fmt_r(rser[1]), i_max * 1e3, fmt_c(ctot)))
+        elif vdd != cnet and vdd in nl.power_nets():
             status = WARN if status == PASS else status
             d.append("EN high (up to %.1f V from the GPIO) while the amplifier VDD (%s) is off - USB unplugged with "
                      "the sound card on, or during the rail's fall - exceeds VDD + 0.3 V (abs max p.4); %s limits the "
@@ -4262,12 +4575,13 @@ def run(path):
         ("C04", check_charger_stat), ("C05", check_charger_outcap), ("C06", check_charger_detect),
         ("L01-L03", check_ldo),
         ("P01", check_schottky), ("P02", check_pmos), ("P03", check_power_nets_distinct),
-        ("P04", check_backfeed), ("P05", check_battery), ("P06", check_divider), ("U01", check_usbc),
-        ("U02", check_esd), ("U03", check_usb_topology),
+        ("P04", check_backfeed), ("P05", check_battery), ("P06", check_divider), ("P07", check_reverse_battery),
+        ("U01", check_usbc), ("U02", check_esd), ("U03", check_usb_topology), ("U04", check_vbus_protection),
         ("H01", check_hub_power), ("H02", check_hub_crystal), ("H03", check_hub_cfg),
         ("A01", check_codec_supply), ("A02", check_codec_regs), ("A03", check_codec_cfg), ("A04", check_codec_usb),
         ("A05", check_codec_lineout), ("A06", check_codec_mic),
         ("A11", check_amp_power), ("A12", check_amp_cp), ("A13", check_amp_inputs), ("A14", check_amp_ctl),
+        ("A15", check_amp_suspend),
         ("S01", check_loadsw_power), ("S02", check_loadsw_on), ("S03", check_loadsw_qod), ("J01", check_jack),
         ("D01", check_leds), ("R01", check_reset_button), ("T01", check_testpoints),
         ("N01", check_floating), ("K01-K02", check_matrix), ("K03", check_encoders), ("B01", check_bootloader),

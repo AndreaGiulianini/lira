@@ -31,6 +31,8 @@ import pcbnew
 DELTA = {
     "C97521": 270,  # W25Q128JV, SOIC-8 208 mil
     "C51118": 270,  # AP2112K, SOT-23-5
+    "C2887324": 180,  # TPS7A0233, SOT-23-5 (its LCSC footprint is not drawn like the AP2112K's)
+    "C8545": 180,  # 2N7002, SOT-23
     "C424093": 270,  # MCP73831, SOT-23-5
     "C7519": 270,  # USBLC6-2SC6, SOT-23-6
     "C5373042": 270,  # CH334P, QFN-16
@@ -38,6 +40,7 @@ DELTA = {
     "C10487": 180,  # SI2301, SOT-23
     "C2149796": 180,  # TPS22919, SC-70-6
     "C95562": 90,  # PJ-320D-4A headset jack
+    # 0 (same as KiCad's, checked): C193402 SMF5.0A SOD-123FL
 }
 # KiCad footprint name -> origin of the LCSC footprint, in the KiCad library footprint's coordinates (mm)
 ORIGIN = {

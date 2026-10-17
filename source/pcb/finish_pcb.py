@@ -3,6 +3,7 @@ GND on both layers and saves the final PCB.
 
     $KPY pcb/finish_pcb.py placed.kicad_pcb routes.ses final.kicad_pcb
 """
+import math
 import shutil
 import sys
 from pathlib import Path
@@ -102,6 +103,73 @@ def stitch_ground(b, pitch=5.0, via_d=0.6, drill=0.3, clearance=0.35, split=None
     return vias
 
 
+LOCAL_STITCH = {"U1": 2.5, "U2": 2.0}  # part -> spacing (mm) of the ground vias ringed around it
+
+
+def stitch_around(b, parts=LOCAL_STITCH, rings=(0.6, 1.2, 1.8, 2.5, 3.2, 4.0), via_d=0.6, drill=0.3, clearance=0.3):
+    """GND vias on rings just outside a part's courtyard (the grid of stitch_ground() keeps out of courtyards, so a
+    large part like the module is left with few vias around it): the module's ground pads and the charger's ground
+    pin get their return to the top plane close by. Same free-space test as the grid; rule areas that forbid vias
+    (the antenna) are respected. Returns the vias."""
+    gnd = b.FindNet("GND")
+    shapes = []
+    for t in b.GetTracks():
+        for layer in (pcbnew.F_Cu, pcbnew.B_Cu):
+            if t.IsOnLayer(layer):
+                shapes.append(t.GetEffectiveShape(layer))
+    crts, holes = [], []
+    for fp in b.GetFootprints():
+        for p in fp.Pads():
+            for layer in (pcbnew.F_Cu, pcbnew.B_Cu):
+                if p.IsOnLayer(layer) or p.GetAttribute() == pcbnew.PAD_ATTRIB_NPTH:
+                    shapes.append(p.GetEffectiveShape(layer))
+            if p.HasHole():
+                holes.append(p.GetEffectiveHoleShape())
+        crt = fp.GetCourtyard(pcbnew.B_CrtYd)
+        if crt.OutlineCount():
+            crts.append(crt)
+    no_vias = []  # rule areas that forbid vias (the antenna), grown by the via's radius and the clearance
+    for z in b.Zones():
+        if z.GetIsRuleArea() and z.GetDoNotAllowVias():
+            bb = z.GetBoundingBox()
+            bb.Inflate(pcbnew.FromMM(via_d / 2 + clearance))
+            no_vias.append(bb)
+    edge = b.GetBoardEdgesBoundingBox()
+    edge.Inflate(-pcbnew.FromMM(1.5))
+    r, cl = pcbnew.FromMM(via_d / 2), pcbnew.FromMM(clearance)
+    made = []
+    for ref, spacing in parts.items():
+        fp = b.FindFootprintByReference(ref)
+        if fp is None:
+            continue
+        bb = fp.GetCourtyard(pcbnew.B_CrtYd).BBox()
+        mine = []
+        for d in rings:
+            off = pcbnew.FromMM(d + via_d / 2)
+            x0, y0, x1, y1 = bb.GetLeft() - off, bb.GetTop() - off, bb.GetRight() + off, bb.GetBottom() + off
+            step = pcbnew.FromMM(0.25)
+            pts = [(x, y0) for x in range(x0, x1, step)] + [(x1, y) for y in range(y0, y1, step)] + \
+                  [(x, y1) for x in range(x1, x0, -step)] + [(x0, y) for y in range(y1, y0, -step)]
+            for x, y in pts:
+                c = pcbnew.VECTOR2I(int(x), int(y))
+                if not edge.Contains(c) or any(math.hypot(c.x - v.x, c.y - v.y) < pcbnew.FromMM(spacing) for v in mine):
+                    continue
+                circle = pcbnew.SHAPE_CIRCLE(c, r)
+                if any(z.Contains(c) for z in no_vias) or any(k.Collide(circle, cl) for k in crts) \
+                        or any(h.Collide(circle, cl) for h in holes) or any(s.Collide(circle, cl) for s in shapes):
+                    continue
+                v = pcbnew.PCB_VIA(b)
+                v.SetPosition(c)
+                v.SetDrill(pcbnew.FromMM(drill))
+                v.SetWidth(pcbnew.FromMM(via_d))
+                v.SetNet(gnd)
+                b.Add(v)
+                shapes.append(v.GetEffectiveShape(pcbnew.F_Cu))
+                mine.append(c)
+                made.append(v)
+    return made
+
+
 def prune_single_layer_vias(b):
     """Remove non-GND vias that connect only one layer. The autorouter leaves a few when repair deletes the track
     that used to leave the via on the other layer. Safe test: the via has track ends on exactly one layer, and no
@@ -138,27 +206,31 @@ def prune_single_layer_vias(b):
     return removed
 
 
-def prune_dangling_vias(b, vias):
+def prune_dangling_vias(b, vias, both=False):
     """Remove stitching vias that the filled ground pours do not reach. They pass the collision test before the
     pour exists, but a via can end up on a copper island that island_removal then deletes; left in, it would show as
-    an unconnected item in the DRC. Returns (kept, removed)."""
+    an unconnected item in the DRC. both=True: keep only vias that the pours reach on both layers (a stitching via
+    joined to one layer only does nothing). Returns (kept, removed)."""
     gnd = [z for z in b.Zones() if not z.GetIsRuleArea() and z.GetNetname() == "GND"]
 
-    def covered(v):
+    def on(v, layer):
         p = v.GetPosition()
         for z in gnd:
-            for layer in (pcbnew.F_Cu, pcbnew.B_Cu):
-                if not z.IsOnLayer(layer):
-                    continue
+            if z.IsOnLayer(layer):
                 poly = z.GetFilledPolysList(layer)
                 if poly is not None and poly.Contains(p):
                     return True
         return False
 
+    def covered(v):
+        hits = [on(v, layer) for layer in (pcbnew.F_Cu, pcbnew.B_Cu)]
+        return all(hits) if both else any(hits)
+
     kept = [v for v in vias if covered(v)]
     for v in vias:
         if v not in kept:
             b.Remove(v)
+            v.thisown = False  # pcbnew hands it to Python, which must not free it (see repair.remove)
     if kept:
         b.BuildConnectivity()
     return kept, len(vias) - len(kept)
@@ -277,6 +349,7 @@ def finish(routed_file, final):
         print("pruned %d single-layer via(s)" % single)
     teardrops = add_teardrops(b)
     print("teardrops: %d" % teardrops)
+    local = stitch_around(b)
     stitched = stitch_ground(b, split=STRIP_SPLIT)
     for layer in (pcbnew.F_Cu, pcbnew.B_Cu):
         add_ground_pour(b, layer)
@@ -287,6 +360,16 @@ def finish(routed_file, final):
     kept, removed = prune_dangling_vias(b, stitched)
     if removed:
         print("pruned %d ground stitching via(s) the pour does not reach" % removed)
+    local, removed = prune_dangling_vias(b, local, both=True)
+    near = {}
+    for v in local:
+        p = v.GetPosition()
+        ref = min(LOCAL_STITCH, key=lambda r: math.hypot(b.FindFootprintByReference(r).GetPosition().x - p.x,
+                                                         b.FindFootprintByReference(r).GetPosition().y - p.y))
+        near[ref] = near.get(ref, 0) + 1
+    print("ground vias around parts: %s (%d dropped: the pours do not reach them on both layers)"
+          % (", ".join("%s %d" % kv for kv in sorted(near.items())), removed))
+    kept += local
     pcbnew.SaveBoard(final, b)
     patch_project(Path(final).with_suffix(".kicad_pro"))
     return b, len(kept)

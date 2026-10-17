@@ -8,7 +8,7 @@ C106,135.100mm,78.200mm,Bottom,180
 C107,89.000mm,88.700mm,Bottom,270
 C108,97.000mm,81.200mm,Bottom,90
 C109,124.500mm,79.800mm,Bottom,0
-C110,107.500mm,86.400mm,Bottom,90
+C110,110.400mm,94.200mm,Bottom,180
 C111,110.900mm,86.400mm,Bottom,90
 C112,109.200mm,86.400mm,Bottom,90
 C113,207.200mm,81.400mm,Bottom,90
@@ -33,7 +33,7 @@ C133,207.200mm,85.600mm,Bottom,270
 C134,210.600mm,87.000mm,Bottom,270
 C135,211.200mm,93.600mm,Bottom,90
 C136,210.600mm,90.300mm,Bottom,90
-C137,209.400mm,83.800mm,Bottom,270
+C137,209.400mm,82.900mm,Bottom,270
 C138,183.800mm,86.400mm,Bottom,90
 C139,183.800mm,96.000mm,Bottom,270
 D1,10.125mm,63.675mm,Bottom,180
@@ -45,6 +45,7 @@ D104,211.200mm,80.000mm,Bottom,180
 D105,241.200mm,98.000mm,Bottom,90
 D106,244.200mm,98.000mm,Bottom,90
 D107,247.200mm,98.000mm,Bottom,90
+D108,93.800mm,96.200mm,Bottom,90
 D11,210.150mm,63.675mm,Bottom,180
 D12,229.200mm,63.675mm,Bottom,180
 D13,248.250mm,63.675mm,Bottom,180
@@ -108,6 +109,8 @@ L102,199.600mm,86.500mm,Bottom,90
 L103,224.400mm,87.600mm,Bottom,90
 L104,224.400mm,93.600mm,Bottom,90
 Q1,78.600mm,86.700mm,Bottom,0
+Q2,63.100mm,95.700mm,Bottom,0
+Q3,215.800mm,98.150mm,Bottom,0
 R101,93.100mm,90.700mm,Bottom,90
 R102,87.600mm,95.000mm,Bottom,90
 R103,82.100mm,84.400mm,Bottom,180
@@ -130,6 +133,9 @@ R120,181.800mm,96.200mm,Bottom,90
 R121,181.800mm,92.700mm,Bottom,90
 R122,181.800mm,89.200mm,Bottom,90
 R123,181.800mm,85.700mm,Bottom,90
+R124,208.900mm,86.200mm,Bottom,90
+R125,219.200mm,97.900mm,Bottom,90
+R126,91.050mm,88.700mm,Bottom,90
 S1,9.504mm,72.485mm,Bottom,0
 S10,190.478mm,72.485mm,Bottom,0
 SW101,78.600mm,95.650mm,Bottom,180
@@ -191,11 +197,12 @@ S8,152.379mm,72.485mm,Bottom,0
 S9,171.429mm,72.485mm,Bottom,0
 U1,125.600mm,89.200mm,Bottom,180
 U2,85.600mm,88.200mm,Bottom,90
-U3,93.600mm,81.200mm,Bottom,90
+U3,93.600mm,81.200mm,Bottom,0
 U4,100.600mm,87.700mm,Bottom,270
 U5,107.100mm,82.700mm,Bottom,270
 U6,190.600mm,90.200mm,Bottom,90
 U7,207.200mm,90.200mm,Bottom,180
 U8,203.200mm,82.600mm,Bottom,0
+U9,110.600mm,90.600mm,Bottom,0
 Y1,135.100mm,81.200mm,Bottom,180
 Y2,111.150mm,82.600mm,Bottom,90
