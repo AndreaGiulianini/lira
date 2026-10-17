@@ -51,7 +51,7 @@ RENDER_SAMPLES=16` for a quick draft). A full set takes about 20 minutes on an M
 | `pcb/check_circuit.py` | Circuit tests against the datasheets, (the designer must not edit it) |
 | `pcb/route.py` | Automatic routing with Freerouting (deterministic: one run) |
 | `pcb/repair.py` | Completes what Freerouting leaves: deletes crossing or too close segments and joins open connections with a small grid router (A*, both layers, vias) |
-| `pcb/finish_pcb.py` | Imports the tracks, runs `repair.py`, adds the ground pours, stitching vias and teardrops |
+| `pcb/finish_pcb.py` | Imports the tracks, runs `repair.py`, drops single-layer vias, adds the ground pours, region-aware stitching vias (fine in the electronics strip, coarse in the key field) and teardrops |
 | `pcb/gen_plate.py` | Plate outline: FR4 from JLCPCB (gerbers) or laser cut (DXF, in mm) |
 | `pcb/jlc_export.py` | Bill of materials (BOM) and placement file (CPL) for JLCPCB |
 | `mount.py` | Top mount: the plate's ears and back tabs and where its screws go (used by the plate, the case and the fit check) |

@@ -42,11 +42,15 @@ def add_ground_pour(b, layer):
     return z
 
 
-def stitch_ground(b, pitch=5.0, via_d=0.6, drill=0.3, clearance=0.35):
-    """GND vias on a grid wherever both layers are free, so the two ground pours become one."""
+def stitch_ground(b, pitch=5.0, via_d=0.6, drill=0.3, clearance=0.35, split=None, key_pitch=12.0):
+    """GND vias on a grid wherever both layers are free, so the two ground pours become one.
+
+    With `split`, `pitch` is used in front of it (the electronics strip: USB, audio, antenna) and `key_pitch`
+    behind it (the key field), where the signals are slow and a coarse stitch is enough. That keeps the via
+    count, the drilling cost and the visual clutter down without weakening the ground where it matters."""
     gnd = b.FindNet("GND")
     bbox = b.GetBoardEdgesBoundingBox()
-    shapes = []  # (layerset, shape) of every copper object and hole
+    shapes = []  # (layer, shape) of every copper object and hole
     for t in b.GetTracks():
         for layer in (pcbnew.F_Cu, pcbnew.B_Cu):
             if t.IsOnLayer(layer):
@@ -71,28 +75,67 @@ def stitch_ground(b, pitch=5.0, via_d=0.6, drill=0.3, clearance=0.35):
     r = pcbnew.FromMM(via_d / 2)
     cl = pcbnew.FromMM(clearance)
     edge = pcbnew.FromMM(1.5)
+    top, bottom, left, right = bbox.GetTop() + edge, bbox.GetBottom() - edge, bbox.GetLeft() + edge, bbox.GetRight() - edge
+    regions = [(pitch, top, split), (key_pitch, split, bottom)] if split else [(pitch, top, bottom)]
     vias = []
-    step = pcbnew.FromMM(pitch)
-    y = bbox.GetTop() + edge
-    while y < bbox.GetBottom() - edge:
-        x = bbox.GetLeft() + edge
-        while x < bbox.GetRight() - edge:
-            c = pcbnew.VECTOR2I(int(x), int(y))
-            circle = pcbnew.SHAPE_CIRCLE(c, r)
-            ok = not any(k.Contains(c) for k in keepouts)
-            ok = ok and not any(s.Collide(circle, cl) for _, s in shapes)
-            ok = ok and not any(s.Collide(circle, cl) if hasattr(s, "Collide") else s.Contains(c) for s in blocked)
-            if ok:
-                v = pcbnew.PCB_VIA(b)
-                v.SetPosition(c)
-                v.SetDrill(pcbnew.FromMM(drill))
-                v.SetWidth(pcbnew.FromMM(via_d))
-                v.SetNet(gnd)
-                b.Add(v)
-                vias.append(v)
-            x += step
-        y += step
+    for step_mm, y0, y1 in regions:
+        step = pcbnew.FromMM(step_mm)
+        y = int(y0)
+        while y < y1:
+            x = int(left)
+            while x < right:
+                c = pcbnew.VECTOR2I(int(x), int(y))
+                circle = pcbnew.SHAPE_CIRCLE(c, r)
+                ok = not any(k.Contains(c) for k in keepouts)
+                ok = ok and not any(s.Collide(circle, cl) for _, s in shapes)
+                ok = ok and not any(s.Collide(circle, cl) if hasattr(s, "Collide") else s.Contains(c) for s in blocked)
+                if ok:
+                    v = pcbnew.PCB_VIA(b)
+                    v.SetPosition(c)
+                    v.SetDrill(pcbnew.FromMM(drill))
+                    v.SetWidth(pcbnew.FromMM(via_d))
+                    v.SetNet(gnd)
+                    b.Add(v)
+                    vias.append(v)
+                x += step
+            y += step
     return vias
+
+
+def prune_single_layer_vias(b):
+    """Remove non-GND vias that connect only one layer. The autorouter leaves a few when repair deletes the track
+    that used to leave the via on the other layer. Safe test: the via has track ends on exactly one layer, and no
+    track or pad of its net touches it on the other layer. The DRC at the end confirms nothing was disconnected."""
+    ends = {}
+    for t in b.GetTracks():
+        if t.GetClass() != "PCB_TRACK":
+            continue
+        for p in (t.GetStart(), t.GetEnd()):
+            ends.setdefault((p.x, p.y), set()).add(t.GetLayer())
+    shapes = {pcbnew.F_Cu: [], pcbnew.B_Cu: []}
+    for t in b.GetTracks():
+        if t.GetClass() != "PCB_TRACK":
+            continue
+        for layer in (pcbnew.F_Cu, pcbnew.B_Cu):
+            if t.IsOnLayer(layer):
+                shapes[layer].append(t.GetEffectiveShape(layer))
+    for fp in b.GetFootprints():
+        for p in fp.Pads():
+            if p.GetNetCode() <= 0:
+                continue
+            for layer in (pcbnew.F_Cu, pcbnew.B_Cu):
+                if p.IsOnLayer(layer):
+                    shapes[layer].append(p.GetEffectiveShape(layer))
+    removed = 0
+    for v in [t for t in b.GetTracks() if t.GetClass() == "PCB_VIA" and t.GetNetname() != "GND"]:
+        layers = ends.get((v.GetPosition().x, v.GetPosition().y), set())
+        if len(layers) != 1:
+            continue
+        other = pcbnew.B_Cu if pcbnew.F_Cu in layers else pcbnew.F_Cu
+        if not any(s.Collide(v.GetEffectiveShape(other), 0) for s in shapes[other]):
+            b.Remove(v)
+            removed += 1
+    return removed
 
 
 def prune_dangling_vias(b, vias):
@@ -122,6 +165,7 @@ def prune_dangling_vias(b, vias):
 
 
 MIN_TRACK = 0.15  # mm, the DRC minimum (gen_pcb.py)
+STRIP_SPLIT = 34.0  # mm: electronics strip behind this line, key field in front of it (ground stitching density)
 
 
 def drc_unconnected(board_file):
@@ -228,9 +272,12 @@ def coplanar_ground(b, name="usb-hs-corridor", clearance=0.2):
 def finish(routed_file, final):
     """Pour ground, stitch, add teardrops, fill and save the final board from a routed (pour-less) board."""
     b = pcbnew.LoadBoard(str(routed_file))
+    single = prune_single_layer_vias(b)
+    if single:
+        print("pruned %d single-layer via(s)" % single)
     teardrops = add_teardrops(b)
     print("teardrops: %d" % teardrops)
-    stitched = stitch_ground(b)
+    stitched = stitch_ground(b, split=STRIP_SPLIT)
     for layer in (pcbnew.F_Cu, pcbnew.B_Cu):
         add_ground_pour(b, layer)
     if not coplanar_ground(b):
