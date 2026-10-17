@@ -19,7 +19,7 @@ make fab                      # files for JLCPCB
 make case                     # case + 3D-printed plate (STL/STEP) + fit check
 make firmware                 # RMK firmware (.uf2)
 make renders                  # Blender Cycles renders of the keyboard + KiCad pictures of the PCB
-make review                   # images + files + posts for a human design review (../production/review/)
+make review                   # images + files + posts for a human design review (../production/review/, local: not in git)
 make publish                  # copies the finished files into ../production/ and writes its README
 make sanitize                 # pins the build timestamps for reproducible output
 make commit m="..."           # commits with a fixed date (deterministic history)

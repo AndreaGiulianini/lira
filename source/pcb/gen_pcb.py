@@ -347,6 +347,8 @@ def build(out_dir):
     out_dir.mkdir(parents=True, exist_ok=True)
     pcb = out_dir / "lira.kicad_pcb"
     (out_dir / "lira.kicad_dru").write_text(DRC_RULES)
+    for ext in (".kicad_pro", ".kicad_prl"):  # NewBoard would load the previous run's project (and its rules): the
+        pcb.with_suffix(ext).unlink(missing_ok=True)  # same sources must give the same board whatever is in build/
     B = Board(pcb)
     setup_rules(B)
     add_outline(B)

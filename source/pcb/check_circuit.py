@@ -230,7 +230,7 @@ SRC = {
     "JST": "C295747.pdf (JST PH) p.1 (2 A rating; 'Circuit No.1' marking on the SM4 footprint)",
     "EC11": "C470754.pdf (Alps EC11) p.1 (rating 10 mA 5 V DC; A/B two-phase output), "
             "p.3 (terminals A C B, C common; separate push-switch terminals)",
-    "HOTSWAP": "C2803348.pdf (Kailh hotswap socket): two terminals, no polarity",
+    "HOTSWAP": "C2803348.pdf (Kailh hotswap socket; replaced by C41430893, HanElectricity CPG151101S11-16, same drawing): two terminals, no polarity",
     "BOOT": "reference/bluemicro_nrf52840_board.h (LED_PRIMARY_PIN P1.04, LED_SECONDARY_PIN P1.10, "
             "LED_STATE_ON 1, BUTTON_DFU P0.18 = RESET, BUTTON_DFU_OTA P1.01 not on the module)",
     "NETLIST": "netlist structure (no datasheet needed)",
@@ -468,7 +468,7 @@ def classify(p):
     if lcsc in ("C2286", "C2290", "C72043", "C72041") or "LED" in fp or "LED" in vu \
             or vu.startswith("KT-0603") or vu.startswith("19-217"):
         return "led"
-    if lcsc == "C2803348" or "HOTSWAP" in fp or "SWITCH_KEYBOARD" in fp:
+    if lcsc in ("C2803348", "C41430893", "C49352235") or "HOTSWAP" in fp or "SWITCH_KEYBOARD" in fp:
         return "key"
     if lcsc == "C470754" or "EC11" in vu or "ROTARYENCODER" in fp:
         return "enc"
@@ -1961,7 +1961,7 @@ def check_backfeed(nl, rep):
         d.append("USB present: VBUS reaches the battery outside the charger: " + " ; ".join(p1))
     else:
         d.append("USB present: no conduction path VBUS -> VBAT except the %s (VDD->BAT, regulated)" % model)
-    for src in {n for n in (nl.vbat, nl.batp) if n}:
+    for src in dict.fromkeys(n for n in (nl.vbat, nl.batp) if n):  # in this order, not a set's
         p2 = path(src, nl.vbus)
         if p2:
             status = FAIL

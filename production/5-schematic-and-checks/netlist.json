@@ -2240,7 +2240,7 @@
   "SW1": {
    "value": "7",
    "footprint": "Switch_Keyboard_Hotswap_Kailh:SW_Hotswap_Kailh_MX_1.00u",
-   "lcsc": "C2803348",
+   "lcsc": "C41430893",
    "dnp": false,
    "note": "(0,0)",
    "pins": {
@@ -2274,7 +2274,7 @@
   "SW2": {
    "value": "8",
    "footprint": "Switch_Keyboard_Hotswap_Kailh:SW_Hotswap_Kailh_MX_1.00u",
-   "lcsc": "C2803348",
+   "lcsc": "C41430893",
    "dnp": false,
    "note": "(0,1)",
    "pins": {
@@ -2308,7 +2308,7 @@
   "SW3": {
    "value": "9",
    "footprint": "Switch_Keyboard_Hotswap_Kailh:SW_Hotswap_Kailh_MX_1.00u",
-   "lcsc": "C2803348",
+   "lcsc": "C41430893",
    "dnp": false,
    "note": "(0,2)",
    "pins": {
@@ -2342,7 +2342,7 @@
   "SW4": {
    "value": "\u2212",
    "footprint": "Switch_Keyboard_Hotswap_Kailh:SW_Hotswap_Kailh_MX_1.00u",
-   "lcsc": "C2803348",
+   "lcsc": "C41430893",
    "dnp": false,
    "note": "(0,3)",
    "pins": {
@@ -2376,7 +2376,7 @@
   "SW5": {
    "value": "esc",
    "footprint": "Switch_Keyboard_Hotswap_Kailh:SW_Hotswap_Kailh_MX_1.00u",
-   "lcsc": "C2803348",
+   "lcsc": "C41430893",
    "dnp": false,
    "note": "(0,4)",
    "pins": {
@@ -2410,7 +2410,7 @@
   "SW6": {
    "value": "Q",
    "footprint": "Switch_Keyboard_Hotswap_Kailh:SW_Hotswap_Kailh_MX_1.00u",
-   "lcsc": "C2803348",
+   "lcsc": "C41430893",
    "dnp": false,
    "note": "(0,5)",
    "pins": {
@@ -2444,7 +2444,7 @@
   "SW7": {
    "value": "W",
    "footprint": "Switch_Keyboard_Hotswap_Kailh:SW_Hotswap_Kailh_MX_1.00u",
-   "lcsc": "C2803348",
+   "lcsc": "C41430893",
    "dnp": false,
    "note": "(0,6)",
    "pins": {
@@ -2478,7 +2478,7 @@
   "SW8": {
    "value": "E",
    "footprint": "Switch_Keyboard_Hotswap_Kailh:SW_Hotswap_Kailh_MX_1.00u",
-   "lcsc": "C2803348",
+   "lcsc": "C41430893",
    "dnp": false,
    "note": "(0,7)",
    "pins": {
@@ -2512,7 +2512,7 @@
   "SW9": {
    "value": "R",
    "footprint": "Switch_Keyboard_Hotswap_Kailh:SW_Hotswap_Kailh_MX_1.00u",
-   "lcsc": "C2803348",
+   "lcsc": "C41430893",
    "dnp": false,
    "note": "(0,8)",
    "pins": {
@@ -2546,7 +2546,7 @@
   "SW10": {
    "value": "T",
    "footprint": "Switch_Keyboard_Hotswap_Kailh:SW_Hotswap_Kailh_MX_1.00u",
-   "lcsc": "C2803348",
+   "lcsc": "C41430893",
    "dnp": false,
    "note": "(0,9)",
    "pins": {
@@ -2580,7 +2580,7 @@
   "SW11": {
    "value": "Y",
    "footprint": "Switch_Keyboard_Hotswap_Kailh:SW_Hotswap_Kailh_MX_1.00u",
-   "lcsc": "C2803348",
+   "lcsc": "C41430893",
    "dnp": false,
    "note": "(0,10)",
    "pins": {
@@ -2614,7 +2614,7 @@
   "SW12": {
    "value": "U",
    "footprint": "Switch_Keyboard_Hotswap_Kailh:SW_Hotswap_Kailh_MX_1.00u",
-   "lcsc": "C2803348",
+   "lcsc": "C41430893",
    "dnp": false,
    "note": "(0,11)",
    "pins": {
@@ -2648,7 +2648,7 @@
   "SW13": {
    "value": "I",
    "footprint": "Switch_Keyboard_Hotswap_Kailh:SW_Hotswap_Kailh_MX_1.00u",
-   "lcsc": "C2803348",
+   "lcsc": "C41430893",
    "dnp": false,
    "note": "(0,12)",
    "pins": {
@@ -2682,7 +2682,7 @@
   "SW14": {
    "value": "O",
    "footprint": "Switch_Keyboard_Hotswap_Kailh:SW_Hotswap_Kailh_MX_1.00u",
-   "lcsc": "C2803348",
+   "lcsc": "C41430893",
    "dnp": false,
    "note": "(0,13)",
    "pins": {
@@ -2716,7 +2716,7 @@
   "SW15": {
    "value": "P",
    "footprint": "Switch_Keyboard_Hotswap_Kailh:SW_Hotswap_Kailh_MX_1.00u",
-   "lcsc": "C2803348",
+   "lcsc": "C41430893",
    "dnp": false,
    "note": "(0,14)",
    "pins": {
@@ -2750,7 +2750,7 @@
   "SW16": {
    "value": "\\",
    "footprint": "Switch_Keyboard_Hotswap_Kailh:SW_Hotswap_Kailh_MX_1.00u",
-   "lcsc": "C2803348",
+   "lcsc": "C41430893",
    "dnp": false,
    "note": "(0,15)",
    "pins": {
@@ -2784,7 +2784,7 @@
   "SW17": {
    "value": "delete",
    "footprint": "Switch_Keyboard_Hotswap_Kailh:SW_Hotswap_Kailh_MX_1.00u",
-   "lcsc": "C2803348",
+   "lcsc": "C41430893",
    "dnp": false,
    "note": "(0,16)",
    "pins": {
@@ -2818,7 +2818,7 @@
   "SW18": {
    "value": "4",
    "footprint": "Switch_Keyboard_Hotswap_Kailh:SW_Hotswap_Kailh_MX_1.00u",
-   "lcsc": "C2803348",
+   "lcsc": "C41430893",
    "dnp": false,
    "note": "(1,0)",
    "pins": {
@@ -2852,7 +2852,7 @@
   "SW19": {
    "value": "5",
    "footprint": "Switch_Keyboard_Hotswap_Kailh:SW_Hotswap_Kailh_MX_1.00u",
-   "lcsc": "C2803348",
+   "lcsc": "C41430893",
    "dnp": false,
    "note": "(1,1)",
    "pins": {
@@ -2886,7 +2886,7 @@
   "SW20": {
    "value": "6",
    "footprint": "Switch_Keyboard_Hotswap_Kailh:SW_Hotswap_Kailh_MX_1.00u",
-   "lcsc": "C2803348",
+   "lcsc": "C41430893",
    "dnp": false,
    "note": "(1,2)",
    "pins": {
@@ -2920,7 +2920,7 @@
   "SW21": {
    "value": "+",
    "footprint": "Switch_Keyboard_Hotswap_Kailh:SW_Hotswap_Kailh_MX_1.00u",
-   "lcsc": "C2803348",
+   "lcsc": "C41430893",
    "dnp": false,
    "note": "(1,3)",
    "pins": {
@@ -2954,7 +2954,7 @@
   "SW22": {
    "value": "tab",
    "footprint": "Switch_Keyboard_Hotswap_Kailh:SW_Hotswap_Kailh_MX_1.25u",
-   "lcsc": "C2803348",
+   "lcsc": "C41430893",
    "dnp": false,
    "note": "(1,4)",
    "pins": {
@@ -2988,7 +2988,7 @@
   "SW23": {
    "value": "A",
    "footprint": "Switch_Keyboard_Hotswap_Kailh:SW_Hotswap_Kailh_MX_1.00u",
-   "lcsc": "C2803348",
+   "lcsc": "C41430893",
    "dnp": false,
    "note": "(1,5)",
    "pins": {
@@ -3022,7 +3022,7 @@
   "SW24": {
    "value": "S",
    "footprint": "Switch_Keyboard_Hotswap_Kailh:SW_Hotswap_Kailh_MX_1.00u",
-   "lcsc": "C2803348",
+   "lcsc": "C41430893",
    "dnp": false,
    "note": "(1,6)",
    "pins": {
@@ -3056,7 +3056,7 @@
   "SW25": {
    "value": "D",
    "footprint": "Switch_Keyboard_Hotswap_Kailh:SW_Hotswap_Kailh_MX_1.00u",
-   "lcsc": "C2803348",
+   "lcsc": "C41430893",
    "dnp": false,
    "note": "(1,7)",
    "pins": {
@@ -3090,7 +3090,7 @@
   "SW26": {
    "value": "F",
    "footprint": "Switch_Keyboard_Hotswap_Kailh:SW_Hotswap_Kailh_MX_1.00u",
-   "lcsc": "C2803348",
+   "lcsc": "C41430893",
    "dnp": false,
    "note": "(1,8)",
    "pins": {
@@ -3124,7 +3124,7 @@
   "SW27": {
    "value": "G",
    "footprint": "Switch_Keyboard_Hotswap_Kailh:SW_Hotswap_Kailh_MX_1.00u",
-   "lcsc": "C2803348",
+   "lcsc": "C41430893",
    "dnp": false,
    "note": "(1,9)",
    "pins": {
@@ -3158,7 +3158,7 @@
   "SW28": {
    "value": "H",
    "footprint": "Switch_Keyboard_Hotswap_Kailh:SW_Hotswap_Kailh_MX_1.00u",
-   "lcsc": "C2803348",
+   "lcsc": "C41430893",
    "dnp": false,
    "note": "(1,10)",
    "pins": {
@@ -3192,7 +3192,7 @@
   "SW29": {
    "value": "J",
    "footprint": "Switch_Keyboard_Hotswap_Kailh:SW_Hotswap_Kailh_MX_1.00u",
-   "lcsc": "C2803348",
+   "lcsc": "C41430893",
    "dnp": false,
    "note": "(1,11)",
    "pins": {
@@ -3226,7 +3226,7 @@
   "SW30": {
    "value": "K",
    "footprint": "Switch_Keyboard_Hotswap_Kailh:SW_Hotswap_Kailh_MX_1.00u",
-   "lcsc": "C2803348",
+   "lcsc": "C41430893",
    "dnp": false,
    "note": "(1,12)",
    "pins": {
@@ -3260,7 +3260,7 @@
   "SW31": {
    "value": "L",
    "footprint": "Switch_Keyboard_Hotswap_Kailh:SW_Hotswap_Kailh_MX_1.00u",
-   "lcsc": "C2803348",
+   "lcsc": "C41430893",
    "dnp": false,
    "note": "(1,13)",
    "pins": {
@@ -3294,7 +3294,7 @@
   "SW32": {
    "value": ";",
    "footprint": "Switch_Keyboard_Hotswap_Kailh:SW_Hotswap_Kailh_MX_1.00u",
-   "lcsc": "C2803348",
+   "lcsc": "C41430893",
    "dnp": false,
    "note": "(1,14)",
    "pins": {
@@ -3328,7 +3328,7 @@
   "SW33": {
    "value": "return",
    "footprint": "Switch_Keyboard_Hotswap_Kailh:SW_Hotswap_Kailh_MX_1.75u",
-   "lcsc": "C2803348",
+   "lcsc": "C41430893",
    "dnp": false,
    "note": "(1,16)",
    "pins": {
@@ -3362,7 +3362,7 @@
   "SW34": {
    "value": "1",
    "footprint": "Switch_Keyboard_Hotswap_Kailh:SW_Hotswap_Kailh_MX_1.00u",
-   "lcsc": "C2803348",
+   "lcsc": "C41430893",
    "dnp": false,
    "note": "(2,0)",
    "pins": {
@@ -3396,7 +3396,7 @@
   "SW35": {
    "value": "2",
    "footprint": "Switch_Keyboard_Hotswap_Kailh:SW_Hotswap_Kailh_MX_1.00u",
-   "lcsc": "C2803348",
+   "lcsc": "C41430893",
    "dnp": false,
    "note": "(2,1)",
    "pins": {
@@ -3430,7 +3430,7 @@
   "SW36": {
    "value": "3",
    "footprint": "Switch_Keyboard_Hotswap_Kailh:SW_Hotswap_Kailh_MX_1.00u",
-   "lcsc": "C2803348",
+   "lcsc": "C41430893",
    "dnp": false,
    "note": "(2,2)",
    "pins": {
@@ -3464,7 +3464,7 @@
   "SW37": {
    "value": "enter",
    "footprint": "Switch_Keyboard_Hotswap_Kailh:SW_Hotswap_Kailh_MX_2.00u_90deg",
-   "lcsc": "C2803348",
+   "lcsc": "C41430893",
    "dnp": false,
    "note": "(2,3)",
    "pins": {
@@ -3498,7 +3498,7 @@
   "SW38": {
    "value": "shift",
    "footprint": "Switch_Keyboard_Hotswap_Kailh:SW_Hotswap_Kailh_MX_1.75u",
-   "lcsc": "C2803348",
+   "lcsc": "C41430893",
    "dnp": false,
    "note": "(2,4)",
    "pins": {
@@ -3532,7 +3532,7 @@
   "SW39": {
    "value": "Z",
    "footprint": "Switch_Keyboard_Hotswap_Kailh:SW_Hotswap_Kailh_MX_1.00u",
-   "lcsc": "C2803348",
+   "lcsc": "C41430893",
    "dnp": false,
    "note": "(2,6)",
    "pins": {
@@ -3566,7 +3566,7 @@
   "SW40": {
    "value": "X",
    "footprint": "Switch_Keyboard_Hotswap_Kailh:SW_Hotswap_Kailh_MX_1.00u",
-   "lcsc": "C2803348",
+   "lcsc": "C41430893",
    "dnp": false,
    "note": "(2,7)",
    "pins": {
@@ -3600,7 +3600,7 @@
   "SW41": {
    "value": "C",
    "footprint": "Switch_Keyboard_Hotswap_Kailh:SW_Hotswap_Kailh_MX_1.00u",
-   "lcsc": "C2803348",
+   "lcsc": "C41430893",
    "dnp": false,
    "note": "(2,8)",
    "pins": {
@@ -3634,7 +3634,7 @@
   "SW42": {
    "value": "V",
    "footprint": "Switch_Keyboard_Hotswap_Kailh:SW_Hotswap_Kailh_MX_1.00u",
-   "lcsc": "C2803348",
+   "lcsc": "C41430893",
    "dnp": false,
    "note": "(2,9)",
    "pins": {
@@ -3668,7 +3668,7 @@
   "SW43": {
    "value": "B",
    "footprint": "Switch_Keyboard_Hotswap_Kailh:SW_Hotswap_Kailh_MX_1.00u",
-   "lcsc": "C2803348",
+   "lcsc": "C41430893",
    "dnp": false,
    "note": "(2,10)",
    "pins": {
@@ -3702,7 +3702,7 @@
   "SW44": {
    "value": "N",
    "footprint": "Switch_Keyboard_Hotswap_Kailh:SW_Hotswap_Kailh_MX_1.00u",
-   "lcsc": "C2803348",
+   "lcsc": "C41430893",
    "dnp": false,
    "note": "(2,11)",
    "pins": {
@@ -3736,7 +3736,7 @@
   "SW45": {
    "value": "M",
    "footprint": "Switch_Keyboard_Hotswap_Kailh:SW_Hotswap_Kailh_MX_1.00u",
-   "lcsc": "C2803348",
+   "lcsc": "C41430893",
    "dnp": false,
    "note": "(2,12)",
    "pins": {
@@ -3770,7 +3770,7 @@
   "SW46": {
    "value": ",",
    "footprint": "Switch_Keyboard_Hotswap_Kailh:SW_Hotswap_Kailh_MX_1.00u",
-   "lcsc": "C2803348",
+   "lcsc": "C41430893",
    "dnp": false,
    "note": "(2,13)",
    "pins": {
@@ -3804,7 +3804,7 @@
   "SW47": {
    "value": ".",
    "footprint": "Switch_Keyboard_Hotswap_Kailh:SW_Hotswap_Kailh_MX_1.00u",
-   "lcsc": "C2803348",
+   "lcsc": "C41430893",
    "dnp": false,
    "note": "(2,14)",
    "pins": {
@@ -3838,7 +3838,7 @@
   "SW48": {
    "value": "shift",
    "footprint": "Switch_Keyboard_Hotswap_Kailh:SW_Hotswap_Kailh_MX_1.25u",
-   "lcsc": "C2803348",
+   "lcsc": "C41430893",
    "dnp": false,
    "note": "(2,15)",
    "pins": {
@@ -3872,7 +3872,7 @@
   "SW49": {
    "value": "fn",
    "footprint": "Switch_Keyboard_Hotswap_Kailh:SW_Hotswap_Kailh_MX_1.00u",
-   "lcsc": "C2803348",
+   "lcsc": "C41430893",
    "dnp": false,
    "note": "(2,16)",
    "pins": {
@@ -3906,7 +3906,7 @@
   "SW50": {
    "value": "0",
    "footprint": "Switch_Keyboard_Hotswap_Kailh:SW_Hotswap_Kailh_MX_2.00u",
-   "lcsc": "C2803348",
+   "lcsc": "C41430893",
    "dnp": false,
    "note": "(3,0)",
    "pins": {
@@ -3940,7 +3940,7 @@
   "SW51": {
    "value": ".",
    "footprint": "Switch_Keyboard_Hotswap_Kailh:SW_Hotswap_Kailh_MX_1.00u",
-   "lcsc": "C2803348",
+   "lcsc": "C41430893",
    "dnp": false,
    "note": "(3,2)",
    "pins": {
@@ -3974,7 +3974,7 @@
   "SW52": {
    "value": "option",
    "footprint": "Switch_Keyboard_Hotswap_Kailh:SW_Hotswap_Kailh_MX_1.00u",
-   "lcsc": "C2803348",
+   "lcsc": "C41430893",
    "dnp": false,
    "note": "(3,5)",
    "pins": {
@@ -4008,7 +4008,7 @@
   "SW53": {
    "value": "\u2318",
    "footprint": "Switch_Keyboard_Hotswap_Kailh:SW_Hotswap_Kailh_MX_1.25u",
-   "lcsc": "C2803348",
+   "lcsc": "C41430893",
    "dnp": false,
    "note": "(3,6)",
    "pins": {
@@ -4042,7 +4042,7 @@
   "SW54": {
    "value": "space",
    "footprint": "Switch_Keyboard_Hotswap_Kailh:SW_Hotswap_Kailh_MX_3.00u",
-   "lcsc": "C2803348",
+   "lcsc": "C41430893",
    "dnp": false,
    "note": "(3,8)",
    "pins": {
@@ -4076,7 +4076,7 @@
   "SW55": {
    "value": "space",
    "footprint": "Switch_Keyboard_Hotswap_Kailh:SW_Hotswap_Kailh_MX_3.00u",
-   "lcsc": "C2803348",
+   "lcsc": "C41430893",
    "dnp": false,
    "note": "(3,11)",
    "pins": {
@@ -4110,7 +4110,7 @@
   "SW56": {
    "value": "\u2318",
    "footprint": "Switch_Keyboard_Hotswap_Kailh:SW_Hotswap_Kailh_MX_1.25u",
-   "lcsc": "C2803348",
+   "lcsc": "C41430893",
    "dnp": false,
    "note": "(3,14)",
    "pins": {
@@ -4144,7 +4144,7 @@
   "SW57": {
    "value": "option",
    "footprint": "Switch_Keyboard_Hotswap_Kailh:SW_Hotswap_Kailh_MX_1.00u",
-   "lcsc": "C2803348",
+   "lcsc": "C41430893",
    "dnp": false,
    "note": "(3,15)",
    "pins": {

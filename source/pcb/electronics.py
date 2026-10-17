@@ -470,15 +470,19 @@ def stub(B, net, x0, y0, x1, y1, width=0.25):
     via(B, net, x1, y1)
 
 
-def label(B, text, x, y, size=0.9):
-    """Bottom silkscreen text (mirrored, so it reads right from below)."""
+SILK_MIN_TEXT = 1.0  # mm: JLCPCB's smallest legible silkscreen text (line 0.16 mm, its minimum is 0.153)
+
+
+def label(B, text, x, y, size=1.0):
+    """Bottom silkscreen text (mirrored, so it reads right from below), never under SILK_MIN_TEXT."""
     import pcbnew
+    size = max(size, SILK_MIN_TEXT)
     s = pcbnew.PCB_TEXT(B.b)
     s.SetText(text)
     s.SetLayer(pcbnew.B_SilkS)
     s.SetMirrored(True)
     s.SetTextSize(pcbnew.VECTOR2I(pcbnew.FromMM(size), pcbnew.FromMM(size)))
-    s.SetTextThickness(pcbnew.FromMM(0.15 if size < 1.2 else 0.2))
+    s.SetTextThickness(pcbnew.FromMM(0.16 if size < 1.2 else 0.2))
     s.SetHorizJustify(pcbnew.GR_TEXT_H_ALIGN_CENTER)
     s.SetPosition(pcbnew.VECTOR2I(pcbnew.FromMM(x), pcbnew.FromMM(y)))
     B.b.Add(s)
@@ -493,13 +497,15 @@ def labels(B, placed, top):
         label(B, text, x + 2.3, y + 0.35, 0.8)
     x, y = pad_centre(placed["TP2"])
     label(B, "SWD", x, y - 2.0, 0.8)
-    for ref, text in (("TP6", "VBUS"), ("TP7", "VBAT"), ("TP8", "VIN")):
+    # 3 mm apart, so the middle name goes above its pad (side by side, the three names would run together)
+    for ref, text, dy in (("TP6", "VBUS", 2.3), ("TP7", "VBAT", -2.3), ("TP8", "VIN", 2.3)):
         x, y = pad_centre(placed[ref])
-        label(B, text, x, y + 2.3, 0.7)
-    for ref, text in (("D102", "CHG"), ("D103", "CAPS")):
+        label(B, text, x, y + dy, 0.7)
+    # under each LED's resistor: between the LED and its resistor there is no room for 1 mm text
+    for ref, text, dx in (("D102", "CHG", -1.0), ("D103", "CAPS", -1.2)):
         x, y = pad_centre(placed[ref])
-        label(B, text, x, y + 1.9, 0.7)
-    for ref, text, dx, dy in (("JP1", "200mA", 0.0, 1.9), ("JP2", "SW BYP", -3.2, 0.0), ("JP3", "-6dB", 0.0, -1.9)):
+        label(B, text, x + dx, y + 5.8, 0.7)
+    for ref, text, dx, dy in (("JP1", "200mA", 0.0, 1.9), ("JP2", "SW BYP", -4.7, 0.0), ("JP3", "-6dB", 2.4, -2.4)):
         x, y = pad_centre(placed[ref])
         label(B, text, x + dx, y + dy, 0.7)
     x, y = pad_centre(placed["SW102"])

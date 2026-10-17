@@ -42,7 +42,7 @@ PARTS = json.loads((BUILD / "pcb/parts.json").read_text())
 # ------------------------------------------------------------------ datasheet dimensions (mm) and test margins
 # height of each bottom-side part below the PCB, by footprint name
 HEIGHT_BELOW = [
-    ("SW_Hotswap_Kailh", 1.95),  # Kailh CPG151101S11 socket (C2803348): 1.85 +- 0.1
+    ("SW_Hotswap_Kailh", 1.95),  # CPG151101S11-type socket (C41430893; Kailh C2803348 discontinued): 1.85 +- 0.1
     ("E73-2G4M08S1C", 3.0),  # Ebyte E73: 13 x 18 mm with shield can; thickness not in the datasheet, 3.0 assumed
     ("USB_C_Receptacle_HRO", 3.26),  # HRO TYPE-C-31-M-12 (C165948): 3.26
     ("JST_PH_S2B-PH-SM4", 5.5),  # JST PH (C295747) SM4 side entry: 5.5 with the plug mated

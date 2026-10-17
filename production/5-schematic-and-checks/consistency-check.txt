@@ -1,2 +1,1 @@
-./src/common/stdpbase.cpp(59): assert ""traits"" failed in Get(): create wxApp before calling this
 211 parts, 524 connected pins, 142 nets — PCB and schematic match the circuit

@@ -57,7 +57,7 @@ SYSTEM = [
     _, _, _, _,
     _, _, _, _,
     _, _,
-    "Bootloader", "User0", "User1", "User2", "User6", "User5", _, _, _, _, _, _, "Delete",
+    "Bootloader", "User0", "User1", "User2", "User6", _, _, _, _, _, _, _, "Delete",
     _, _, _, _, _, _, _, _, _, _, _, _,
     _, "AudioMute", "AudioVolDown", "AudioVolUp", "MediaPlayPause", "MediaPrevTrack", "MediaNextTrack", _, _, _,
     _, _,

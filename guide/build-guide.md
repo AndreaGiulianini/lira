@@ -1,5 +1,13 @@
 # Lira — build guide: ordering, parts, programming, assembly
 
+> [!WARNING]
+> **This keyboard has never been built.** It is a design only: no prototype of either version (wireless on branch
+> `main`, wired on branch `rp2040`) has ever been ordered, assembled or powered on, and nothing here has been tested
+> on real hardware. The circuit, PCB, case and firmware are generated and checked automatically and reviewed on paper,
+> but passing those checks does not make a working board: there may be mistakes that only a real prototype would
+> reveal. **Do not put it into production, sell it or order it in quantity.** If you build one anyway, treat it as an
+> untested design: order the minimum quantity and expect to debug it yourself.
+
 The files are in `production/`.
 
 ## The circuit in brief
@@ -35,8 +43,8 @@ switches.
 ## 1. Ordering the PCB (JLCPCB)
 
 1. Upload `production/1-pcb-jlcpcb/gerber-pcb.zip`. Options: 2 layers, FR4, **1.6 mm**, any colour
-   (it stays hidden), lead-free HASL or ENIG finish.
-2. Turn on **PCB Assembly** → *Assemble bottom side*, quantity 2 (the minimum).
+   (it stays hidden), **ENIG** finish (flat pads for the fine-pitch chips: 0.4 mm pins on the RP2040, 0.5 mm on the hub, sound chip and amplifier; lead-free HASL also works). The USB-C, the headset jack and the power switch stick out past the back edge: if JLCPCB asks for edge rails, accept them on the **left and right** edges.
+2. Turn on **PCB Assembly** → *Assemble bottom side*: 5 PCBs (JLCPCB's minimum), 2 of them assembled (the minimum). Tick *Confirm parts placement* so that you can check the rotations below before production.
 3. Upload `bom.csv` and `cpl.csv` from the same folder.
 4. **Check the placement preview**, part by part. The rotations depend on JLC's footprints and sometimes need
    to be corrected by 90°/180°:
@@ -44,26 +52,30 @@ switches.
    - USB-C: opening towards the edge; power switch: lever towards the edge;
    - 1N4148W diodes and B5819W Schottky: cathode stripe towards pad 1;
    - LEDs: cathode (pad 1) as in the footprint;
+     JLCPCB's own LED drawing calls the anode pin 1, so its pin-1 dot will sit on the other pad: judge the LEDs by
+     their cathode mark, not by the dot;
    - 12 MHz crystal of the hub (4 pads, next to the hub): pin-1 mark as in the footprint; turned by 90° its
      contacts land on the ground pads and the hub does not start;
    - MCP73831, AP2112K, SI2301, USBLC6, CH334P (hub), CM108B (sound chip), TPA6132A2 (amplifier), TPS22919
      (switch): pin 1 in the right corner (compare with
      `kicad/lira.kicad_pcb`);
+   - battery connector J2: its pin 1 is + (marked on the silkscreen); turned by 180° it reverses the battery and destroys the charger;
    - headset jack: opening at the rear edge (it sticks out of the board by 1.8 mm; the USB-C by 0.4 mm);
    - hot-swap sockets: their two pads on top of the PCB pads.
-5. "Extended" parts (extra loading fee): module, sockets, charger, USB-C, ESD, JST, power switch, and for the
+5. Choose **Standard** assembly: the E73 module is a Standard-only part and JLCPCB X-rays it; with Standard assembly every part type has a loading fee, and JLCPCB adds the edge rails and fiducials the board needs. "Extended" parts: module, sockets, charger, regulator, 18 pF capacitors, USB-C, ESD, JST, power switch, and for the
    sound card the hub, the sound chip, the amplifier, the switch and the jack. This is normal for a wireless
    keyboard.
 
 ## 2. The plate: cut by JLCPCB, laser cut or 3D printed
 
-The switches clip into the plate, and the plate is what holds the keyboard together: its 10 ears and 3 back tabs
+The switches clip into the plate, and the plate is what holds the keyboard together: its 6 ears and 3 back tabs
 are screwed to the top frame, and the PCB hangs from the switches. The three versions have the same outline,
 holes and openings, so they are interchangeable (same screws, same case).
 
 - **Cut by JLCPCB, FR4 1.6 mm** (recommended: flat and stiff): upload `production/2-plate/jlcpcb/gerber-plate.zip`
   as a normal 2-layer 1.6 mm PCB, with no assembly. The file has no copper, only the outline and the solder mask;
-  JLCPCB mills it like any board. Colour: black (looks good under warm grey keycaps) or white.
+  JLCPCB mills it like any board. Colour: black (looks good under warm grey keycaps) or white. Add a remark to the order (“plate: no copper, outline and holes only”), and choose *Remove Mark*, or JLCPCB prints its order number on the visible plate.
+  For the wireless version keep to FR4 or the printed plate: a metal plate sits 19 mm from the Bluetooth antenna and can shorten its range.
 - **Laser cut in metal**: `production/2-plate/laser-cut/plate.dxf` (outline, openings and holes, in mm) for
   1.5 mm aluminium (5052) or steel, e.g. JLCCNC's sheet-metal service or any local laser cutter. Aluminium is a
   little heavier and stiffer than FR4; the switches clip in the same way (MX plates are 1.5 ± 0.1 mm).
@@ -81,7 +93,7 @@ holes and openings, so they are interchangeable (same screws, same case).
 | What | Notes |
 |---|---|
 | 57 MX switches (3- or 5-pin) | Hot-swap: they plug in without soldering |
-| Keycaps | Agar mini set + **numpad kit**: you need a 2u vertical Enter, a 2u 0, + and − |
+| Keycaps | Agar mini set + **numpad kit**: you need a 2u vertical Enter, a 2u 0, a 1u + and a 1u − (most numpad kits only have a 2u +) |
 | **Screw-in PCB** stabilizers | 2 × 2u (numpad 0 and Enter) + 2 for the **3u** spacebars: check that the kit has wires for 3u (38.1 mm spacing) |
 | 3.7 V LiPo battery **603450** (~1200 mAh) | With a protection circuit and a **JST-PH 2.0** connector, at most 52 × 35 × 6.5 mm. **Check the polarity** with a multimeter: + goes to pin 1 (marked on the PCB) |
 | Screws and small hardware | See the README |
@@ -135,7 +147,9 @@ Do these steps **before** you fit the switches and the case.
    Holding them for 5 s clears the pairing of that profile. **fn + R** switches between USB and Bluetooth.
    The sound card follows that choice: it is on only in USB mode. In Bluetooth mode the keyboard still types over
    the cable while no Bluetooth host is connected, but the computer sees no sound card: press fn + R for USB.
-6. **Future updates**: **fn + Esc** restarts into the bootloader, then drag the new `.uf2` onto the drive.
+6. **Future updates**: **fn + Esc** restarts into the bootloader, then drag the new `.uf2` onto the drive. A new
+   firmware starts again from its default keymap and forgets the Bluetooth pairings: save your layout first (Vial,
+   *File → Save current layout*), load it back afterwards, and pair the computers again.
 
 ### Default keymap (everything can be changed in Vial)
 
@@ -149,18 +163,26 @@ Do these steps **before** you fit the switches and the case.
   - arrows = PgUp / Home / PgDn / End, Tab = Caps Lock
   - numpad = F1–F12, − and + become / and *
 - **System layer** (hold fn):
-  - Q/W/E Bluetooth profiles, R USB/Bluetooth, T forget the host
+  - Q/W/E Bluetooth profiles (hold one for 5 s to forget the computer paired to it), R USB/Bluetooth
   - Z…N media keys (mute, volume −, volume +, play/pause, previous, next)
   - Backspace = forward delete
   - Esc = bootloader
 
+### Testing and troubleshooting
+
+- **Before the first plug-in**, look at the hub and the sound chip with a loupe for solder bridges, and plug in without the battery, through a USB power meter: the board should draw roughly 30–150 mA. Much more means a short: unplug at once.
+- **Matrix test before closing the case**: after step 4 of §5 (plate, PCB and switches are one unit, still out of the case), plug in, open Vial, hold **Esc + Return** to unlock it and use *Matrix tester*: press every key once. A key that does nothing is usually a switch pin bent under the socket.
+- **No BLUEMICRO drive after the double press of reset**: the bootloader is not there (repeat §4 step 2 with the probe) or the press was too slow. With the probe connected, `probe-rs info --chip nRF52840_xxAA` shows whether the chip answers at all.
+- **No hub / no audio device**: measure VBUS (about 5 V) and the hub's 12 MHz crystal area for bridges; the sound card needs the hub, so without a hub there is neither keyboard nor headset.
+- **Headphones silent**: check that the computer's output is the C-Media “USB Audio Device” and that the plug is pushed fully home (the jack sits slightly inside the back wall).
+
 ## 5. Case: printing and assembly
 
 1. **Print** the 4 pieces in the `3-case-3d-print/` folder, without supports:
-   - top frame halves with the flat face on the bed;
+   - top frame halves lying on their flat underside (the side the plate screws to), deck up: the STL files are exported tilted, as assembled, so use the slicer's “lay on face” on that flat underside;
    - bottom halves the way they sit on the desk.
 
-   It is a good idea to print a test corner first, to check your printer's tolerances.
+   It is a good idea to print a test corner first, to check your printer's tolerances (cut a back corner of a bottom half in the slicer: it has a screw hole, an insert hole and a dowel pin hole).
    - Settings: 3 perimeters, 5 solid layers on top and 4 on the bottom; 15 % gyroid infill for the top frame,
      8 % (or "lightning") for the bottom halves. About 300–320 g of PLA in total (see the README for why it is
      not worth hollowing out the case by designing cavities).
@@ -170,7 +192,7 @@ Do these steps **before** you fit the switches and the case.
      in the slicer before printing.
 2. **Heat-set inserts**, all in the flat underside of the top frame (with the frame lying face down on the
    table the holes are vertical):
-   - M2 (10) for the plate's ears, at the front and at the sides of the key wells;
+   - M2 (6) for the plate's ears, at the front and at the sides of the key wells;
    - M3 (11) for the case screws and the back bolts.
 
    Press them in flush with the surface, never proud of it: the plate lies directly on this surface (it is a
@@ -183,14 +205,14 @@ Do these steps **before** you fit the switches and the case.
    nothing else holds it.
 5. **Top frame**: join the two halves with the dowel pins, lay the frame face down, and put the unit in: plate
    face down on the frame's underside, switches in the key wells. Fasten the plate with 6 M2 × 5 screws through
-   its ears (6 at the front, 2 per side): they are all outside the PCB, so a 1.5 mm hex key reaches them. From
+   its ears (4 at the front, 1 per side): they are all outside the PCB, so a 1.5 mm hex key reaches them. From
    now on the plate also holds the two halves of the frame together.
 6. **Bottom**: join the two halves with the dowel pins (a drop of glue if you like). Measure the length: it must
    be 377.4 mm. If it is more than 1 mm short, the plate's side ears may not fit their pockets: reprint with the
    corrected scale.
-7. **Battery**: put a 1 mm foam sheet on the bottom of the pocket under the numpad, then the battery, pushed to
+7. **Battery**: stick a 1 mm double-sided foam sheet on the bottom of the pocket under the numpad, then press the battery onto it (it must stay put when the bottom is turned over onto the frame), pushed to
    the left, with the cable coming out on the right. Plug it into the JST connector on the underside of the PCB
-   (mind the polarity!): with the frame face down, the PCB's underside is right in front of you.
+   (mind the polarity!): with the frame face down, the PCB's underside is right in front of you. Before closing, unplug the cable and find the switch's ON position: the battery voltage appears on the VIN test pad.
 8. **Close**: lower the bottom straight down onto the frame (the power switch lever, the USB-C port and the
    headset jack enter their windows from above, the plate's ears drop into their pockets), then fasten it with the M3 screws: 8 × M3 × 12
    (front and sides) and 3 × M3 × 20 (the back ones: they go through the PCB's large holes and the plate's back
@@ -208,7 +230,7 @@ The LEDs are under the PCB and face the bottom half: you see their reflection in
 from your typing position. To see them from the front you would need side-firing LEDs, which means a different PCB.
 
 You press the reset button from below with a paperclip, through the small hole in the bottom half (a guide
-leads it to the button). To reach the battery or the underside of the PCB, undo the 14 M3 screws and lift
+leads it to the button). To reach the battery or the underside of the PCB, undo the 11 M3 screws and lift
 the bottom off: everything else stays together on the top frame.
 
 ## 6. How the circuit is checked
@@ -281,9 +303,10 @@ Before ordering 5 boards, it is wise to order 2.
   Bluetooth to another device (a phone on profile 2), so that the radio transmits while you listen: it is 7 cm away. The
   microphone bias (1.2 kΩ + 2.2 kΩ) suits phone headsets; try a couple of headsets. Very sensitive in-ear
   earphones may hiss slightly at 0 dB gain: close JP3 (−6 dB).
-- **USB hub**: the CH334P announces itself as self-powered (its default), which lets the keyboard ask for its
-  450 mA; check it on the first board (macOS: System Information → USB; Linux: `lsusb -v`). Check also the
-  Bluetooth range with the sound card playing.
+- **USB hub**: the CH334P always announces itself as self-powered (this package has no pin to say otherwise) and declares 100 mA, which is what lets the keyboard ask for 450 mA; the board draws about 0.3 A while charging (0.4 A with JP1 closed). Fine on a computer's port; avoid phones, tablets and bus-powered hubs. Check it on the first board (macOS: System Information → USB; Linux: `lsusb -v`).
+- **Bluetooth range**: try it with no cable, with a charger cable and with a computer cable (the USB hub's 480 Mbit/s link is 13–21 mm from the antenna), with the sound card playing, and with the plate you chose.
+- **Battery polarity**: a cell plugged in reversed with the switch ON destroys the charger: measure the cell's plug before connecting it, every time.
+- **Battery life**: measure the current from the cell when idle; `dcdc_reg1 = true` in `keyboard.toml` (once the board works) roughly halves the radio's current.
 - **Headset jack**: its four contacts were matched to the drawing of a near-identical jack (the maker's drawing
   does not name them). Before ordering many boards, check one loose PJ-320D-4A with a meter and a 4-pole plug:
   pad S = sleeve, R2 = ring 2, R1 = ring 1, T = tip.

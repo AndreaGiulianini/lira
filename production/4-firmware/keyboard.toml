@@ -55,7 +55,7 @@ F10 F11 _ _ _ _ Home PageDown
 [[keymap.layer]]
 name = "system"
 keys = """
-_ _ _ _ Bootloader User0 User1 User2 User6 User5 _ _ _ _ _ _ Delete
+_ _ _ _ Bootloader User0 User1 User2 User6 _ _ _ _ _ _ _ Delete
 _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
 _ _ _ _ _ AudioMute AudioVolDown AudioVolUp MediaPlayPause MediaPrevTrack MediaNextTrack _ _ _ _ _
 _ _ _ _ _ _ _ _

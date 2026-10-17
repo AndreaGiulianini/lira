@@ -16,6 +16,15 @@ battery, from the cable alone. 3D-printed case inspired by the Apple
 M0110 (1984), top mount: the plate is screwed to the top frame and the PCB hangs from the switches, so no printed
 part has to hold the PCB flat.
 
+**Two versions of the same keyboard**, one per git branch, with the same layout, plate and sound card, and the same case and keymap apart from the battery pocket and the Bluetooth keys:
+
+| Branch | Version | Microcontroller | Power |
+|---|---|---|---|
+| **`main`** (this one) | **wireless: Bluetooth + USB-C** | **Ebyte E73 module (nRF52840)** | **LiPo battery, or the cable alone** |
+| [`rp2040`](../../tree/rp2040) | wired: USB-C only | Raspberry Pi RP2040 + 16 MB QSPI flash | the cable, no battery |
+
+The sound card only works over the cable (there is no audio over Bluetooth), so if the headset jack is what you want, the wired version is simpler and cheaper to build: no battery, no SWD probe, Economic assembly at JLCPCB.
+
 ![keyboard](production/images/desk.jpg)
 
 ## Inspiration and credits
@@ -45,7 +54,7 @@ Thanks to all of them.
 | [`guide/`](guide/build-guide.md) | Complete guide: ordering from JLCPCB, what to buy, first programming, printing and assembly |
 | [`source/`](source/README.md) | The code that generates everything: edit only here, then regenerate |
 
-`production/` is **self-contained**: it holds everything needed to build the keyboard (the bootloader too)
+`production/` is **self-contained**: it holds everything needed to build the keyboard (the bootloader too; the KiCad files use the footprint libraries in `source/lib/`)
 and has its own README listing the files and what to do with them:
 
 ```
@@ -84,17 +93,17 @@ board.
 |---|---|
 | M2 heat-set inserts (for a 3.2 mm hole, length 3 mm) | 6 (top frame: the plate's ears) |
 | M2 × 5 mm socket-head screws (DIN 912) | 6 (plate to top frame) |
-| Short M3 heat-set inserts (Ø ~4.5 mm, length 3 mm) | 11 (top frame) |
-| M3 × 12 mm screws | 8 (front and sides) |
-| M3 × 20 mm screws | 3 (back: through the PCB's holes and the plate's tabs) |
+| Short M3 heat-set inserts (Ø ~4.5 mm, length 3 mm, for a 4.0 mm hole) | 11 (top frame) |
+| M3 × 12 mm socket-head screws (DIN 912) | 8 (front and sides) |
+| M3 × 20 mm socket-head screws (DIN 912) | 3 (back: through the PCB's holes and the plate's tabs) |
 | Ø 3 × 14 mm alignment pins (steel rod or 3 mm filament) | 4 |
 | Ø 12 mm rubber feet | 4 |
-| 1 mm foam (under the battery) | one 55 × 37 mm piece |
+| 1 mm double-sided foam tape (holds the battery) | one 55 × 37 mm piece |
 | Long 2.5 mm hex key (some M3 screw holes are 21 mm deep) and a 1.5 mm hex key (M2) | 1 + 1 |
 
 ## Printing the case
 
-- No supports. **Top frames**: flat face down on the bed. **Bottom halves**: placed the way they sit
+- No supports. **Top frames**: lying on their flat underside (the side the plate screws to), deck up: the STL files are exported tilted, as assembled, so use the slicer's “lay on face” on that flat underside. **Bottom halves**: placed the way they sit
   on the desk.
 - PLA or PETG, 3 perimeters, 5 solid top layers and 4 bottom layers. Infill: **top frames** gyroid 15 %,
   **bottom halves** gyroid 8 % or lightning. The strength comes from the walls and the solid layers, not from
@@ -124,7 +133,9 @@ Technical details in [`source/README.md`](source/README.md).
 
 [MIT](LICENSE) — that covers everything in this repository that I made.
 
+The firmware is built on [RMK](https://github.com/HaoboGu/rmk) and the embassy crates (MIT / Apache-2.0) and is configured with [Vial](https://get.vial.today) (GPL-2.0, used, not bundled).
+
 Bundled third-party parts keep their own terms and are **not** relicensed by the above: `source/tools/KeyV2`
-(GPL-3.0, a git submodule), the kiswitch footprints and 3D models under `source/lib/` (CC BY-SA 4.0), and the
+(GPL-3.0, a git submodule), the bootloader (Adafruit, MIT, containing Nordic's S140 SoftDevice under Nordic's licence), Nordic's MPSL / SoftDevice Controller libraries linked into the firmware (Nordic 5-clause licence), the kiswitch footprints and 3D models under `source/lib/` (CC BY-SA 4.0), and the
 vendor symbols/models (KiCad, LCSC). The [Lyra](https://github.com/PiKeeb/lyra-keyboard) and the KBDfans Agar Mini
 are cited as inspiration only — no files from either are included here.

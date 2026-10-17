@@ -76,7 +76,8 @@ fn generate_vial_config() {
         .read_to_end(&mut keyboard_def_compressed)
         .unwrap();
 
-    let keyboard_id: Vec<u8> = vec![0xB9, 0xBC, 0x09, 0xB2, 0x9D, 0x37, 0x4C, 0xEA];
+    // Vial keyboard UID: random, one per version of Lira (RMK's examples all share 0xB9BC09B29D374CEA)
+    let keyboard_id: Vec<u8> = vec![0xE2, 0xE3, 0x0F, 0xD0, 0x56, 0xC2, 0xEF, 0x7C];
     let const_declarations = [
         const_declaration!(pub VIAL_KEYBOARD_DEF = keyboard_def_compressed),
         const_declaration!(pub VIAL_KEYBOARD_ID = keyboard_id),
