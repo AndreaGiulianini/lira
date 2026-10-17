@@ -74,10 +74,10 @@ board.
 
 | Item | Quantity |
 |---|---|
-| M2 heat-set inserts (for a 3.2 mm hole, length 3 mm) | 10 (top frame: the plate's ears) |
-| M2 × 5 mm socket-head screws (DIN 912) | 10 (plate to top frame) |
-| Short M3 heat-set inserts (Ø ~4.5 mm, length 3 mm) | 14 (top frame) |
-| M3 × 12 mm screws | 11 (front and sides) |
+| M2 heat-set inserts (for a 3.2 mm hole, length 3 mm) | 6 (top frame: the plate's ears) |
+| M2 × 5 mm socket-head screws (DIN 912) | 6 (plate to top frame) |
+| Short M3 heat-set inserts (Ø ~4.5 mm, length 3 mm) | 11 (top frame) |
+| M3 × 12 mm screws | 8 (front and sides) |
 | M3 × 20 mm screws | 3 (back: through the PCB's holes and the plate's tabs) |
 | Ø 3 × 14 mm alignment pins (steel rod or 3 mm filament) | 4 |
 | Ø 12 mm rubber feet | 4 |

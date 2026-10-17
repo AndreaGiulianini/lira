@@ -19,9 +19,10 @@ FRONT_REACH, SIDE_REACH = 6.5, 7.5  # how far the ears reach out of the plate ed
 SCREW_HOLE, BOLT_HOLE = 2.4, 3.4  # plate holes: M2 clearance, M3 clearance
 TAB_W, TAB_END = 12.0, 6.0  # back tabs: width, plate past the bolt axis
 # front ears: between the M3 case screws (y = -7) and clear of the top frame's seam pins; side ears: between the
-# side case screws (gen_case.case_screws)
-FRONT_EARS = (6.0, 80.0, 140.0, 220.0, 275.0, KW - 6.0)
-SIDE_EARS = (30.0, 70.0)
+# side case screws (gen_case.case_screws). Kept to the fewest that hold a 333 mm plate flat: four at the front
+# (one either side of each frame seam) and one per side; the back edge is clamped by the three bolt bosses.
+FRONT_EARS = (6.0, 110.0, 225.0, KW - 6.0)
+SIDE_EARS = (50.0,)
 SCREW = dict(length=5.0, head=(3.8, 2.0))  # M2 x 5 socket head (DIN 912): head diameter x height
 INSERT = (3.2, 4.0)  # M2 heat-set insert (3 mm long, 3.2 mm hole) in the top frame: hole diameter, depth
 

@@ -171,7 +171,7 @@ Do these steps **before** you fit the switches and the case.
 2. **Heat-set inserts**, all in the flat underside of the top frame (with the frame lying face down on the
    table the holes are vertical):
    - M2 (10) for the plate's ears, at the front and at the sides of the key wells;
-   - M3 (14) for the case screws and the back bolts.
+   - M3 (11) for the case screws and the back bolts.
 
    Press them in flush with the surface, never proud of it: the plate lies directly on this surface (it is a
    **top mount** case), and an insert standing out by even 0.2 mm lifts the plate. If one does, level it with a
@@ -182,7 +182,7 @@ Do these steps **before** you fit the switches and the case.
    then all the others, supporting the PCB under each socket as you press. The PCB now hangs from the switches;
    nothing else holds it.
 5. **Top frame**: join the two halves with the dowel pins, lay the frame face down, and put the unit in: plate
-   face down on the frame's underside, switches in the key wells. Fasten the plate with 10 M2 × 5 screws through
+   face down on the frame's underside, switches in the key wells. Fasten the plate with 6 M2 × 5 screws through
    its ears (6 at the front, 2 per side): they are all outside the PCB, so a 1.5 mm hex key reaches them. From
    now on the plate also holds the two halves of the frame together.
 6. **Bottom**: join the two halves with the dowel pins (a drop of glue if you like). Measure the length: it must
@@ -192,7 +192,7 @@ Do these steps **before** you fit the switches and the case.
    the left, with the cable coming out on the right. Plug it into the JST connector on the underside of the PCB
    (mind the polarity!): with the frame face down, the PCB's underside is right in front of you.
 8. **Close**: lower the bottom straight down onto the frame (the power switch lever, the USB-C port and the
-   headset jack enter their windows from above, the plate's ears drop into their pockets), then fasten it with the M3 screws: 11 × M3 × 12
+   headset jack enter their windows from above, the plate's ears drop into their pockets), then fasten it with the M3 screws: 8 × M3 × 12
    (front and sides) and 3 × M3 × 20 (the back ones: they go through the PCB's large holes and the plate's back
    tabs, clamping the back of the plate against the frame). Some holes are up to 21 mm deep and tilted by 8°: you
    need a long 2.5 mm hex key (1/4" screwdriver bits do not fit).

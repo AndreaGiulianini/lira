@@ -1,7 +1,6 @@
 WARN O  bottom-left: overhang 50 deg from vertical, 7 mm2 at slab x -21.5..-14.8 y 95.8..100.1 z -24.3..-18.6
 WARN O  bottom-right: overhang 50 deg from vertical, 8 mm2 at slab x 348.2..354.8 y 95.8..100.1 z -24.3..-18.6
-WARN W  bottom-right: wall 0.88-1.06 mm over 2 mm2 at slab x 234.8..237.7 y 99.8..100.1 z -20.2..-20.2
-WARN W  bottom-right: wall 0.98-1.03 mm over 2 mm2 at slab x 228.6..229.5 y 99.8..100.0 z -20.2..-20.2
+WARN W  bottom-right: wall 0.93-0.99 mm over 2 mm2 at slab x 232.8..233.7 y 99.9..100.1 z -20.2..-20.2
 PASS A  plate + PCB unit, bottom body and top frame all come together straight (0.3 mm clearance)
 PASS C  no inside part within 0.3 mm of a printed piece
 PASS O  bottom-left: 226.4 x 127.8 x 31.0 mm on a 256 mm bed
@@ -15,9 +14,7 @@ PASS O  bottom-left: bridge 11.8 mm, 29 mm2 at slab x -1.3..3.8 y -13.0..-0.6 z 
 PASS O  bottom-left: bridge 12.1 mm, 41 mm2 at slab x 3.2..9.8 y -13.0..-0.6 z -22.5..-20.8
 PASS O  bottom-left: bridge 5.1 mm, 23 mm2 at slab x 26.8..33.2 y -10.2..-3.8 z -14.5..-14.5
 PASS O  bottom-left: bridge 4.7 mm, 23 mm2 at slab x -11.8..-5.4 y 8.8..15.2 z -14.5..-14.5
-PASS O  bottom-left: bridge 4.9 mm, 23 mm2 at slab x 116.8..123.2 y -10.2..-3.8 z -14.5..-14.5
-PASS O  bottom-left: bridge 4.1 mm, 23 mm2 at slab x 181.8..188.2 y -10.2..-3.8 z -14.5..-14.5
-PASS O  bottom-left: bridge 4.9 mm, 23 mm2 at slab x -11.8..-5.4 y 46.8..53.2 z -14.5..-14.5
+PASS O  bottom-left: bridge 4.1 mm, 23 mm2 at slab x 126.8..133.2 y -10.2..-3.8 z -14.5..-14.5
 PASS O  bottom-left: bridge 10.9 mm, 52 mm2 at slab x -2.2..10.2 y 70.0..82.4 z -34.2..-32.5
 PASS O  bottom-left: bridge 11.8 mm, 29 mm2 at slab x -1.3..3.8 y 70.1..82.4 z -34.2..-32.5
 PASS O  bottom-left: bridge 12.1 mm, 41 mm2 at slab x 3.2..9.8 y 70.1..82.4 z -34.2..-32.5
@@ -32,8 +29,7 @@ PASS O  bottom-right: bridge 1.9 mm, 9 mm2 at slab x 204.4..212.0 y -14.9..-12.7
 PASS O  bottom-right: ledge 0.0 mm wide, supported on one side only, 13 mm2 at slab x 349.4..355.4 y -28.6..-22.5 z -20.3..-18.1
 PASS O  bottom-right: bridge 5.1 mm, 23 mm2 at slab x 300.2..306.6 y -10.2..-3.8 z -14.5..-14.5
 PASS O  bottom-right: bridge 4.9 mm, 23 mm2 at slab x 338.8..345.2 y 8.8..15.2 z -14.5..-14.5
-PASS O  bottom-right: bridge 4.1 mm, 23 mm2 at slab x 241.8..248.2 y -10.2..-3.8 z -14.5..-14.5
-PASS O  bottom-right: bridge 4.9 mm, 23 mm2 at slab x 338.8..345.2 y 46.8..53.2 z -14.5..-14.5
+PASS O  bottom-right: bridge 4.1 mm, 23 mm2 at slab x 206.8..213.2 y -10.2..-3.8 z -14.5..-14.5
 PASS O  bottom-right: bridge 4.9 mm, 23 mm2 at slab x 338.8..345.2 y 79.0..85.4 z -14.5..-14.5
 PASS O  bottom-right: bridge 11.9 mm, 123 mm2 at slab x 323.1..335.6 y -13.0..-0.6 z -22.5..-20.8
 PASS O  bottom-right: bridge 11.9 mm, 123 mm2 at slab x 323.1..335.6 y 70.0..82.4 z -34.2..-32.5
@@ -43,15 +39,12 @@ PASS O  top-left: bridge 2.0 mm, 10 mm2 at slab x 151.5..159.1 y 90.9..93.3 z -1
 PASS O  top-left: bridge 1.9 mm, 10 mm2 at slab x 151.5..159.1 y 90.9..93.3 z -1.9..-1.4
 PASS O  top-left: bridge 2.0 mm, 10 mm2 at slab x 151.5..159.1 y -7.2..-4.8 z -1.9..-1.4
 PASS O  top-left: bridge 1.9 mm, 10 mm2 at slab x 151.5..159.1 y -7.2..-4.8 z -1.9..-1.4
-PASS O  top-left: bridge 3.0 mm, 8 mm2 at slab x 138.4..141.6 y -6.6..-3.4 z -2.5..-2.5
-PASS O  top-left: bridge 3.8 mm, 13 mm2 at slab x 118.0..122.0 y -9.0..-5.0 z -2.0..-2.0
-PASS O  top-left: bridge 3.0 mm, 8 mm2 at slab x 78.4..81.6 y -6.6..-3.4 z -2.5..-2.5
+PASS O  top-left: bridge 3.9 mm, 13 mm2 at slab x 128.0..132.0 y -9.0..-5.0 z -2.0..-2.0
+PASS O  top-left: bridge 3.0 mm, 8 mm2 at slab x 108.4..111.6 y -6.6..-3.4 z -2.5..-2.5
 PASS O  top-left: bridge 3.8 mm, 13 mm2 at slab x 28.0..32.0 y -9.0..-5.0 z -2.0..-2.0
 PASS O  top-left: bridge 3.1 mm, 8 mm2 at slab x 4.4..7.6 y -6.6..-3.4 z -2.5..-2.5
 PASS O  top-left: bridge 3.9 mm, 13 mm2 at slab x -10.6..-6.6 y 10.0..14.0 z -2.0..-2.0
-PASS O  top-left: bridge 3.1 mm, 8 mm2 at slab x -6.1..-2.9 y 28.4..31.6 z -2.5..-2.5
-PASS O  top-left: bridge 3.9 mm, 13 mm2 at slab x -10.6..-6.6 y 48.0..52.0 z -2.0..-2.0
-PASS O  top-left: bridge 3.1 mm, 8 mm2 at slab x -6.1..-2.9 y 68.4..71.6 z -2.5..-2.5
+PASS O  top-left: bridge 3.1 mm, 8 mm2 at slab x -6.1..-2.9 y 48.4..51.6 z -2.5..-2.5
 PASS O  top-left: bridge 3.8 mm, 13 mm2 at slab x 28.0..32.0 y 85.2..89.2 z -2.0..-2.0
 PASS O  top-left: bridge 3.9 mm, 13 mm2 at slab x -10.6..-6.6 y 80.2..84.2 z -2.0..-2.0
 PASS O  top-right: 196.2 x 129.8 x 6.5 mm on a 256 mm bed
@@ -62,13 +55,9 @@ PASS O  top-right: bridge 1.9 mm, 10 mm2 at slab x 159.1..166.7 y 90.9..93.3 z -
 PASS O  top-right: bridge 3.0 mm, 8 mm2 at slab x 325.8..329.0 y -6.6..-3.4 z -2.5..-2.5
 PASS O  top-right: bridge 3.9 mm, 13 mm2 at slab x 301.4..305.4 y -9.0..-5.0 z -2.0..-2.0
 PASS O  top-right: bridge 3.8 mm, 13 mm2 at slab x 340.0..344.0 y 10.0..14.0 z -2.0..-2.0
-PASS O  top-right: bridge 3.0 mm, 8 mm2 at slab x 273.4..276.6 y -6.6..-3.4 z -2.5..-2.5
-PASS O  top-right: bridge 3.0 mm, 8 mm2 at slab x 336.3..339.5 y 28.4..31.6 z -2.5..-2.5
-PASS O  top-right: bridge 3.9 mm, 13 mm2 at slab x 243.0..247.0 y -9.0..-5.0 z -2.0..-2.0
-PASS O  top-right: bridge 3.0 mm, 8 mm2 at slab x 218.4..221.6 y -6.6..-3.4 z -2.5..-2.5
-PASS O  top-right: bridge 3.9 mm, 13 mm2 at slab x 183.0..187.0 y -9.0..-5.0 z -2.0..-2.0
-PASS O  top-right: bridge 3.9 mm, 13 mm2 at slab x 340.0..344.0 y 48.0..52.0 z -2.0..-2.0
-PASS O  top-right: bridge 3.0 mm, 8 mm2 at slab x 336.3..339.5 y 68.4..71.6 z -2.5..-2.5
+PASS O  top-right: bridge 3.0 mm, 8 mm2 at slab x 223.4..226.6 y -6.6..-3.4 z -2.5..-2.5
+PASS O  top-right: bridge 3.9 mm, 13 mm2 at slab x 208.0..212.0 y -9.0..-5.0 z -2.0..-2.0
+PASS O  top-right: bridge 3.0 mm, 8 mm2 at slab x 336.3..339.5 y 48.4..51.6 z -2.5..-2.5
 PASS O  top-right: bridge 3.9 mm, 13 mm2 at slab x 340.0..344.0 y 80.2..84.2 z -2.0..-2.0
 PASS O  top-right: bridge 3.8 mm, 13 mm2 at slab x 263.0..267.0 y 85.2..89.2 z -2.0..-2.0
 PASS O  top-right: bridge 3.8 mm, 13 mm2 at slab x 173.0..177.0 y 85.2..89.2 z -2.0..-2.0
@@ -79,33 +68,26 @@ PASS P  LED D102 visible from behind at [0, 30, 45] deg below the slab
 PASS P  LED D103 visible from behind at [0, 30, 45] deg below the slab
 PASS P  reset: clear path, 21.1 mm from the desk to the button
 PASS S  M3 x 12 at 30.0,-7.0: head seat -14.50 (8.1 mm deep from the desk), tip -2.50, hole ends -2.00 (margin 0.50), 3.00 mm in the insert, insert wall 4.51
-PASS S  M3 x 12 at 120.0,-7.0: head seat -14.50 (8.1 mm deep from the desk), tip -2.50, hole ends -2.00 (margin 0.50), 3.00 mm in the insert, insert wall 4.51
-PASS S  M3 x 12 at 185.0,-7.0: head seat -14.50 (8.1 mm deep from the desk), tip -2.50, hole ends -2.00 (margin 0.50), 3.00 mm in the insert, insert wall 4.51
-PASS S  M3 x 12 at 245.0,-7.0: head seat -14.50 (8.1 mm deep from the desk), tip -2.50, hole ends -2.00 (margin 0.50), 3.00 mm in the insert, insert wall 4.51
+PASS S  M3 x 12 at 130.0,-7.0: head seat -14.50 (8.1 mm deep from the desk), tip -2.50, hole ends -2.00 (margin 0.50), 3.00 mm in the insert, insert wall 4.51
+PASS S  M3 x 12 at 210.0,-7.0: head seat -14.50 (8.1 mm deep from the desk), tip -2.50, hole ends -2.00 (margin 0.50), 3.00 mm in the insert, insert wall 4.51
 PASS S  M3 x 12 at 303.4,-7.0: head seat -14.50 (8.1 mm deep from the desk), tip -2.50, hole ends -2.00 (margin 0.50), 3.00 mm in the insert, insert wall 4.51
 PASS S  M3 x 12 at -8.6,12.0: head seat -14.50 (10.8 mm deep from the desk), tip -2.50, hole ends -2.00 (margin 0.50), 3.00 mm in the insert, insert wall 6.11
-PASS S  M3 x 12 at -8.6,50.0: head seat -14.50 (16.2 mm deep from the desk), tip -2.50, hole ends -2.00 (margin 0.50), 3.00 mm in the insert, insert wall 6.11
 PASS S  M3 x 12 at -8.6,82.2: head seat -14.50 (20.7 mm deep from the desk), tip -2.50, hole ends -2.00 (margin 0.50), 3.00 mm in the insert, insert wall 8.90
 PASS S  M3 x 12 at 342.0,12.0: head seat -14.50 (10.8 mm deep from the desk), tip -2.50, hole ends -2.00 (margin 0.50), 3.00 mm in the insert, insert wall 8.90
-PASS S  M3 x 12 at 342.0,50.0: head seat -14.50 (16.2 mm deep from the desk), tip -2.50, hole ends -2.00 (margin 0.50), 3.00 mm in the insert, insert wall 6.11
 PASS S  M3 x 12 at 342.0,82.2: head seat -14.50 (20.7 mm deep from the desk), tip -2.50, hole ends -2.00 (margin 0.50), 3.00 mm in the insert, insert wall 8.10
 PASS S  M3 x 20 at 30.0,87.2: head seat -22.60 (13.3 mm deep from the desk), tip -2.60, hole ends -2.00 (margin 0.60), 3.00 mm in the insert, insert wall 8.52
 PASS S  M3 x 20 at 175.0,87.2: head seat -22.60 (13.3 mm deep from the desk), tip -2.60, hole ends -2.00 (margin 0.60), 3.00 mm in the insert, insert wall 8.52
 PASS S  M3 x 20 at 265.0,87.2: head seat -22.60 (13.3 mm deep from the desk), tip -2.60, hole ends -2.00 (margin 0.60), 3.00 mm in the insert, insert wall 8.52
 PASS S  M2 x 5 at 6.0,-5.0: plate top -6.50 on the frame at -6.50, tip -3.10, hole ends -2.50 (margin 0.60), 3.00 mm in the insert, insert wall 2.91, deck over the insert 2.50
-PASS S  M2 x 5 at 80.0,-5.0: plate top -6.50 on the frame at -6.50, tip -3.10, hole ends -2.50 (margin 0.60), 3.00 mm in the insert, insert wall 4.46, deck over the insert 2.50
-PASS S  M2 x 5 at 140.0,-5.0: plate top -6.50 on the frame at -6.50, tip -3.10, hole ends -2.50 (margin 0.60), 3.00 mm in the insert, insert wall 2.91, deck over the insert 2.50
-PASS S  M2 x 5 at 220.0,-5.0: plate top -6.50 on the frame at -6.50, tip -3.10, hole ends -2.50 (margin 0.60), 3.00 mm in the insert, insert wall 2.91, deck over the insert 2.50
-PASS S  M2 x 5 at 275.0,-5.0: plate top -6.50 on the frame at -6.50, tip -3.10, hole ends -2.50 (margin 0.60), 3.00 mm in the insert, insert wall 2.91, deck over the insert 2.50
+PASS S  M2 x 5 at 110.0,-5.0: plate top -6.50 on the frame at -6.50, tip -3.10, hole ends -2.50 (margin 0.60), 3.00 mm in the insert, insert wall 2.91, deck over the insert 2.50
+PASS S  M2 x 5 at 225.0,-5.0: plate top -6.50 on the frame at -6.50, tip -3.10, hole ends -2.50 (margin 0.60), 3.00 mm in the insert, insert wall 2.91, deck over the insert 2.50
 PASS S  M2 x 5 at 327.4,-5.0: plate top -6.50 on the frame at -6.50, tip -3.10, hole ends -2.50 (margin 0.60), 3.00 mm in the insert, insert wall 17.83, deck over the insert 2.50
-PASS S  M2 x 5 at -4.5,30.0: plate top -6.50 on the frame at -6.50, tip -3.10, hole ends -2.50 (margin 0.60), 3.00 mm in the insert, insert wall 2.41, deck over the insert 2.50
-PASS S  M2 x 5 at 337.9,30.0: plate top -6.50 on the frame at -6.50, tip -3.10, hole ends -2.50 (margin 0.60), 3.00 mm in the insert, insert wall 2.41, deck over the insert 2.50
-PASS S  M2 x 5 at -4.5,70.0: plate top -6.50 on the frame at -6.50, tip -3.10, hole ends -2.50 (margin 0.60), 3.00 mm in the insert, insert wall 2.41, deck over the insert 2.50
-PASS S  M2 x 5 at 337.9,70.0: plate top -6.50 on the frame at -6.50, tip -3.10, hole ends -2.50 (margin 0.60), 3.00 mm in the insert, insert wall 2.41, deck over the insert 2.50
+PASS S  M2 x 5 at -4.5,50.0: plate top -6.50 on the frame at -6.50, tip -3.10, hole ends -2.50 (margin 0.60), 3.00 mm in the insert, insert wall 2.41, deck over the insert 2.50
+PASS S  M2 x 5 at 337.9,50.0: plate top -6.50 on the frame at -6.50, tip -3.10, hole ends -2.50 (margin 0.60), 3.00 mm in the insert, insert wall 2.41, deck over the insert 2.50
 PASS S  bolt at 30.0,87.2: plate tab -8.10..-6.50 clamped between boss top -8.10 and frame -6.50; backstop 0.50 mm under the PCB
 PASS S  bolt at 175.0,87.2: plate tab -8.10..-6.50 clamped between boss top -8.10 and frame -6.50; backstop 0.50 mm under the PCB
 PASS S  bolt at 265.0,87.2: plate tab -8.10..-6.50 clamped between boss top -8.10 and frame -6.50; backstop 0.50 mm under the PCB
-PASS W  bottom-left: no wall thinner than 1.2 mm (163963 samples)
-PASS W  top-left: no wall thinner than 1.2 mm (62240 samples)
-PASS W  top-right: no wall thinner than 1.2 mm (61847 samples)
-0 FAIL, 4 WARN, 106 PASS
+PASS W  bottom-left: no wall thinner than 1.2 mm (162507 samples)
+PASS W  top-left: no wall thinner than 1.2 mm (61966 samples)
+PASS W  top-right: no wall thinner than 1.2 mm (61460 samples)
+0 FAIL, 3 WARN, 89 PASS

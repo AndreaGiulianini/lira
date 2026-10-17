@@ -167,10 +167,12 @@ def cut_behind(part):
 
 
 def case_screws():
-    """M3 screws from below, joining bottom body and top frame (slab x, y)."""
-    pts = [(x, -7.0) for x in (30.0, 120.0, 185.0, 245.0, KW - 30.0)]
+    """M3 screws from below, joining bottom body and top frame (slab x, y). Four along the front, one either side
+    of each frame seam (the top frame and the bottom body are split at staggered x), and two per side; the back is
+    held by the three bolt bosses."""
+    pts = [(x, -7.0) for x in (30.0, 130.0, 210.0, KW - 30.0)]
     for x in (PCB["left"] - CLEAR_X - 7.0, PCB["right"] + CLEAR_X + 7.0):  # clear of the base undercut
-        pts += [(x, 12.0), (x, 50.0), (x, KD + 6.0)]  # between the plate's side ears; back one clear of the base edge
+        pts += [(x, 12.0), (x, KD + 6.0)]
     return pts
 
 
