@@ -7,7 +7,7 @@ escape vias of the module's inner pads and of the codec's ground pins.
 """
 import math
 
-from circuit import E73_FIXED, E73_GPIO, E73_INNER_GPIO, E73_NEAR_ANTENNA, electronics as circuit_parts, nrf_pin
+from circuit import RP_FIXED, RP_GPIO, RP_INNER_GPIO, electronics as circuit_parts, rp_pin
 
 STRIP_DEPTH = 22.0  # mm of PCB behind the top row
 
@@ -48,49 +48,37 @@ def pad_xy(fp, num):
 
 
 def positions(top):
-    """ref -> (x, y, rotation) in board mm. The module's antenna end and every connector face the back edge
-    (board y = top): on the bottom side KiCad mirrors the footprint top<->bottom, so orientation 0 already
-    points a footprint's +y side towards the back edge."""
+    """ref -> (x, y, rotation) in board mm. Everything is on the bottom side (KiCad mirrors the footprint
+    top<->bottom, so orientation 0 points a footprint's +y side towards the back edge). The RP2040 block sits where
+    the nRF module was; the sound card is unchanged."""
     m = X_MCU
     pos = {
+        # --- RP2040, QSPI flash, 12 MHz crystal, decoupling ring
         "U1": (m, top + 11.0, 0),
-        # crystal and its caps right of the module's front corner (pads 11 / 13), leaving the front free for the
-        # matrix lines that leave the front pads towards the keys
-        "Y1": (m + 9.5, top + 19.0, 0), "C105": (m + 13.5, top + 19.0, 90), "C106": (m + 9.5, top + 22.0, 0),
-        # battery divider at pad 9 (right side of the module), in a row below the side pads
-        "R105": (m + 9.5, top + 16.0, 90), "R106": (m + 12.5, top + 16.0, 90), "C104": (m + 15.5, top + 16.0, 90),
-        # reset button right of the module (left of it is the USB hub); SWD pads in one 2.54 mm column next to
-        # pads 39 / 37 / 26 (pogo clip): SWCLK, SWDIO, GND, 3V3, RESET from the back edge forwards
-        "SW102": (m + 21.0, top + 12.0, 0),
-        "TP2": (m - 11.5, top + 6.5, 0), "TP1": (m - 11.5, top + 6.5 + SWD_PITCH, 0),
-        "TP4": (m - 11.5, top + 6.5 + 2 * SWD_PITCH, 0), "TP3": (m - 11.5, top + 6.5 + 3 * SWD_PITCH, 0),
-        "TP5": (m - 11.5, top + 6.5 + 4 * SWD_PITCH, 0),
-        # power test points next to the charger / regulator
-        "TP6": (82.5, top + 19.3, 0), "TP7": (85.5, top + 19.3, 0), "TP8": (88.5, top + 19.3, 0),
-        # USB-C on the back edge (overhangs it by 0.4 mm), CC resistors and ESD array behind it; the ESD array is
-        # turned so that D+ is the upper pin on both sides (the order of the hub's upstream pins)
-        "J1": (X_USB, top - 0.4 + 3.65, 0), "R108": (X_USB - 5.5, top + 11.0, 90), "R109": (X_USB + 5.5, top + 10.6, 270),
-        "U4": (X_USB, top + 12.5, 180), "R101": (X_USB - 7.5, top + 9.5, 90),
-        # USB hub right behind the ESD array: upstream pins (left side) facing it, the crystal on its right, the
-        # supply capacitors above it; ports 2 and 3 (front side) go down to the channel along the keys, port 3 to
-        # the module, port 2 to the codec
+        "U2": (m + 16.0, top + 11.0, 0), "C15": (m + 19.0, top + 16.0, 90),
+        "Y1": (m - 9.0, top + 11.0, 0), "C13": (m - 9.0, top + 15.0, 0), "C14": (m - 9.0, top + 7.0, 0),
+        "R01": (m - 6.0, top + 11.5, 90),
+        "C01": (m - 7.5, top + 3.5, 0), "C02": (m - 4.5, top + 3.5, 0), "C03": (m - 1.5, top + 3.5, 0),
+        "C04": (m + 1.5, top + 3.5, 0), "C05": (m + 4.5, top + 3.5, 0), "C06": (m + 7.5, top + 3.5, 0),
+        "C07": (m - 7.5, top + 18.5, 0), "C08": (m - 4.5, top + 18.5, 0), "C09": (m - 1.5, top + 18.5, 0),
+        "C10": (m + 1.5, top + 18.5, 0), "C11": (m + 4.5, top + 18.5, 0), "C12": (m + 7.5, top + 18.5, 0),
+        "R05": (m + 10.5, top + 3.5, 90), "R06": (m + 13.5, top + 3.5, 90),
+        "R02": (m + 10.5, top + 15.0, 90), "R03": (m + 10.5, top + 18.5, 90),
+        "C16": (m - 38.0, top + 14.0, 0), "R04": (m - 13.0, top + 3.5, 90),
+        # --- freed left area: SWD pads, buttons, LED, 3.3 V regulator and its capacitors, VBUS test pad
+        "TP1": (m - 62.0, top + 6.0, 0), "TP2": (m - 62.0, top + 8.54, 0),
+        "TP3": (m - 62.0, top + 11.08, 0), "TP4": (m - 62.0, top + 13.62, 0),
+        "SW101": (m - 50.0, top + 6.0, 0), "SW102": (m - 50.0, top + 15.0, 0),
+        "D60": (m - 40.0, top + 4.5, 90), "R07": (m - 40.0, top + 7.5, 90),
+        "U4": (m - 34.0, top + 11.0, 0), "C18": (m - 37.5, top + 11.0, 90), "C17": (m - 29.5, top + 16.0, 90),
+        "C19": (m - 34.0, top + 16.0, 90), "TP5": (m - 45.0, top + 19.5, 0),
+        # --- USB-C on the back edge, CC resistors, ESD array
+        "J1": (X_USB, top - 0.4 + 3.65, 0), "R08": (X_USB - 5.5, top + 11.0, 90), "R09": (X_USB + 5.5, top + 10.6, 270),
+        "U3": (X_USB, top + 12.5, 180),
+        # --- USB hub right behind the ESD array
         "U5": (X_USB + 6.5, top + 17.5, 180), "Y2": (X_USB + 10.55, top + 17.6, 90),
         "C110": (X_USB + 6.9, top + 13.8, 90), "C112": (X_USB + 8.6, top + 13.8, 90),
         "C111": (X_USB + 10.3, top + 13.8, 90),
-        # power switch on the back edge (actuator protrudes 2 mm), bypass jumper behind it, charging / status LEDs
-        "SW101": (X_SW, top + 1.8, 0), "JP2": (X_SW - 4.5, top + 8.5, 90),
-        "D102": (97.0, top + 2.0, 90), "R102": (97.0, top + 5.2, 90),
-        "D103": (101.0, top + 2.0, 90), "R107": (101.0, top + 5.2, 90),
-        # power path and charger, its input (VBUS) and output (VBAT) capacitors next to its pins
-        "D101": (X_SW, top + 9.5, 0), "Q1": (X_SW, top + 13.5, 0),
-        "U2": (95.0, top + 12.0, 0), "C101": (91.6, top + 11.5, 270), "C107": (98.4, top + 11.5, 270),
-        "R103": (91.5, top + 15.8, 0), "JP1": (95.0, top + 15.8, 0), "R104": (98.5, top + 15.8, 0),
-        # 3.3 V regulator with its input and output capacitors next to its pins
-        "U3": (103.0, top + 19.0, 0), "C102": (99.6, top + 19.0, 90), "C108": (106.4, top + 19.0, 90),
-        # the module's own capacitors, right in front of its supply pins 23 (VDDH) and 19 (VDD)
-        "C103": (m - 4.2, top + 20.4, 180), "C109": (m - 1.1, top + 20.4, 180),
-        # battery connector on the left (the cell sits under the numpad), plug towards the back
-        "J2": (65.0, top + 6.0, 180),
     }
     pos.update(audio_positions(top))
     return pos
@@ -157,13 +145,6 @@ def add_electronics(B, left, top, right, keys_top):
                               lcsc=part.lcsc, in_bom=part.lcsc is not None)
     u1 = placed["U1"]
     import pcbnew
-    n_lines = sum(1 for n in B.nets if n.startswith(("ROW", "COL")))
-    free = [p for p in E73_GPIO if p not in E73_NEAR_ANTENNA and p not in E73_FIXED]
-    assert n_lines <= len(free), "the pads next to the antenna would be needed"
-    keepout(B, X_MCU - ANTENNA_HALF_WIDTH, top - 1.0, X_MCU + ANTENNA_HALF_WIDTH, top + ANTENNA_KEEPOUT)
-    ux, uy = pad_centre(u1)
-    x0, y0, x1, y1 = UNDER_MODULE
-    keepout(B, ux + x0, uy + y0, ux + x1, uy + y1, layers=(pcbnew.B_Cu,), pours=True)
     usb_pair(B, placed)
     hub_ports(B, placed)
     for pad in placed["J3"].Pads():  # the jack's locating pegs: 1.0 mm holes as on the HRO drawing (KiCad: 1.6)
@@ -217,8 +198,8 @@ def add_electronics(B, left, top, right, keys_top):
     x24, y24 = pad_xy(u6, 24)
     track(B, "GND", x23, y23, x24, cy + math.copysign(CODEC_VIA, y24 - cy))
 
-    ports = {"usb": (X_USB, top), "switch": (X_SW, top), "window": (81.0, top, X_USB + 7.0),
-             "battery": pos["J2"][:2], "reset": pos["SW102"][:2], "jack": (X_JACK, top)}
+    ports = {"usb": (X_USB, top), "window": (81.0, top, X_USB + 7.0),
+             "reset": pos["SW102"][:2], "jack": (X_JACK, top)}
     for i, x in enumerate(BOLTS_X, start=1):
         fp = B.place("MountingHole", "MountingHole_3.2mm_M3", "HB%d" % i, x, top + 11.0, value="case bolt",
                      in_bom=False)
@@ -243,7 +224,7 @@ def usb_pair(B, placed):
         through it, the way ST lays it out); its VBUS pin takes a via under its body, its GND pin a via beside it;
       * hub: D+ makes a small detour (the length D- loses going round the ESD array), then both run down and enter
         the hub's upstream pins (12, 11) from the left."""
-    j1, u4, u5 = placed["J1"], placed["U4"], placed["U5"]
+    j1, u4, u5 = placed["J1"], placed["U3"], placed["U5"]
     dn_b, dp_a, dn_a, dp_b = (pad_xy(j1, n) for n in ("B7", "A6", "A7", "B6"))
     assert dn_b[0] < dp_a[0] < dn_a[0] < dp_b[0], "unexpected USB-C pad order"
     half = pcbnew_mm(j1.FindPadByNumber("A6").GetBoundingBox().GetHeight()) / 2
@@ -325,13 +306,12 @@ def hub_ports(B, placed):
 
 
 def assign_matrix_pins(B, u1):
-    """Map ROW*/COL* nets onto the module's free GPIO pads so that the fan-out does not cross itself: nets and pads
-    are both sorted by angle around the module and matched in order (edge pads first, inner pads need an escape
-    via; the pads next to the antenna stay free)."""
+    """Map ROW*/COL* nets onto the RP2040's GPIO pads so the fan-out does not cross itself: nets and pads are both
+    sorted by angle around the package and matched in order."""
     import pcbnew
     cx, cy = pcbnew.ToMM(u1.GetPosition().x), pcbnew.ToMM(u1.GetPosition().y)
     nets = sorted(n for n in B.nets if n.startswith(("ROW", "COL")))
-    assert len(nets) <= len(E73_GPIO), "%d matrix lines but only %d free pads" % (len(nets), len(E73_GPIO))
+    assert len(nets) <= len(RP_GPIO), "%d matrix lines but only %d free pads" % (len(nets), len(RP_GPIO))
     target = {}
     for fp in B.footprints:
         for p in fp.Pads():
@@ -341,47 +321,27 @@ def assign_matrix_pins(B, u1):
                 d = (x - cx) ** 2 + (y - cy) ** 2
                 if n not in target or d < target[n][0]:
                     target[n] = (d, x, y)
-    def key(x, y):  # angle around the module, starting from straight behind it (never inside the key area)
+
+    def key(x, y):  # angle around the package, starting from straight behind it
         return (math.atan2(y - cy, x - cx) - 1.5 * math.pi) % (2 * math.pi)
 
-    # the row lines run the length of the board: give them the edge pads facing the keys (front corner)
-    rows_nets = sorted(n for n in nets if n.startswith("ROW"))
-    row_pads = list(ROW_PADS[:len(rows_nets)])
-    mapping = dict(zip(sorted(rows_nets, key=lambda n: key(target[n][1], target[n][2])),
-                       sorted(row_pads, key=lambda n: key(*pad_xy(u1, n)))))
-    others = [n for n in nets if n not in mapping]
-    pool = [p for p in E73_GPIO if p not in row_pads and p not in E73_NEAR_ANTENNA and p not in E73_FIXED]
-    pads = sorted(pool, key=lambda n: (n in E73_INNER_GPIO, n))[:len(others)]
-    nets_sorted = sorted(others, key=lambda n: key(target[n][1], target[n][2]))
+    pads = list(RP_GPIO)[:len(nets)]
+    nets_sorted = sorted(nets, key=lambda n: key(target[n][1], target[n][2]))
     pads_sorted = sorted(pads, key=lambda n: key(*pad_xy(u1, n)))
-    mapping.update(zip(nets_sorted, pads_sorted))
+    mapping = dict(zip(nets_sorted, pads_sorted))
     for net, pad in mapping.items():
         u1.FindPadByNumber(str(pad)).SetNet(B.net(net))
     n_rows = sum(1 for n in nets if n.startswith("ROW"))
     n_cols = sum(1 for n in nets if n.startswith("COL"))
-    rows = [nrf_pin(mapping["ROW%d" % r]) for r in range(n_rows)]
-    cols = [nrf_pin(mapping["COL%d" % c]) for c in range(n_cols)]
+    rows = [rp_pin(mapping["ROW%d" % r]) for r in range(n_rows)]
+    cols = [rp_pin(mapping["COL%d" % c]) for c in range(n_cols)]
     gpio = {str(pad): net for net, pad in mapping.items()}
     return rows, cols, gpio
 
 
 def escape_inner_pads(B, u1):
-    """Dog-bone escape for the module pads under its body: short track towards the module centre + via, so the
-    connection continues on the top layer (the autorouter cannot find these on its own)."""
-    import pcbnew
-    cx, cy = pcbnew.ToMM(u1.GetPosition().x), pcbnew.ToMM(u1.GetPosition().y)
-    for n in sorted(E73_INNER_GPIO):
-        pad = u1.FindPadByNumber(str(n))
-        if not pad.GetNetname():
-            continue
-        x, y = pad_xy(u1, n)
-        half = pcbnew.ToMM(pad.GetBoundingBox().GetWidth()) / 2
-        reach = half + 0.55
-        if abs(x - cx) > 4.1:  # inner column along the side: escape sideways, towards the module centre
-            dx, dy = (1.0 if cx > x else -1.0), 0.0
-        else:  # inner row at the front end: escape lengthwise, into the module body
-            dx, dy = 0.0, (1.0 if cy > y else -1.0)
-        stub(B, pad.GetNetname(), x, y, x + dx * reach, y + dy * reach)
+    """No inner pads on the RP2040 QFN: every GPIO pad escapes directly."""
+    return
 
 
 def gnd_via(B, fp, reach=0.95):
@@ -488,26 +448,21 @@ def labels(B, placed, top):
     """What a builder needs to read on the bottom: the SWD pads, the battery polarity, the jumpers, the LEDs, the
     power test points, the reset button, the headset jack and the board's name."""
     import pcbnew
-    for ref, text in (("TP2", "CLK"), ("TP1", "DIO"), ("TP4", "GND"), ("TP3", "3V3"), ("TP5", "RST")):
+    for ref, text in (("TP1", "CLK"), ("TP2", "DIO"), ("TP4", "GND"), ("TP3", "3V3")):
         x, y = pad_centre(placed[ref])
         label(B, text, x + 2.3, y + 0.35, 0.8)
     x, y = pad_centre(placed["TP2"])
     label(B, "SWD", x, y - 2.0, 0.8)
-    for ref, text in (("TP6", "VBUS"), ("TP7", "VBAT"), ("TP8", "VIN")):
-        x, y = pad_centre(placed[ref])
-        label(B, text, x, y + 2.3, 0.7)
-    for ref, text in (("D102", "CHG"), ("D103", "CAPS")):
-        x, y = pad_centre(placed[ref])
-        label(B, text, x, y + 1.9, 0.7)
-    for ref, text, dx, dy in (("JP1", "200mA", 0.0, 1.9), ("JP2", "SW BYP", -3.2, 0.0), ("JP3", "-6dB", 0.0, -1.9)):
+    x, y = pad_centre(placed["TP5"])
+    label(B, "VBUS", x, y + 2.3, 0.7)
+    x, y = pad_centre(placed["D60"])
+    label(B, "CAPS", x, y + 1.9, 0.7)
+    for ref, text, dx, dy in (("JP3", "-6dB", 0.0, -1.9),):
         x, y = pad_centre(placed[ref])
         label(B, text, x + dx, y + dy, 0.7)
-    x, y = pad_centre(placed["SW102"])
-    label(B, "RESET", x, y + 3.6, 0.8)
+    for ref, text in (("SW101", "BOOT"), ("SW102", "RUN")):
+        x, y = pad_centre(placed[ref])
+        label(B, text, x, y + 3.6, 0.8)
     x, y = pad_centre(placed["J3"])
     label(B, "HEADSET (CTIA)", x - 1.0, y + 7.3, 0.8)
-    j2 = placed["J2"]
-    for num, text in (("1", "+"), ("2", "-")):
-        p = j2.FindPadByNumber(num).GetPosition()
-        label(B, text, pcbnew.ToMM(p.x), pcbnew.ToMM(p.y) + 3.0, 1.2)
-    label(B, "LIRA  rev A", 168.0, top + 4.0, 1.5)
+    label(B, "LIRA USB  rev A", 168.0, top + 4.0, 1.5)
