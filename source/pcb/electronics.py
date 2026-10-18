@@ -512,16 +512,21 @@ def stub(B, net, x0, y0, x1, y1, width=0.25):
     via(B, net, x1, y1)
 
 
-def label(B, text, x, y, size=0.9):
-    """Bottom silkscreen text (mirrored, so it reads right from below)."""
+SILK_MIN_TEXT = 1.0  # mm: JLCPCB's smallest legible silkscreen text (line 0.16 mm, its minimum is 0.153)
+
+
+def label(B, text, x, y, size=1.0, angle=0):
+    """Bottom silkscreen text (mirrored, so it reads right from below), never under SILK_MIN_TEXT."""
     import pcbnew
+    size = max(size, SILK_MIN_TEXT)
     s = pcbnew.PCB_TEXT(B.b)
     s.SetText(text)
     s.SetLayer(pcbnew.B_SilkS)
     s.SetMirrored(True)
     s.SetTextSize(pcbnew.VECTOR2I(pcbnew.FromMM(size), pcbnew.FromMM(size)))
-    s.SetTextThickness(pcbnew.FromMM(0.15 if size < 1.2 else 0.2))
+    s.SetTextThickness(pcbnew.FromMM(0.16 if size < 1.2 else 0.2))
     s.SetHorizJustify(pcbnew.GR_TEXT_H_ALIGN_CENTER)
+    s.SetTextAngleDegrees(angle)
     s.SetPosition(pcbnew.VECTOR2I(pcbnew.FromMM(x), pcbnew.FromMM(y)))
     B.b.Add(s)
 
@@ -529,16 +534,19 @@ def label(B, text, x, y, size=0.9):
 def labels(B, placed, top):
     """What a builder needs to read on the bottom: the SWD pads, the jumper, the LED, the VBUS test point, the BOOT
     and RESET buttons, the headset jack and the board's name."""
-    for ref, text in (("TP1", "DIO"), ("TP2", "CLK"), ("TP4", "GND"), ("TP3", "3V3"), ("TP5", "RST")):
+    # the SWD row (2 mm pitch): each pad's name under it or above it, alternately, "SWD" beside the row
+    for ref, text, dy in (("TP2", "CLK", 1.45), ("TP1", "DIO", -1.3), ("TP5", "RST", 1.45), ("TP4", "GND", -1.3)):
         x, y = pad_centre(placed[ref])
-        label(B, text, x, y + 1.35, 0.6)
+        label(B, text, x, y + dy)
     x, y = pad_centre(placed["TP4"])
-    label(B, "SWD", x - 2.0, y + 0.3, 0.7)
+    label(B, "SWD", x - 2.6, y + 0.4)
+    x, y = pad_centre(placed["TP3"])
+    label(B, "3V3", x, y + 1.7)
     x, y = pad_centre(placed["TP6"])
     label(B, "VBUS", x, y + 2.3, 0.7)
     x, y = pad_centre(placed["D103"])
-    label(B, "CAPS", x, y + 1.9, 0.7)
-    for ref, text, dx, dy in (("JP3", "-6dB", 0.0, -1.9),):
+    label(B, "CAPS", x - 2.7, y + 0.4)  # beside the LED (its resistor is below it, the USB-C on its right)
+    for ref, text, dx, dy in (("JP3", "-6dB", 0.0, 1.75),):
         x, y = pad_centre(placed[ref])
         label(B, text, x + dx, y + dy, 0.7)
     for ref, text in (("SW101", "BOOT"), ("SW102", "RESET")):

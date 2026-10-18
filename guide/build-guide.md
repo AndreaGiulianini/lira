@@ -1,5 +1,13 @@
 # Lira — build guide: ordering, parts, programming, assembly
 
+> [!WARNING]
+> **This keyboard has never been built.** It is a design only: no prototype of either version (wireless on branch
+> `main`, wired on branch `rp2040`) has ever been ordered, assembled or powered on, and nothing here has been tested
+> on real hardware. The circuit, PCB, case and firmware are generated and checked automatically and reviewed on paper,
+> but passing those checks does not make a working board: there may be mistakes that only a real prototype would
+> reveal. **Do not put it into production, sell it or order it in quantity.** If you build one anyway, treat it as an
+> untested design: order the minimum quantity and expect to debug it yourself.
+
 The files are in `production/`.
 
 ## The circuit in brief
@@ -32,8 +40,8 @@ switches.
 ## 1. Ordering the PCB (JLCPCB)
 
 1. Upload `production/1-pcb-jlcpcb/gerber-pcb.zip`. Options: 2 layers, FR4, **1.6 mm**, any colour
-   (it stays hidden), lead-free HASL or ENIG finish.
-2. Turn on **PCB Assembly** → *Assemble bottom side*, quantity 2 (the minimum).
+   (it stays hidden), **ENIG** finish (flat pads for the fine-pitch chips: 0.4 mm pins on the RP2040, 0.5 mm on the hub, sound chip and amplifier; lead-free HASL also works). The USB-C, the headset jack stick out past the back edge: if JLCPCB asks for edge rails, accept them on the **left and right** edges.
+2. Turn on **PCB Assembly** → *Assemble bottom side*: 5 PCBs (JLCPCB's minimum), 2 of them assembled (the minimum). Tick *Confirm parts placement* so that you can check the rotations below before production.
 3. Upload `bom.csv` and `cpl.csv` from the same folder.
 4. **Check the placement preview**, part by part. The rotations depend on JLC's footprints and sometimes need
    to be corrected by 90°/180°:
@@ -42,24 +50,25 @@ switches.
    - USB-C: opening towards the edge;
    - 1N4148W diodes and B5819W Schottky: cathode stripe towards pad 1;
    - LED: cathode (pad 1) as in the footprint;
+     JLCPCB's own LED drawing calls the anode pin 1, so its pin-1 dot will sit on the other pad: judge the LEDs by
+     their cathode mark, not by the dot;
    - the two 12 MHz crystals (4 pads; one next to the hub, one in front of the RP2040): pin-1 mark as in the
      footprint; turned by 90° their contacts land on the ground pads and the chip does not start;
    - AP2112K, USBLC6, CH334P (hub), CM108B (sound chip), TPA6132A2 (amplifier), TPS22919 (switch): pin 1 in the
      right corner;
    - headset jack: opening at the rear edge (it sticks out of the board by 1.8 mm; the USB-C by 0.4 mm);
    - hot-swap sockets: their two pads on top of the PCB pads.
-5. "Extended" parts (extra loading fee): the RP2040, the flash, its crystal, the sockets, USB-C, ESD, and for the
-   sound card the hub, the sound chip, the amplifier, the switch and the jack.
+5. Choose **Economic** assembly: no part of this board needs Standard. "Extended" parts (a loading fee per part type): the RP2040, its crystal, the sockets, USB-C, ESD, the regulator, and for the sound card the hub, the sound chip, the amplifier, the switch and the jack (the flash is a Basic part). The amplifier (TPA6132A2, LCSC C69901) has only a few hundred in stock: check it before anything else.
 
 ## 2. The plate: cut by JLCPCB, laser cut or 3D printed
 
-The switches clip into the plate, and the plate is what holds the keyboard together: its 10 ears and 3 back tabs
+The switches clip into the plate, and the plate is what holds the keyboard together: its 6 ears and 3 back tabs
 are screwed to the top frame, and the PCB hangs from the switches. The three versions have the same outline,
 holes and openings, so they are interchangeable (same screws, same case).
 
 - **Cut by JLCPCB, FR4 1.6 mm** (recommended: flat and stiff): upload `production/2-plate/jlcpcb/gerber-plate.zip`
   as a normal 2-layer 1.6 mm PCB, with no assembly. The file has no copper, only the outline and the solder mask;
-  JLCPCB mills it like any board. Colour: black (looks good under warm grey keycaps) or white.
+  JLCPCB mills it like any board. Colour: black (looks good under warm grey keycaps) or white. Add a remark to the order (“plate: no copper, outline and holes only”), and choose *Remove Mark*, or JLCPCB prints its order number on the visible plate.
 - **Laser cut in metal**: `production/2-plate/laser-cut/plate.dxf` (outline, openings and holes, in mm) for
   1.5 mm aluminium (5052) or steel, e.g. JLCCNC's sheet-metal service or any local laser cutter. Aluminium is a
   little heavier and stiffer than FR4; the switches clip in the same way (MX plates are 1.5 ± 0.1 mm).
@@ -77,7 +86,7 @@ holes and openings, so they are interchangeable (same screws, same case).
 | What | Notes |
 |---|---|
 | 57 MX switches (3- or 5-pin) | Hot-swap: they plug in without soldering |
-| Keycaps | Agar mini set + **numpad kit**: you need a 2u vertical Enter, a 2u 0, + and − |
+| Keycaps | Agar mini set + **numpad kit**: you need a 2u vertical Enter, a 2u 0, a 1u + and a 1u − (most numpad kits only have a 2u +) |
 | **Screw-in PCB** stabilizers | 2 × 2u (numpad 0 and Enter) + 2 for the **3u** spacebars: check that the kit has wires for 3u (38.1 mm spacing) |
 | Screws and small hardware | See the README |
 | A paperclip | For the BOOT button under the case (only if a firmware update ever goes wrong) |
@@ -99,7 +108,9 @@ has its USB bootloader in ROM, so there is no programmer to buy and no bootloade
 4. **Future updates**: **fn + Esc** (or "Reboot to bootloader" in Vial) restarts into the boot ROM: the RPI-RP2 drive
    appears, drag the new `.uf2` onto it. If a firmware ever does not start, **hold the BOOT button** (a paperclip
    through the small hole under the case) **while you plug in the cable**: the RP2040 then always starts in the boot
-   ROM, whatever is in the flash. With the case open, holding BOOT and pressing RESET does the same.
+   ROM, whatever is in the flash. With the case open, holding BOOT and pressing RESET does the same. A new firmware
+   starts again from its default keymap: save your layout first (Vial, *File → Save current layout*) and load it
+   back afterwards.
 5. The SWD pads (CLK, DIO, RST, GND in a row in front of the RP2040, on the underside) are only for debugging the
    firmware with a probe; you do not need them to build or update the keyboard.
 
@@ -119,13 +130,21 @@ has its USB bootloader in ROM, so there is no programmer to buy and no bootloade
   - Backspace = forward delete
   - Esc = bootloader
 
+### Testing and troubleshooting
+
+- **Before the first plug-in**, look at the RP2040 (QFN, 0.4 mm pins) and the hub with a loupe for solder bridges, and plug in through a USB power meter: the whole board should draw roughly 60–150 mA. Much more means a short: unplug at once.
+- **Matrix test before closing the case**: after step 4 of §5 (plate, PCB and switches are one unit, still out of the case), plug in, open Vial, hold **Esc + Return** to unlock it and use *Matrix tester*: press every key once. A key that does nothing is usually a switch pin bent under the socket.
+- **No RPI-RP2 drive**: measure 3V3 (test pad) and 1.1 V (C12). If both are there, the crystal or the flash is the usual suspect (rotation in JLCPCB's placement, a bridge on the flash pins). Holding BOOT while plugging in must always bring the drive back, whatever is in the flash.
+- **No hub / no audio device**: measure VBUS (about 5 V) and the hub's 12 MHz crystal area for bridges; the sound card needs the hub, so without a hub there is neither keyboard nor headset.
+- **Headphones silent**: check that the computer's output is the C-Media “USB Audio Device” and that the plug is pushed fully home (the jack sits slightly inside the back wall).
+
 ## 5. Case: printing and assembly
 
 1. **Print** the 4 pieces in the `3-case-3d-print/` folder, without supports:
-   - top frame halves with the flat face on the bed;
+   - top frame halves lying on their flat underside (the side the plate screws to), deck up: the STL files are exported tilted, as assembled, so use the slicer's “lay on face” on that flat underside;
    - bottom halves the way they sit on the desk.
 
-   It is a good idea to print a test corner first, to check your printer's tolerances.
+   It is a good idea to print a test corner first, to check your printer's tolerances (cut a back corner of a bottom half in the slicer: it has a screw hole, an insert hole and a dowel pin hole).
    - Settings: 3 perimeters, 5 solid layers on top and 4 on the bottom; 15 % gyroid infill for the top frame,
      8 % (or "lightning") for the bottom halves. About 300–320 g of PLA in total (see the README for why it is
      not worth hollowing out the case by designing cavities).
@@ -135,7 +154,7 @@ has its USB bootloader in ROM, so there is no programmer to buy and no bootloade
      in the slicer before printing.
 2. **Heat-set inserts**, all in the flat underside of the top frame (with the frame lying face down on the
    table the holes are vertical):
-   - M2 (10) for the plate's ears, at the front and at the sides of the key wells;
+   - M2 (6) for the plate's ears, at the front and at the sides of the key wells;
    - M3 (11) for the case screws and the back bolts.
 
    Press them in flush with the surface, never proud of it: the plate lies directly on this surface (it is a
@@ -148,7 +167,7 @@ has its USB bootloader in ROM, so there is no programmer to buy and no bootloade
    nothing else holds it.
 5. **Top frame**: join the two halves with the dowel pins, lay the frame face down, and put the unit in: plate
    face down on the frame's underside, switches in the key wells. Fasten the plate with 6 M2 × 5 screws through
-   its ears (6 at the front, 2 per side): they are all outside the PCB, so a 1.5 mm hex key reaches them. From
+   its ears (4 at the front, 1 per side): they are all outside the PCB, so a 1.5 mm hex key reaches them. From
    now on the plate also holds the two halves of the frame together.
 6. **Bottom**: join the two halves with the dowel pins (a drop of glue if you like). Measure the length: it must
    be 377.4 mm. If it is more than 1 mm short, the plate's side ears may not fit their pockets: reprint with the
@@ -250,8 +269,10 @@ Before ordering 5 boards, it is wise to order 2.
   rated 0–70 °C. The microphone bias (1.2 kΩ + 2.2 kΩ) suits phone headsets; try a couple of headsets. Very
   sensitive in-ear earphones may hiss slightly at 0 dB gain: close JP3 (−6 dB). Unplugging the keyboard while
   listening may make a click in the headphones: the amplifier and the sound chip lose their supply together.
-- **USB hub**: the CH334P announces itself as self-powered (its default), which lets the keyboard ask for its
-  450 mA; check it on the first board (macOS: System Information → USB; Linux: `lsusb -v`).
+- **USB hub**: the CH334P always announces itself as self-powered (this package has no pin to say otherwise) and declares 100 mA, while the board draws about 100 mA idle and up to ~330 mA at full headphone volume. Fine on a computer's port; avoid phones, tablets and bus-powered hubs. Check on the first board what the computer sees (macOS: System Information → USB; Linux: `lsusb -v`): the hub, the RP2040 (100 mA) and the sound chip (100 mA).
+- **The RP2040's power and clock layout**: the autorouter took some of the RP2040's capacitors 10–25 mm round from their pins (the 1 µF at VREG_VOUT, the 100 nF at DVDD pin 50 and IOVDD pin 10), and the crystal's lines are longer than Raspberry Pi recommends. On the first board: look at 1.1 V on C12 with an oscilloscope while typing and playing music (steady 1.10 V, no ringing), and run the keyboard for a day. If it is unstable, this is the place to rework.
+- **Matrix**: the firmware waits for the rows to settle after each column (a patch to RMK, `source/firmware/patch_rmk.py`); still, try every key and a few chords in Vial's matrix tester and look for a key that shows up in the next column.
+- **Hot-plug**: plug the board a dozen times into a charger that gives 5.25 V or more: the hub's 5 V pin is rated 5.5 V at most and the board has no surge clamp besides the USB ESD chip.
 - **Headset jack**: its four contacts were matched to the drawing of a near-identical jack (the maker's drawing
   does not name them). Before ordering many boards, check one loose PJ-320D-4A with a meter and a 4-pole plug:
   pad S = sleeve, R2 = ring 2, R1 = ring 1, T = tip.

@@ -6,6 +6,7 @@ __pycache__/
 source/.venv/
 source/build/
 source/firmware/rmk/target/
+source/firmware/rmk-patched/
 source/firmware/rmk/*.hex
 source/firmware/rmk/*.bin
 source/firmware/rmk/*.uf2

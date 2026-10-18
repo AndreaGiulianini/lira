@@ -1,13 +1,11 @@
 [package]
 name = "lira"
 version = "0.2.0"
-authors = ["Haobo Gu <haobogu@outlook.com>"]
-description = "Keyboard firmware written in Rust"
-homepage = "https://github.com/rmk-rs/rmk"
-repository = "https://github.com/rmk-rs/rmk"
+authors = ["Andrea Giulianini"]
+description = "Firmware of the Lira keyboard (wired, RP2040), built on RMK"
 readme = "README.md"
 edition = "2021"
-license = "MIT OR Apache-2.0"
+license = "MIT"
 
 # RP2040 (USB only), set up as RMK 0.9's examples/use_config/rp2040
 [dependencies]
@@ -32,6 +30,10 @@ portable-atomic = { version = "1", features = ["critical-section"] }
 defmt = "1"
 defmt-rtt = "1"
 panic-probe = { version = "1", features = ["print-defmt"] }
+
+# RMK 0.9.0 with this board's two changes (matrix settle time, USB power): made by ../patch_rmk.py (`make firmware`)
+[patch.crates-io]
+rmk = { path = "../rmk-patched" }
 
 [build-dependencies]
 xz2 = "0.1.7"

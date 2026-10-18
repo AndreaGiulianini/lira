@@ -75,7 +75,8 @@ schematic: $(B)/pcb/interface.json
 
 # circuit.py == PCB == schematic, pin by pin; writes $(B)/netlist.json
 verify: $(PCB).kicad_pcb $(B)/sch/netlist.net
-	$(KPY) pcb/verify_netlist.py > $(B)/verify-report.txt 2>&1; r=$$?; grep -v -e traits -e assert $(B)/verify-report.txt; exit $$r
+	$(KPY) pcb/verify_netlist.py 2>&1 | { grep -v -e traits -e assert -e 'Debug:' || true; } > $(B)/verify-report.txt; \
+		r=$${PIPESTATUS[0]}; cat $(B)/verify-report.txt; exit $$r
 
 # independent checks of the circuit against the datasheets (pcb/check_circuit.py, written separately)
 check: $(B)/netlist.json
@@ -110,6 +111,7 @@ CARGO_PATH := PATH=$(HOME)/.cargo/bin:/opt/homebrew/opt/rustup/bin:/opt/homebrew
 # (keyboard.toml and vial.json from build/firmware/ are copied into the RMK project before building)
 firmware: layout $(B)/pcb/interface.json
 	python3 firmware/gen_firmware.py
+	python3 firmware/patch_rmk.py
 	test -d firmware/rmk || $(CARGO_PATH) rmkit create --keyboard-toml-path $(B)/firmware/keyboard.toml \
 		--vial-json-path $(B)/firmware/vial.json --target-dir firmware/rmk
 	cp $(B)/firmware/keyboard.toml $(B)/firmware/vial.json firmware/rmk/

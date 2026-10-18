@@ -42,7 +42,7 @@ PARTS = json.loads((BUILD / "pcb/parts.json").read_text())
 # ------------------------------------------------------------------ datasheet dimensions (mm) and test margins
 # height of each bottom-side part below the PCB, by footprint name
 HEIGHT_BELOW = [
-    ("SW_Hotswap_Kailh", 1.95),  # Kailh CPG151101S11 socket (C2803348): 1.85 +- 0.1
+    ("SW_Hotswap_Kailh", 1.95),  # CPG151101S11-type socket (C41430893; Kailh C2803348 discontinued): 1.85 +- 0.1
     ("QFN-56", 0.9),  # RP2040 QFN-56 7 x 7: 0.9 max (datasheet)
     ("SOIC-8_5.3x5.3", 2.16),  # W25Q128JVSIQ SOIC-8 208 mil: 2.16 max (Winbond package outline)
     ("USB_C_Receptacle_HRO", 3.26),  # HRO TYPE-C-31-M-12 (C165948): 3.26

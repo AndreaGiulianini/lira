@@ -99,7 +99,7 @@ LCSC = {
     "led_red": "C2286", "usbc": "C165948", "sw_reset": "C318884", "b5819w": "C8598",
     "r100k": "C25803", "r1k": "C21190", "r10k": "C25804", "r5k1": "C23186", "r27": "C25190",
     "c10u": "C19702", "c4u7": "C19666", "c15p": "C1644", "c100n": "C14663",
-    "socket": "C2803348", "diode": "C81598",
+    "socket": "C41430893", "diode": "C81598",
     # sound card: hub, codec, jack, 12 MHz crystal, and the passives not used elsewhere
     "ch334p": "C5373042", "cm108b": "C371347", "jack": "C95562", "xtal12": "C9002",
     "c1u": "C15849", "c100p": "C14858", "r22": "C23345", "r2k2": "C4190", "bead": "C1002",
