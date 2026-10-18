@@ -15,6 +15,16 @@ TP4054 is still recognised for the VBAT role, D01 and P04), USB through a CH334P
 H01-H03), CM108B USB codec (A01-A06), TPA6132A2 headphone amplifier (A11-A14), TPS22919 audio
 load switch and its GPIO enable (S01-S03), PJ-320D-4A CTIA headset jack (J01).
 
+Also covered: the wired variant (branch rp2040) replaces the E73 module with a bare Raspberry
+Pi RP2040 (QFN-56, LCSC C2040) and its minimum circuit.  "The MCU" is now the E73 module or the RP2040 (found by
+LCSC code / value / footprint + pin names): the GPIO, LED, matrix, encoder, USB-port, enable and floating-pin rules
+(M10, M11, D01, K01-K03, U03, H03, A14, S02, L01, N01, R01) accept either; the E73-only rules (M01-M09, M12, B01)
+SKIP without the module.  New RP2040 rules Q01-Q12 (pin table, ground / TESTEN, supply levels, decoupling, 1.1 V
+core, 12 MHz crystal, W25Q128JV QSPI flash, BOOTSEL strap, RUN, SWD, USB pins, 3.3 V budget) cite the RP2040
+datasheet, Hardware design with RP2040, the Pico datasheet, the W25Q128JV and ABM8-272-T3 datasheets.  P01 applies
+the power-path rules only when there is a power path (VIN / battery); S02 and A14 judge an enable tied to VBUS.
+With no module and no RP2040 the old behaviour is unchanged; the E73 netlist gives the same results as before.
+
 Netlist format:
   {"parts": {REF: {"value", "footprint", "lcsc", "dnp", "note",
                    "pins": {PIN: {"name", "net"}}}},
@@ -231,6 +241,84 @@ SRC = {
     "EC11": "C470754.pdf (Alps EC11) p.1 (rating 10 mA 5 V DC; A/B two-phase output), "
             "p.3 (terminals A C B, C common; separate push-switch terminals)",
     "HOTSWAP": "C2803348.pdf (Kailh hotswap socket): two terminals, no polarity",
+    # Raspberry Pi RP2040 (LCSC C2040) and its minimum circuit.  The three Raspberry Pi documents print
+    # their own page numbers, one less than the PDF page: p. below = printed page.  rp2040-datasheet.pdf = RP2040
+    # Datasheet build 2025-02-20 (3184e62); hardware-design-with-rp2040.pdf = build 2026-08-20; pico-datasheet.pdf =
+    # build 2026-07-03.  W25Q128JV.pdf = Winbond rev F 2018-03-27 (printed page = PDF page - 1).
+    "RP_pins": "rp2040-datasheet.pdf 1.4.2 Table 1 p.11-12 (pin functions; GND 'single external ground connection' "
+               "= the central pad; TESTEN 'Factory test mode pin. Tie to GND'), 5.5.2 Tables 614-621 p.612-614 (QFN-56 "
+               "numbers 1-56, 57 = GND pad; QSPI_SS = QSPI_CSn, SWDIO = 'SWD'; reset state: pull-down on GPIO, TESTEN, "
+               "QSPI_SCLK; pull-up on QSPI_CSn, SWCLK, SWDIO, RUN), 5.1 p.607 (ePad smaller than usual), 5.1.2 "
+               "Fig.167 p.608 (recommended footprint: 3.20 mm ePad)",
+    "RP_power": "rp2040-datasheet.pdf 2.9 p.150-152 (single 3.3 V supply, Fig.16: IOVDD, USB_VDD, ADC_AVDD and "
+                "VREG_VIN on one 3.3 V rail; 'USB_VDD should not be left unconnected'; ADC compromised below 2.97 V), "
+                "5.6 Table 634 p.622 (IOVDD / VREG_VIN / ADC_AVDD 1.62-3.63 V, USB_VDD 3.135-3.63 V, DVDD 1.05-1.16 V), "
+                "5.5.3.1 Table 622 p.614 (IOVDD abs max 3.63 V); C51118.pdf (AP2112) p.8 (3.3 V +-1.5 %)",
+    "RP_decoup": "rp2040-datasheet.pdf 2.9.1-2.9.5 p.151-152 (100 nF close to each IOVDD pin, each DVDD pin, USB_VDD "
+                 "and ADC_AVDD; 1 uF close to VREG_VIN), 2.10.1 p.156 ('the regulator must have 1 uF capacitors "
+                 "placed close to its input (VREG_VIN) and output (VREG_VOUT) pins'); hardware-design-with-rp2040.pdf "
+                 "2.1.2 p.7-8 (100 nF per power pin; pins 48 and 49 share one on the minimal design), 2.1.3 p.8 (1 uF at "
+                 "VREG_VIN and VREG_VOUT; small ceramic chip capacitors meet the ESR limits)",
+    "RP_vreg": "rp2040-datasheet.pdf 2.9.2 p.151 (VREG_VOUT to DVDD is made off-chip), 2.9.7.1-2.9.7.2 p.152-153 "
+               "(single 3.3 V supply; with an external core supply VREG_VOUT stays unconnected, VREG_VIN still powered), "
+               "1.4.2 p.12 / 2.10 p.155 (1.1 V at power-on, 100 mA max), 5.6 Table 634 p.622 (DVDD 1.05-1.16 V)",
+    "RP_xosc": "rp2040-datasheet.pdf 1.4.2 p.11 (the USB bootloader needs a 12 MHz crystal or clock), 2.16.1 p.216-217 "
+               "(1-15 MHz crystals; ABM8-272-T3 recommended, Table 257; crystal and damping resistor tuned for 3.3 V; "
+               "other crystals must be tested over temperature), 2.15 p.181 (margin for up to 1000 ppm XOSC error); "
+               "hardware-design-with-rp2040.pdf 2.3 p.9-10 (C2 = C3 = "
+               "15 pF: 7.5 pF in series + 3 pF parasitic = 10.5 pF for CL 10 pF; ESR <= 50 Ohm and the 1 kOhm series "
+               "resistor R5 on XOUT keep the crystal from being over-driven at 3.3 V), 2.3.1 Table 1 p.10; "
+               "ABM8-272-T3.pdf (Abracon drawing 456603 rev B, 2024-09-16) page 2 of 9 (12.000 MHz fundamental, +-30 "
+               "ppm, +-30 ppm, ESR 50 Ohm max, C0 3 pF max, CL 10 pF, drive 10 uW typ / 200 uW max), page 4 of 9 (pads "
+               "1 and 3 crystal, 2 and 4 GND); pico-datasheet.pdf Appendix B Fig.19 p.25 (R14 1K, C16/C17 15p, R15 "
+               "not fitted)",
+    "RP_flash": "W25Q128JV.pdf 3.1 / 3.3 p.5 (SOIC-8 208-mil: 1 /CS, 2 DO(IO1), 3 /WP(IO2), 4 GND, 5 DI(IO0), 6 CLK, "
+                "7 /HOLD(IO3), 8 VCC), 9.1 p.60 (VCC abs max 4.6 V), 9.2 p.60 (VCC 3.0-3.6 V for 133 MHz, 2.7-3.0 V up "
+                "to 104 MHz), 9.4 p.62 (ICC <= 25 mA; VIL <= 0.3 VCC, VIH >= 0.7 VCC); rp2040-datasheet.pdf 5.5.2 "
+                "Table 616 p.613 (QSPI pins 51-56); hardware-design-with-rp2040.pdf 2.2 p.9 (W25Q128JVS, 16 MB = the "
+                "largest the RP2040 supports; QSPI pins wired directly, short), Fig.11 p.13 (SD0 -> DI_IO0, SD1 -> "
+                "DO_IO1, SD2 -> /WP_IO2, SD3 -> /HOLD_IO3, C5 100 nF at VCC), 2.6 p.13-14 (03h, 02h, 05h, 06h, 20h)",
+    "RP_boot": "rp2040-datasheet.pdf 2.8.1 p.129-130 ('Check if SPI CS pin is tied low (bootrom button), and skip flash "
+               "boot if so'; no valid image after 0.5 s -> USB boot), Table 616 p.613 (QSPI_CSn pull-up), 5.5.3.4 "
+               "Table 625 p.615-616 (VIL <= 0.8 V at IOVDD 3.3 V; VOH >= 2.62 V at the selected drive current; RPU "
+               "50-80 kOhm), Table 614 p.612 (default drive 4 mA); hardware-design-with-rp2040.pdf 2.2 p.9 (R2 10k "
+               "pull-up: the flash's /CS must be at its VCC at power-up, DNF on the minimal design; R1 1k to the "
+               "USB_BOOT jumper 'allows the QSPI_SS pin to safely over-drive the applied pull-down'); W25Q128JV.pdf "
+               "4.1 p.9, 6.5 p.12 (/CS must track VCC at power-up and power-down; a pull-up can be used); "
+               "pico-datasheet.pdf Fig.19 p.25 (BOOTSEL: SW1 - R11 1K - QSPI_SS, R4 pull-up not fitted)",
+    "RP_run": "rp2040-datasheet.pdf 1.4.2 p.11 (RUN: reset when low; 'if no external reset is required, this pin can "
+              "be tied directly to IOVDD'), 2.7 p.128 (RUN low holds the chip in reset), Table 619 p.613 (RUN Digital "
+              "In (FT), pull-up); pico-datasheet.pdf 2.1 p.8 (RUN internal pull-up ~50 kOhm; short low to reset)",
+    "RP_swd": "rp2040-datasheet.pdf 1.4.2 p.11 (SWCLK / SWDIO: debug access, can download code), Table 618 p.613 "
+              "(SWCLK 24, SWDIO 'SWD' 25, both pull-up), 2.8.1 p.130 (code is normally loaded over USB by the boot "
+              "ROM); pico-datasheet.pdf 4.8 p.23 (internal pull-ups on SWDIO and SWCLK, nominally 60 kOhm)",
+    "RP_usb": "rp2040-datasheet.pdf 1.4.2 p.11 ('A 27 Ohm series termination resistor is required on each pin, but bus "
+              "pull-ups and pull-downs are provided internally'), Tables 614 / 620 p.612 / p.614 (USB_DP 47, USB_DM 46, "
+              "power domain USB_VDD), Table 626 p.616-617 (USB IO levels), 4.1.2.10 p.394 (VBUS detect / enable / "
+              "overcurrent GPIOs optional: 'VBUS detect can be forced in USB_PWR'); hardware-design-with-rp2040.pdf 2.4.1 p.11 "
+              "(27 Ohm placed close to the chip; 90 Ohm differential over ground); pico-datasheet.pdf 4.7 p.23, "
+              "Fig.19 p.25 (R12/R13 27R)",
+    "RP_io": "rp2040-datasheet.pdf 5.5.2.1 Table 614 p.612 (GPIO0-25 Digital IO (FT), GPIO26-29 Digital IO / Analogue, "
+             "not FT; drive 2/4/8/12 mA, default 4 mA), 5.5.3.1 Table 622 p.614 (VPIN abs max IOVDD + 0.5 V), 5.5.3.4 "
+             "Table 625 p.615-616 (VIH max IOVDD + 0.3 V; VOH >= 2.62 V at the selected drive current, 3.3 V; RPU / "
+             "RPD 50-80 kOhm; IIOVDD_MAX = IIOVSS_MAX = 50 mA for all GPIO and QSPI pins together), 5.5.3.5 p.617",
+    "RP_budget": "rp2040-datasheet.pdf 2.10 p.155 (core regulator up to 100 mA), Table 625 p.616 (IIOVDD_MAX 50 mA), "
+                 "5.7.2 Table 637 p.623 (USB_VDD <= 2.0 mA max, BOOTSEL with USB activity); W25Q128JV.pdf 9.4 p.62 (ICC "
+                 "<= 25 mA program / erase); AP2112 datasheet Diodes DS39724 rev 2-2 (June 2017) p.3 (SOT25 theta-JA "
+                 "184 C/W, VIN 2.5-6.0 V, TJ <= +150 C, TA -40..+85 C), p.8 (AP2112-3.3: IOUT(MAX) >= 600 mA, dropout "
+                 "250 mV typ / 400 mV max at 600 mA)",
+    # the sound-card enables tied to VBUS on the wired board (S02, A14), TI documents as above
+    "TPS_on_rail": "TPS22919_C2149796.pdf p.3 (ON: active high, 'do not leave floating'), p.4 (VIN 1.6-5.5 V; ON VIH "
+                   "1-5.5 V, VIL <= 0.35 V; abs max VON 6 V), p.5 (tON 1.95 ms, 3.2 mV/us at 5 V), p.12-14 8.1 / 8.3 / "
+                   "8.4 Table 2 (no reverse-current blocking specified; QOD acts only with ON low), p.13 8.3.1 (smart "
+                   "pull-down only until ON is driven high)",
+    "TPA_ctl_rail": "TPA6132A2_C69901.pdf p.12 7.3.2 ('activate the TPA6132A2 after all audio sources have been "
+                    "activated and their output voltages have settled. On power-down, deactivate the TPA6132A2 before "
+                    "deactivating the audio input source'; EN <= 0.6 V off, >= 1.3 V on), p.4 (EN abs max VDD + 0.3 V; "
+                    "VDD 2.3-5.5 V; no undervoltage lockout listed), p.5 (EN input current <= 1 uA); "
+                    "CM108B_datasheet_v1.41.pdf p.20 (supply 4.5 V minimum, 37.25 mA); TPS22919_C2149796.pdf p.5 "
+                    "(tON); C8598.pdf (B5819W) p.1 (VF 0.6 V at 1 A only); rp2040-datasheet.pdf 4.1.2.8.4 p.391 "
+                    "(without VBUS detection a disconnect looks like a suspend)",
     "BOOT": "reference/bluemicro_nrf52840_board.h (LED_PRIMARY_PIN P1.04, LED_SECONDARY_PIN P1.10, "
             "LED_STATE_ON 1, BUTTON_DFU P0.18 = RESET, BUTTON_DFU_OTA P1.01 not on the module)",
     "NETLIST": "netlist structure (no datasheet needed)",
@@ -270,6 +358,79 @@ def e73_pin_by_name(name):
     for pin, (fn, _) in E73_PINS.items():
         if fn.split("/")[0].upper() == n:
             return pin
+    return None
+
+
+# ----------------------------------------------------------------------------
+# Raspberry Pi RP2040 QFN-56 (rp2040-datasheet.pdf 5.5.2 Tables 615-621 p.612-614; pad 57 = the GND ePad)
+# ----------------------------------------------------------------------------
+RP_PINS = {
+    1: "IOVDD", 2: "GPIO0", 3: "GPIO1", 4: "GPIO2", 5: "GPIO3", 6: "GPIO4", 7: "GPIO5", 8: "GPIO6", 9: "GPIO7",
+    10: "IOVDD", 11: "GPIO8", 12: "GPIO9", 13: "GPIO10", 14: "GPIO11", 15: "GPIO12", 16: "GPIO13", 17: "GPIO14",
+    18: "GPIO15", 19: "TESTEN", 20: "XIN", 21: "XOUT", 22: "IOVDD", 23: "DVDD", 24: "SWCLK", 25: "SWDIO", 26: "RUN",
+    27: "GPIO16", 28: "GPIO17", 29: "GPIO18", 30: "GPIO19", 31: "GPIO20", 32: "GPIO21", 33: "IOVDD", 34: "GPIO22",
+    35: "GPIO23", 36: "GPIO24", 37: "GPIO25", 38: "GPIO26/ADC0", 39: "GPIO27/ADC1", 40: "GPIO28/ADC2",
+    41: "GPIO29/ADC3", 42: "IOVDD", 43: "ADC_AVDD", 44: "VREG_VIN", 45: "VREG_VOUT", 46: "USB_DM", 47: "USB_DP",
+    48: "USB_VDD", 49: "IOVDD", 50: "DVDD", 51: "QSPI_SD3", 52: "QSPI_SCLK", 53: "QSPI_SD0", 54: "QSPI_SD2",
+    55: "QSPI_SD1", 56: "QSPI_SS", 57: "GND",
+}
+# names other documents / symbols use for the same pin (datasheet Table 616: QSPI_CSn; Table 618: 'SWD'; the
+# design guide's schematic: VREG_IN, QSPI_~{SS}; KiCad: GPIO26_ADC0)
+RP_ALIASES = {"QSPI_SS": ("QSPI_CSN", "QSPI_SSN", "QSPI_~{SS}", "QSPI_CS"), "SWDIO": ("SWD",),
+              "VREG_VIN": ("VREG_IN",), "VREG_VOUT": ("VREG_OUT",), "GND": ("EP", "PAD", "VSS", "EPAD")}
+RP_IOVDD = (1, 10, 22, 33, 42, 49)
+RP_DVDD = (23, 50)
+RP_ADC_AVDD, RP_VREG_VIN, RP_VREG_VOUT, RP_USB_VDD = 43, 44, 45, 48
+RP_GND, RP_TESTEN, RP_XIN, RP_XOUT, RP_SWCLK, RP_SWDIO, RP_RUN = 57, 19, 20, 21, 24, 25, 26
+RP_USB_DM, RP_USB_DP = 46, 47
+RP_QSPI = {"QSPI_SS": 56, "QSPI_SCLK": 52, "QSPI_SD0": 53, "QSPI_SD1": 55, "QSPI_SD2": 54, "QSPI_SD3": 51}
+RP_GPIO = {p for p, n in RP_PINS.items() if n.startswith("GPIO")}       # user bank GPIO0-29
+RP_ADC = {p for p, n in RP_PINS.items() if "/ADC" in n}                 # GPIO26-29: not fault tolerant (Table 614)
+RP_SUPPLY_PINS = set(RP_IOVDD) | set(RP_DVDD) | {RP_ADC_AVDD, RP_VREG_VIN, RP_VREG_VOUT, RP_USB_VDD, RP_GND}
+# Table 634 p.622: supply ranges (V); ADC performance compromised below 2.97 V (note c, 2.9.5)
+RP_RANGE = {"IOVDD": (1.62, 3.63), "VREG_VIN": (1.62, 3.63), "USB_VDD": (3.135, 3.63), "ADC_AVDD": (1.62, 3.63),
+            "DVDD": (1.05, 1.16)}
+RP_ADC_GOOD = 2.97
+RP_VREG_IMAX = 0.100          # 2.10 p.155
+RP_IIOVDD_MAX = 0.050         # Table 625: all GPIO + QSPI sourced current
+RP_USB_VDD_MAX = 0.0020       # Table 637: BOOTSEL with USB activity, maximum average
+RP_RPU = (50e3, 80e3)         # Table 625 pull-up / pull-down range
+RP_VIL, RP_VIH = 0.8, 2.0     # Table 625 at IOVDD = 3.3 V
+RP_VOH_MIN, RP_DRIVE_DEFAULT = 2.62, 4e-3   # Table 625 (at the selected drive current), Table 614 (default 4 mA)
+RP_STRAY = 3e-12              # design guide 2.3 p.9: PCB + XIN/XOUT parasitic capacitance assumed
+# Abracon ABM8-272-T3 (LCSC C20625731): ABM8-272-T3.pdf page 2 of 9 = RP2040 datasheet Table 257
+XTAL_ABM8 = {"f": 12e6, "CL": 10e-12, "ESR": 50.0, "C0": 3e-12, "drive_max": 200e-6, "ppm": 30 + 30 + 5}
+# Winbond W25Q128JV, SOIC-8 208-mil / WSON-8 (W25Q128JV.pdf 3.1 / 3.3 p.5) and the RP2040 QSPI pin on each
+W25_PINS = {"1": "/CS", "2": "DO(IO1)", "3": "/WP(IO2)", "4": "GND", "5": "DI(IO0)", "6": "CLK", "7": "/HOLD(IO3)",
+            "8": "VCC"}
+W25_ALIASES = {"/CS": ("CS", "CS#", "NCS", "~{CS}"), "DO(IO1)": ("DO", "IO1", "SO", "DO_IO1", "SO/IO1"),
+               "/WP(IO2)": ("WP", "IO2", "/WP", "~{WP}_IO2", "WP/IO2", "/WP/IO2"),
+               "DI(IO0)": ("DI", "IO0", "SI", "DI_IO0", "SI/IO0"), "CLK": ("SCK", "SCLK"),
+               "/HOLD(IO3)": ("HOLD", "IO3", "/HOLD", "~{HOLD}_IO3", "/HOLD/IO3", "/HOLDOR/RESET(IO3)",
+                              "HOLD/IO3", "/RESET(IO3)"),
+               "VCC": ("VDD",), "GND": ("VSS",)}
+W25_QSPI = {"1": "QSPI_SS", "2": "QSPI_SD1", "3": "QSPI_SD2", "5": "QSPI_SD0", "6": "QSPI_SCLK", "7": "QSPI_SD3"}
+W25_VCC = (2.7, 3.6)          # 9.2 p.60 (3.0-3.6 V for 133 MHz)
+W25_VCC_ABS = 4.6             # 9.1 p.60
+W25_ICC_MAX = 0.025           # 9.4 p.62
+AP2112_THETA_JA = 184.0       # SOT25, C/W (DS39724 p.3)
+AP2112_IOUT = 0.600           # IOUT(MAX) min (p.8)
+
+
+def rp_norm(s):
+    """Pin-name key for the RP2040 / flash tables: norm_pin_name, also ignoring '/', '{', '}'."""
+    return re.sub(r"[/{}()]", "", norm_pin_name(s))
+
+
+def rp_pin_by_name(name):
+    """'PIN_26' / 'GPIO26' / 'GP26' / 'GPIO26/ADC0' -> RP2040 pad number, or None."""
+    m = re.fullmatch(r"(?:PIN_?|GPIO|GP)(\d+)(?:[/_]ADC\d)?", (name or "").strip().upper())
+    if not m:
+        return None
+    want = "GPIO%d" % int(m.group(1))
+    for pad, nm in RP_PINS.items():
+        if nm.split("/")[0] == want:
+            return pad
     return None
 
 
@@ -438,6 +599,13 @@ def classify(p):
     n = len(pins)
     if lcsc == "C356849" or "E73-2G4M08S1C" in vu or ("E73" in fp and n >= 40):
         return "module"
+    names = {rp_norm(x) for x in pin_names.values()}
+    if lcsc == "C2040" or re.search(r"\bRP2040\b", vu) \
+            or (n >= 56 and "QFN-56" in fp and {"QSPISS", "VREGVOUT", "USBVDD", "TESTEN"} <= names):
+        return "rp2040"
+    if lcsc == "C97521" or re.search(r"\bW25Q\d+", vu) \
+            or (n == 8 and {"CS", "CLK", "VCC", "GND"} <= names and ("DIIO0" in names or "IO0" in names)):
+        return "flash"
     if lcsc == "C165948" or "TYPE-C" in fp or "USB_C" in fp or "USB-C" in fp or "USB-C" in vu \
             or ("A5" in pins and "B5" in pins and "A4" in pins):
         return "usbc"
@@ -531,6 +699,11 @@ class Netlist:
                 if not p.get("dnp"):
                     self.members[net].append((ref, str(pin)))
         self.module = self.first("module")
+        # the MCU: the E73 module, or (wired variant) a bare RP2040; the E73 keeps precedence
+        rps = [r for r in self.refs("rp2040") if not self.dnp(r)]
+        self.rp = rps[0] if rps and not self.module else None
+        self.mcu = self.module or self.rp
+        self.mcu_word = "module" if self.module else ("RP2040" if self.rp else "MCU")
         self.labels = {}
         self._roles()
 
@@ -579,6 +752,39 @@ class Netlist:
         if not self.module:
             return []
         return [int(p) for r, p in self.members.get(net, []) if r == self.module]
+
+    # --- the MCU (E73 module or RP2040) ----------------------------------------
+    def rppin(self, pin):
+        return self.net(self.rp, pin) if self.rp else None
+
+    def mcupin(self, pin):
+        return self.net(self.mcu, pin) if self.mcu else None
+
+    def mcu_gpio(self):
+        """GPIO-capable pins of the MCU (E73: every P0.xx/P1.xx pin; RP2040: GPIO0-29)."""
+        if self.module:
+            return set(E73_GPIO)
+        return set(RP_GPIO) if self.rp else set()
+
+    def mcu_pin_label(self, pin):
+        if self.module:
+            return E73_PINS[int(pin)][0]
+        return RP_PINS.get(int(pin), "?") if self.rp else "?"
+
+    def mcu_pin_by_name(self, name):
+        if self.module:
+            return e73_pin_by_name(name)
+        return rp_pin_by_name(name) if self.rp else None
+
+    def mcu_pins_on(self, net):
+        if not self.mcu:
+            return []
+        return [int(p) for r, p in self.members.get(net, []) if r == self.mcu]
+
+    def mcu_gpio_nets(self):
+        """{net: pin} for the connected MCU GPIO pins."""
+        g = self.mcu_gpio()
+        return {self.mcupin(p): p for p in g if self.mcupin(p)}
 
     def pin_by_role(self, ref, roles, want):
         """pin number of part ref whose datasheet role is `want` (roles: pin -> role)."""
@@ -645,10 +851,17 @@ class Netlist:
                 self.vbus = self.net(u, vbus_pads[0])
             if gnd_pads and self.net(u, gnd_pads[0]) is not None and self.gnd is None:
                 self.gnd = self.net(u, gnd_pads[0])
+        if self.rp:
+            # RP2040: the 3.3 V rail is the IOVDD net (pin 1); GND from the receptacle, else the RP2040 ground pad
+            if self.gnd is None:
+                self.gnd = self.rppin(RP_GND)
+            self.vdd = self.rppin(RP_IOVDD[0])
         for ldo in self.refs("ldo"):
             if self.net(ldo, "5") == self.vdd and self.vdd is not None:
                 self.ldo_main = ldo
-                self.vin = self.net(ldo, "1")
+                vin = self.net(ldo, "1")
+                # VIN is the power-path node behind the Schottky; an LDO fed straight from VBUS has none
+                self.vin = vin if vin != self.vbus else None
         # charger (TP4054 or MCP73831/2: same SOT-23-5 functions, BAT = pin 3)
         chs = [r for r in self.refs("charger") if not self.dnp(r)]
         self.charger = chs[0] if chs else None
@@ -1195,6 +1408,9 @@ def check_dcch(nl, rep):
 
 
 def check_gpio_nets(nl, rep):
+    if nl.rp:
+        check_rp_gpio_nets(nl, rep)
+        return
     if not nl.module:
         rep.add("M10", "GPIO nets", SKIP, "E73_pins", [])
         return
@@ -1228,6 +1444,9 @@ def check_gpio_nets(nl, rep):
 
 def check_gpio_overvoltage(nl, rep):
     """M11: nothing pulls a module GPIO above VDD (CHRG-style pull-up to 5 V, LED from VBUS, ...)."""
+    if nl.rp:
+        check_rp_gpio_overvoltage(nl, rep)
+        return
     if not nl.module:
         rep.add("M11", "GPIO over-voltage", SKIP, "PS_gpio", [])
         return
@@ -1301,6 +1520,851 @@ def check_module_pin_names(nl, rep):
     d.append("%d of 43 pins carry a name in the netlist; all compared names match the datasheet" % named
              if status == PASS else "%d pins named" % named)
     rep.add("M12", "E73 symbol pin numbers/names agree with the datasheet pin table", status, "E73_pins", d)
+
+
+# ----------------------------------------------------------------- RP2040 ---
+# Wired variant: a bare RP2040 with the minimum circuit of Hardware design with RP2040 (the Pico's).
+def rp_chip(nl, rep, code, title, src):
+    """The RP2040 ref, or None after adding a SKIP line for `code`."""
+    if nl.rp:
+        return nl.rp
+    rep.add(code, title, SKIP, src, ["no RP2040 in this netlist%s" % (" (the MCU is the E73 module)" if nl.module else "")])
+    return None
+
+
+def rp_label(pin):
+    return "%s (%d)" % (RP_PINS[int(pin)], int(pin))
+
+
+def rp_rail(nl, net):
+    """(nominal, min, max, ldo) of a rail made by a recognised AP2112K-3.3 (C51118.pdf p.8: +-1.5 %), else None."""
+    for ldo in nl.refs("ldo"):
+        if net is not None and not nl.dnp(ldo) and nl.net(ldo, "5") == net and "3.3" in nl.value(ldo):
+            return (V_VDD, V_VDD * 0.985, V_VDD * 1.015, ldo)
+    return None
+
+
+def parallel(*rs):
+    rs = [r for r in rs if r]
+    return 1.0 / sum(1.0 / r for r in rs) if rs else None
+
+
+def rp_boot_paths(nl):
+    """[(resistor, ohms, strap net)] from QSPI_SS through one resistor to a net that is not a power rail."""
+    ss = nl.rppin(RP_QSPI["QSPI_SS"])
+    if ss is None:
+        return []
+    return [(ref, parse_number(nl.value(ref), "R"), onet) for ref, pin, onet in nl.two_pin_parts_on(ss, ("res",))
+            if onet is not None and onet not in nl.power_nets()]
+
+
+def button_to_gnd(nl, t, net):
+    """True if tact switch t has its used pads on exactly `net` and GND."""
+    used = {nl.net(t, p) for p in nl.pins_of(t)} - {None}
+    return used == {net, nl.gnd}
+
+
+def check_rp_gpio_nets(nl, rep):
+    """M10 on an RP2040: no GPIO or signal pin on a power rail, no two RP2040 signal pins on one net."""
+    status = PASS
+    d = []
+    pn = nl.power_nets()
+    seen = {}
+    for pin in sorted(RP_PINS):
+        if pin in RP_SUPPLY_PINS or pin == RP_TESTEN:
+            continue                                    # supplies share their rails by design (Q03-Q05, Q02)
+        net = nl.rppin(pin)
+        if net is None:
+            continue
+        if pin == RP_RUN and net == nl.vdd:
+            d.append("RUN tied to IOVDD: allowed when no external reset is needed (1.4.2; Q09)")
+            continue
+        if net in pn:
+            status = FAIL
+            d.append("pin %s is on %s" % (rp_label(pin), nl.labels[net]))
+        if net in seen:
+            status = FAIL
+            d.append("pins %s and %s are shorted on net %s" % (rp_label(seen[net]), rp_label(pin), net))
+        seen[net] = pin
+    used = sorted(p for p in seen.values() if p in RP_GPIO)
+    d.append("%d of 30 GPIOs connected: %s" % (len(used), [RP_PINS[p].split("/")[0] for p in used]))
+    if status == PASS:
+        d.append("XIN/XOUT, SWD, RUN, USB and the six QSPI pins each on a net of their own")
+    rep.add("M10", "no GPIO / signal pin tied to a power rail, no two RP2040 pins shorted together", status, "RP_pins", d)
+
+
+def check_rp_gpio_overvoltage(nl, rep):
+    """M11 on an RP2040: nothing pulls a GPIO / QSPI / RUN / SWD pin above IOVDD."""
+    status = PASS
+    d = []
+    hi_nets = {n for n in (nl.vbus, nl.vin, nl.vbat, nl.batp, nl.vaud) if n}
+    rv = rp_rail(nl, nl.vdd)
+    iovdd = rv[1] if rv else V_VDD                      # the limits follow IOVDD: take the rail's minimum
+    lim_op, lim_abs = iovdd + 0.3, iovdd + 0.5
+    for pin in sorted(RP_GPIO | set(RP_QSPI.values()) | {RP_RUN, RP_SWCLK, RP_SWDIO}):
+        net = nl.rppin(pin)
+        if net is None:
+            continue
+        for ref, p, onet in nl.two_pin_parts_on(net, ("res", "ind", "jumper", "led", "schottky", "mdiode")):
+            if onet not in hi_nets:
+                continue
+            k = nl.kind[ref]
+            vmax = nl.net_voltage_max(onet)
+            if k == "res":
+                rtop = parse_number(nl.value(ref), "R")
+                rbot = [v for _, v in nl.resistors_between(net, nl.gnd)]
+                if not rbot or rtop is None or any(v is None for v in rbot):
+                    status = FAIL
+                    d.append("pin %s pulled to %s through %s with no divider to GND -> %.1f V on a 3.3 V I/O"
+                             % (rp_label(pin), nl.labels[onet], ref, vmax))
+                    continue
+                rb = parallel(*rbot)
+                v = vmax * rb / (rtop + rb)
+                d.append("pin %s: divider %s / %s from %s -> %.2f V max (VIH max %.1f V, abs max %.1f V)"
+                         % (rp_label(pin), fmt_r(rtop), fmt_r(rb), nl.labels[onet], v, lim_op, lim_abs))
+                if v > lim_abs:
+                    status = FAIL
+                elif v > lim_op:
+                    status = WARN if status == PASS else status
+            elif k == "led":
+                vf_typ, vf_min, _, _, _ = led_params(nl.parts[ref])
+                a, kk, _ = nl.diode_ak(ref)
+                if nl.net(ref, a) == onet:
+                    v = vmax - vf_min
+                    d.append("pin %s: LED %s from %s to the pin -> up to %.2f V when the pin is high-Z"
+                             % (rp_label(pin), ref, nl.labels[onet], v))
+                    if v > lim_op:
+                        status = WARN if status == PASS else status
+            else:
+                status = FAIL
+                d.append("pin %s directly bridged to %s by %s" % (rp_label(pin), nl.labels[onet], ref))
+    if not d:
+        d.append("no resistor / LED / jumper from a GPIO, QSPI, RUN or SWD net to VBUS, VIN, VBAT or the switched 5 V "
+                 "(VAUD)")
+    d.append("RP2040 I/O level = IOVDD = 3.3 V: VIH max IOVDD + 0.3 V, abs max IOVDD + 0.5 V (Tables 622 / 625); GPIO0-25, "
+             "RUN and SWD are fault tolerant, GPIO26-29 (ADC) are not (Table 614)")
+    rep.add("M11", "no pull-up above IOVDD into an RP2040 pin (divider / LED analysis vs VIH max IOVDD + 0.3 V, abs max "
+            "IOVDD + 0.5 V)", status, "RP_io", d)
+
+
+def check_rp_pins(nl, rep):
+    title = "RP2040 symbol pad numbers / names agree with the datasheet QFN-56 table (57 = the ground pad)"
+    rp = rp_chip(nl, rep, "Q01", title, "RP_pins")
+    if not rp:
+        return
+    status = PASS
+    p = nl.parts[rp]
+    d = ["%s: footprint %s, LCSC %s" % (nl.desc(rp), p.get("footprint") or "?", p.get("lcsc") or "?")]
+    pins = p["pins"]
+    missing = [q for q in RP_PINS if str(q) not in pins]
+    extra = [q for q in pins if not (q.isdigit() and int(q) in RP_PINS)]
+    if missing:
+        status = FAIL
+        d.append("symbol lacks pads %s" % missing)
+    for q in extra:
+        if nl.net(rp, q) not in (nl.gnd, None):
+            status = FAIL
+            d.append("pad %s is not in the datasheet table and sits on %s" % (q, nl.label(nl.net(rp, q))))
+        else:
+            d.append("extra pad %s (thermal / paste pad) on %s" % (q, nl.label(nl.net(rp, q))))
+    named = 0
+    for q, want in RP_PINS.items():
+        got = nl.pin_name(rp, q)
+        if not got or got == "~":
+            continue
+        named += 1
+        ok = {rp_norm(want), rp_norm(want.split("/")[0])} | {rp_norm(a) for a in RP_ALIASES.get(want, ())}
+        if rp_norm(got) not in ok:
+            status = FAIL
+            d.append("pad %d is named '%s' in the netlist but the datasheet has %s" % (q, got, want))
+    d.append("%d of 57 pads carry a name%s" % (named, "; all agree with Tables 615-621" if status == PASS else ""))
+    fp = (p.get("footprint") or "").upper()
+    if "QFN-56" in fp and "EP3.2X3.2" not in fp:
+        status = WARN if status == PASS else status
+        d.append("footprint ePad is not 3.2 x 3.2 mm: the RP2040's pad is smaller than usual (5.1 p.607, Fig.167 p.608)")
+    elif "QFN-56" in fp:
+        d.append("footprint ePad 3.2 x 3.2 mm = the recommended footprint (Fig.167 p.608)")
+    rep.add("Q01", title, status, "RP_pins", d)
+
+
+def check_rp_gnd(nl, rep):
+    title = "RP2040 ground pad (57, the only ground connection) on GND, TESTEN (19) tied to GND"
+    rp = rp_chip(nl, rep, "Q02", title, "RP_pins")
+    if not rp:
+        return
+    status = PASS
+    g, t = nl.rppin(RP_GND), nl.rppin(RP_TESTEN)
+    d = ["GND pad (57) -> %s ; TESTEN (19) -> %s" % (nl.label(g), nl.label(t))]
+    if g is None or g != nl.gnd:
+        status = FAIL
+        d.append("the central pad is the RP2040's single ground connection (1.4.2, Table 621): it must be on GND")
+    else:
+        d.append("ground pad on GND; it carries all of the chip's ground current (solder paste and vias under it)")
+    if t != nl.gnd:
+        status = FAIL
+        d.append("TESTEN must be tied to GND (1.4.2 'Tie to GND', Table 619 'connect to Gnd'): %s"
+                 % ("left open, only the internal pull-down holds it" if t is None else "it is on %s" % nl.label(t)))
+    else:
+        d.append("TESTEN on GND as required (factory test mode off)")
+    rep.add("Q02", title, status, "RP_pins", d)
+
+
+def check_rp_supply(nl, rep):
+    title = ("RP2040 supplies: IOVDD x6, VREG_VIN, USB_VDD, ADC_AVDD on the 3.3 V rail (single 3.3 V scheme), each "
+             "inside its Table 634 range")
+    rp = rp_chip(nl, rep, "Q03", title, "RP_power")
+    if not rp:
+        return
+    status = PASS
+    d = []
+    rail = nl.vdd
+    io = {q: nl.rppin(q) for q in RP_IOVDD}
+    d.append("IOVDD pins %s -> %s" % (list(RP_IOVDD), sorted({nl.label(n) for n in io.values()}, key=str)))
+    if None in io.values() or len(set(io.values())) != 1:
+        status = FAIL
+        d.append("all six IOVDD pins must be on one supply net (Table 621)")
+    if rail is None or rail == nl.gnd or rail in (nl.vbus, nl.vaud, nl.vin, nl.vbat, nl.batp):
+        rep.add("Q03", title, FAIL, "RP_power", d + ["IOVDD on %s: 1.62-3.63 V required, abs max 3.63 V (Tables 622, "
+                                                     "634)" % nl.label(rail)])
+        return
+    rv = rp_rail(nl, rail)
+    if rv is None:
+        status = WARN if status == PASS else status
+        d.append("rail %s is not the output of a recognised AP2112K-3.3: voltage not verified" % nl.label(rail))
+    else:
+        d.append("rail %s from %s: 3.3 V +-1.5 %% = %.3f-%.3f V (C51118.pdf p.8)" % (nl.label(rail), nl.desc(rv[3]),
+                                                                                   rv[1], rv[2]))
+    for name, pin in (("IOVDD", RP_IOVDD[0]), ("VREG_VIN", RP_VREG_VIN), ("USB_VDD", RP_USB_VDD),
+                      ("ADC_AVDD", RP_ADC_AVDD)):
+        net = nl.rppin(pin)
+        lo, hi = RP_RANGE[name]
+        if net is None:
+            status = FAIL
+            d.append("%s (%d) unconnected%s" % (name, pin, {
+                "USB_VDD": ": 'USB_VDD should not be left unconnected' (2.9.4)",
+                "VREG_VIN": ": it also powers the power-on reset and brown-out detector (2.9.3)"}.get(name, "")))
+            continue
+        how = "on the rail"
+        if net != rail:
+            via = nl.through_series(net, kinds=("res", "ind"), max_ohm=1000, depth=1)
+            if rail in via:
+                how = "fed from the rail through %s (filter, as the Pico's ADC_AVDD)" % via[rail]
+            else:
+                status = WARN if status == PASS else status
+                d.append("%s (%d) on %s, not the 3.3 V rail: level not verified" % (name, pin, nl.label(net)))
+                continue
+        if rv:
+            ok = rv[1] >= lo and rv[2] <= hi
+            d.append("%s (%d) %s: %.2f-%.2f V inside %g-%g V (Table 634)%s" % (
+                name, pin, how, rv[1], rv[2], lo, hi, "" if ok else " - OUTSIDE"))
+            if not ok:
+                status = FAIL
+            if name == "ADC_AVDD" and rv[1] < RP_ADC_GOOD:
+                status = WARN if status == PASS else status
+                d.append("ADC_AVDD below 2.97 V: ADC performance compromised (2.9.5)")
+        else:
+            d.append("%s (%d) %s" % (name, pin, how))
+    if rv:
+        d.append("IOVDD max %.3f V < abs max 3.63 V (Table 622); USB_VDD >= 3.135 V for the USB PHY; ADC_AVDD >= 2.97 V "
+                 "for full ADC performance (2.9.5); one 3.3 V source for all four = the scheme of 2.9.7.1 / Fig.16, any "
+                 "power-up order is allowed (2.9.6)" % rv[2])
+    rep.add("Q03", title, status, "RP_power", d)
+
+
+def check_rp_decoupling(nl, rep):
+    title = "RP2040 decoupling: 100 nF per IOVDD / USB_VDD / ADC_AVDD / DVDD pin, 1 uF at VREG_VIN and at VREG_VOUT"
+    rp = rp_chip(nl, rep, "Q04", title, "RP_decoup")
+    if not rp:
+        return
+    status = PASS
+    d = []
+
+    def small(c):
+        return c is not None and 47e-9 <= c <= 470e-9
+
+    groups = defaultdict(list)
+    for q in list(RP_IOVDD) + [RP_USB_VDD, RP_ADC_AVDD] + list(RP_DVDD):
+        n = nl.rppin(q)
+        if n is not None:
+            groups[n].append(q)
+    for net, pins in groups.items():
+        caps = nl.cap_list(net)
+        n100 = [(r, c) for r, c in caps if small(c)]
+        flashes = [f for f in nl.fitted("flash") if nl.net(f, "8") == net]
+        need = len(pins) + len(flashes)
+        d.append("%s: %d RP2040 supply pin(s) %s%s; 100 nF-class capacitors %d %s" % (
+            nl.label(net), len(pins), pins, " + the flash VCC (%s, design guide C5)" % flashes if flashes else "",
+            len(n100), [r for r, _ in n100]))
+        if not caps:
+            status = FAIL
+            d.append("no capacitor at all on %s" % nl.label(net))
+        elif len(n100) < need:
+            status = WARN if status == PASS else status
+            d.append("fewer than one 100 nF per pin (2.9.1-2.9.5); the minimal design shares one between pins 48 and 49 "
+                     "as a layout compromise (design guide 2.1.2 p.8)")
+    for name, q in (("VREG_VIN", RP_VREG_VIN), ("VREG_VOUT", RP_VREG_VOUT)):
+        net = nl.rppin(q)
+        if net is None:
+            d.append("%s (%d) open (judged in Q03 / Q05)" % (name, q))
+            continue
+        big = [(r, c) for r, c in nl.cap_list(net) if c and c >= 0.9e-6]
+        if not big:
+            status = FAIL
+            d.append("%s (%d) on %s: no >= 1 uF capacitor - 'the regulator must have 1 uF capacitors placed close to its "
+                     "input (VREG_VIN) and output (VREG_VOUT)' (2.10.1)" % (name, q, nl.label(net)))
+        else:
+            d.append("%s (%d) on %s: >= 1 uF present %s (2.10.1; the Pico uses 2.2 uF)" % (
+                name, q, nl.label(net), [(r, fmt_c(c)) for r, c in big]))
+    d.append("the netlist cannot show placement: each 100 nF next to its pin, the 1 uF parts next to pins 44 and 45 (small "
+             "ceramics meet the regulator's ESR limits, design guide 2.1.3)")
+    rep.add("Q04", title, status, "RP_decoup", d)
+
+
+def check_rp_core(nl, rep):
+    title = "RP2040 core supply: VREG_VOUT (45) feeds both DVDD pins (23, 50) on a net of their own (1.1 V, <= 100 mA)"
+    rp = rp_chip(nl, rep, "Q05", title, "RP_vreg")
+    if not rp:
+        return
+    status = PASS
+    vout = nl.rppin(RP_VREG_VOUT)
+    dv = [nl.rppin(q) for q in RP_DVDD]
+    d = ["VREG_VOUT (45) -> %s ; DVDD (23) -> %s ; DVDD (50) -> %s" % (nl.label(vout), nl.label(dv[0]),
+                                                                       nl.label(dv[1]))]
+    rails = {n for n in (nl.vdd, nl.vbus, nl.vaud, nl.vin, nl.vbat, nl.batp) if n}
+    if any(n in rails for n in dv) or vout in rails:
+        status = FAIL
+        d.append("DVDD / VREG_VOUT on a supply rail: the core takes 1.05-1.16 V (Table 634)")
+    elif None in dv or dv[0] != dv[1] or dv[0] == nl.gnd:
+        status = FAIL
+        d.append("both DVDD pins must be on one 1.1 V core net (Table 621, 2.9.2)")
+    elif vout == dv[0]:
+        others = [(r, q) for r, q in nl.non_cap_members(vout, exclude=(rp,)) if nl.kind[r] != "tp"]
+        if others:
+            status = WARN
+            d.append("the 1.1 V net also feeds %s: the regulator gives 100 mA in all (2.10), meant for the core" % others)
+        else:
+            d.append("VREG_VOUT -> DVDD 23 + 50, nothing but capacitors on the net: the single 3.3 V scheme (2.9.7.1, "
+                     "Fig.16); the regulator starts at 1.1 V (2.10), inside 1.05-1.16 V (Table 634), and its only load "
+                     "is the core (100 mA max)")
+    elif vout is None:
+        status = WARN
+        d.append("external core supply (VREG_VOUT open, 2.9.7.2): DVDD on %s - its 1.05-1.16 V not verified here"
+                 % nl.label(dv[0]))
+    else:
+        status = FAIL
+        d.append("VREG_VOUT on %s but DVDD on %s: the core is not fed by the regulator" % (nl.label(vout),
+                                                                                          nl.label(dv[0])))
+    rep.add("Q05", title, status, "RP_vreg", d)
+
+
+def check_rp_crystal(nl, rep):
+    title = ("RP2040 12 MHz crystal on XIN / XOUT: load capacitors from CL and stray, damping resistor on XOUT, ESR and "
+             "drive level (Hardware design with RP2040 2.3)")
+    rp = rp_chip(nl, rep, "Q06", title, "RP_xosc")
+    if not rp:
+        return
+    status = PASS
+    xin, xout = nl.rppin(RP_XIN), nl.rppin(RP_XOUT)
+    d = ["XIN (20) -> %s ; XOUT (21) -> %s" % (nl.label(xin), nl.label(xout))]
+    if xin is None:
+        rep.add("Q06", title, FAIL, "RP_xosc", d + ["nothing on XIN: the USB boot ROM needs a 12 MHz crystal or clock "
+                                                   "(1.4.2)"])
+        return
+    xts = [r for r in nl.fitted("xtal") if xin in {nl.net(r, q) for q in nl.pins_of(r)}]
+    if not xts:
+        st = WARN if xout is None else FAIL
+        rep.add("Q06", title, st, "RP_xosc", d + [
+            "no crystal on XIN: %s" % ("XIN as a single-ended 12 MHz CMOS clock input with XOUT open is allowed (1.4.2, "
+                                       "Table 628 levels) - the clock source is not verified here" if xout is None
+                                       else "XOUT is connected but there is no crystal between XIN and XOUT")])
+        return
+    y = xts[0]
+    ynets = {q: nl.net(y, q) for q in nl.pins_of(y)}
+    sig = sorted(q for q, n in ynets.items() if n not in (nl.gnd, None))
+    xo2 = [ynets[q] for q in sig if ynets[q] != xin]
+    if len(sig) != 2 or len(xo2) != 1:
+        rep.add("Q06", title, FAIL, "RP_xosc", d + ["%s pins %s: expected one pin on XIN and one on the XOUT side"
+                                                   % (y, {q: nl.label(n) for q, n in ynets.items()})])
+        return
+    xo2 = xo2[0]
+    rser = None
+    if xo2 != xout:
+        rs = nl.resistors_between(xout, xo2) if xout else []
+        if len(rs) != 1:
+            rep.add("Q06", title, FAIL, "RP_xosc", d + ["%s's second pin is on %s, neither XOUT nor one resistor away "
+                                                       "from it" % (y, nl.label(xo2))])
+            return
+        rser = rs[0]
+    lcsc = (nl.parts[y].get("lcsc") or "").upper()
+    known = lcsc == "C20625731" or "ABM8-272" in nl.value(y).upper()
+    f = re.search(r"(\d+(?:[.,]\d+)?)\s*MHZ", nl.value(y).upper())
+    fmhz = float(f.group(1).replace(",", ".")) if f else (12.0 if known else None)
+    d.append("%s between XIN and %s%s" % (nl.desc(y), nl.label(xo2), " (behind %s %s from XOUT)" % (
+        rser[0], fmt_r(rser[1])) if rser else ""))
+    if fmhz is None or abs(fmhz - 12.0) > 1e-3:
+        status = FAIL
+        d.append("crystal value '%s': the USB boot ROM needs 12 MHz (1.4.2; 1-15 MHz otherwise, 2.16.1)" % nl.value(y))
+    if known:
+        x = XTAL_ABM8
+        d.append("Abracon ABM8-272-T3 (LCSC %s): the crystal recommended in 2.16.1.1 and used on the Pico - CL 10 pF, "
+                 "ESR <= 50 Ohm, C0 <= 3 pF, drive <= 200 uW" % (lcsc or "?"))
+        if sig != ["1", "3"]:
+            status = FAIL
+            d.append("crystal on pads %s: the ABM8-272-T3 has it between pads 1 and 3, pads 2 and 4 are GND (page 4 of 9)"
+                     % sig)
+    else:
+        x = None
+        status = WARN if status == PASS else status
+        d.append("crystal '%s' (LCSC %s) is not the ABM8-272-T3: 2.16.1.1 asks to test any other crystal over "
+                 "temperature; CL assumed 10 pF" % (nl.value(y), lcsc or "?"))
+    cl = XTAL_ABM8["CL"]
+    for q, n in ynets.items():
+        if q not in sig and n not in (nl.gnd, None):
+            status = FAIL
+            d.append("%s pad %s (case) on %s - case pads go to GND or stay open" % (y, q, nl.label(n)))
+    # nothing else on the oscillator nets
+    allowed = {rp, y} | ({rser[0]} if rser else set())
+    for net, nm in ((xin, "XIN"), (xo2, "XOUT side"), (xout, "XOUT")):
+        if net is None:
+            continue
+        extra = [(r, q) for r, q in nl.mems(net) if r not in allowed and nl.kind[r] != "cap"]
+        if extra:
+            status = FAIL
+            d.append("%s net also connects %s - oscillator nets carry only the crystal, its capacitors and the damping "
+                     "resistor" % (nm, extra))
+    if rser and nl.cap_list(xout):
+        status = WARN if status == PASS else status
+        d.append("capacitor on XOUT itself (before the damping resistor): not in the reference circuit")
+    c_in, c_out = nl.cap_list(xin), nl.cap_list(xo2)
+    if len(c_in) != 1 or len(c_out) != 1 or c_in[0][1] is None or c_out[0][1] is None:
+        status = FAIL
+        d.append("expected one load capacitor from each crystal pin to GND, found XIN %s / XOUT side %s" % (c_in, c_out))
+    else:
+        c1, c2 = c_in[0][1], c_out[0][1]
+        cser = c1 * c2 / (c1 + c2)
+        cl_eff = cser + RP_STRAY
+        d.append("load: %s %s and %s %s in series = %s + %s stray (PCB + XIN/XOUT, design guide 2.3) = %s for CL %s; "
+                 "C = 2 x (CL - stray) = %s" % (c_in[0][0], fmt_c(c1), c_out[0][0], fmt_c(c2), fmt_c(cser),
+                                                fmt_c(RP_STRAY), fmt_c(round(cl_eff * 1e13) / 1e13), fmt_c(cl),
+                                                fmt_c(2 * (cl - RP_STRAY))))
+        if abs(c1 - c2) > 0.05 * max(c1, c2):
+            status = WARN if status == PASS else status
+            d.append("the two load capacitors differ: the design guide uses two of equal value")
+        dev = cl_eff - cl
+        if abs(dev) <= 1e-12 + 1e-15:
+            d.append("%+.1f pF from CL: the design guide's own 10.5 pF for 10 pF is 'close enough' (2.3 p.9)" % (dev * 1e12))
+        elif abs(dev) <= 2e-12:
+            status = WARN if status == PASS else status
+            d.append("%+.1f pF from CL: pulls the frequency and changes the oscillator margin - not the tuned circuit "
+                     "(2.16.1.1: test over temperature)" % (dev * 1e12))
+        else:
+            status = FAIL
+            d.append("%+.1f pF from CL: the crystal is not loaded as specified" % (dev * 1e12))
+    if rser is None:
+        status = WARN if status == PASS else status
+        d.append("no damping resistor between XOUT and the crystal: the design guide's 1 kOhm (R5) with the 50 Ohm ESR "
+                 "crystal keeps it from being over-driven at 3.3 V (2.3 p.10; Pico R14)")
+    elif rser[1] is None or abs(rser[1] - 1e3) > 0.05e3:
+        status = WARN if status == PASS else status
+        d.append("damping resistor %s %s: the ABM8-272-T3 circuit is tuned for 1 kOhm at 3.3 V (2.16.1.1; design guide "
+                 "2.3: any deviation needs extensive testing)" % (rser[0], fmt_r(rser[1])))
+    else:
+        d.append("damping resistor %s 1 kOhm on XOUT, as R5 in the minimal design and R14 on the Pico" % rser[0])
+    if x:
+        vpp = V_VDD * 1.015
+        dl = x["ESR"] * (math.pi * x["f"] * (x["C0"] + x["CL"]) * vpp) ** 2 / 2
+        d.append("drive level, upper bound with the full IOVDD swing across the crystal: ESR x (pi f (C0 + CL) Vpp)^2 / 2 "
+                 "= %.0f uW <= %.0f uW max (the 1 kOhm keeps the real swing lower)" % (dl * 1e6, x["drive_max"] * 1e6))
+        if dl > x["drive_max"]:
+            status = WARN if status == PASS else status
+        d.append("frequency error <= +-%d ppm (tolerance + stability + 1st-year aging, page 2 of 9): inside the 1000 ppm "
+                 "the RP2040 clocks are designed for (2.15 p.181)" % x["ppm"])
+    d.append("layout: crystal and capacitors close to pins 20/21, short tracks (stray capacitance is part of the load)")
+    rep.add("Q06", title, status, "RP_xosc", d)
+
+
+def check_rp_flash(nl, rep):
+    title = ("QSPI flash: each RP2040 QSPI pin on its W25Q128JV pin (/CS, CLK, IO0-IO3), VCC on the 3.3 V rail with "
+             "decoupling, nothing else on the bus")
+    rp = rp_chip(nl, rep, "Q07", title, "RP_flash")
+    if not rp:
+        return
+    q = {nm: nl.rppin(p) for nm, p in RP_QSPI.items()}
+    fls = nl.fitted("flash")
+    if not fls:
+        rep.add("Q07", title, FAIL, "RP_flash", ["no QSPI flash: the RP2040 has no program memory of its own and boots "
+                                                 "from external flash (2.8.1; design guide 2.2)"])
+        return
+    status = PASS
+    f = fls[0]
+    d = ["%s, LCSC %s" % (nl.desc(f), nl.parts[f].get("lcsc") or "?")]
+    vu = nl.value(f).upper()
+    if not ((nl.parts[f].get("lcsc") or "").upper() == "C97521" or "W25Q" in vu):
+        status = WARN
+        d.append("not a W25Q: pinout taken from the W25Q128JV (the usual 8-pin QSPI pinout) - check its own datasheet")
+    for p, want in W25_PINS.items():
+        got = nl.pin_name(f, p)
+        if got and got != "~":
+            ok = {rp_norm(want)} | {rp_norm(a) for a in W25_ALIASES.get(want, ())}
+            if rp_norm(got) not in ok:
+                status = FAIL
+                d.append("flash pin %s named '%s', the W25Q128JV has %s (p.5)" % (p, got, want))
+    for p, want in W25_PINS.items():
+        net = nl.net(f, p)
+        if want == "GND":
+            if net != nl.gnd:
+                status = FAIL
+                d.append("pin 4 GND on %s" % nl.label(net))
+        elif want == "VCC":
+            rv = rp_rail(nl, net)
+            if net is None or net != nl.vdd:
+                status = FAIL
+                d.append("pin 8 VCC on %s: it must share the RP2040's 3.3 V rail (QSPI levels = IOVDD)" % nl.label(net))
+            elif rv is None:
+                status = WARN if status == PASS else status
+                d.append("VCC rail voltage not verified")
+            else:
+                d.append("VCC on %s: %.2f-%.2f V inside 3.0-3.6 V (133 MHz) / 2.7-3.6 V (9.2 p.60), abs max 4.6 V"
+                         % (nl.label(net), rv[1], rv[2]))
+            caps = [(r, c) for r, c in nl.cap_list(net) if c and c <= 470e-9]
+            if not caps:
+                status = WARN if status == PASS else status
+                d.append("no 100 nF-class capacitor on the flash VCC rail (design guide C5)")
+        else:
+            qn = W25_QSPI[p]
+            if net is None or net != q[qn]:
+                status = FAIL
+                d.append("flash pin %s %s on %s, expected the RP2040 %s (pad %d) net %s" % (
+                    p, want, nl.label(net), qn, RP_QSPI[qn], nl.label(q[qn])))
+            else:
+                d.append("%s (%d) -> flash %s %s" % (qn, RP_QSPI[qn], p, want))
+    for qn, net in q.items():
+        if net is None:
+            continue
+        extra = [(r, p) for r, p in nl.mems(net) if r not in (rp, f) and nl.kind[r] != "tp"]
+        if qn == "QSPI_SS":
+            extra = [(r, p) for r, p in extra if nl.kind[r] != "res"]       # pull-up and BOOT resistor: Q08
+        if extra:
+            status = FAIL
+            d.append("%s also carries %s: the QSPI pins are wired straight to the flash (design guide 2.2)" % (qn, extra))
+    m = re.search(r"W25Q(\d+)", vu)
+    if m:
+        mb = int(m.group(1)) / 8.0
+        if mb > 16:
+            status = WARN if status == PASS else status
+            d.append("%g MB part: the RP2040 supports up to 16 MB (design guide 2.2)" % mb)
+        else:
+            d.append("%g MB (%s Mbit) <= the 16 MB the RP2040 supports (design guide 2.2); the W25Q answers 03h / 02h / "
+                     "05h / 06h / 20h and the boot ROM's XIP exit sequence (design guide 2.6)" % (mb, m.group(1)))
+    d.append("layout: short direct QSPI tracks next to the RP2040 (design guide 2.2), 100 nF next to pin 8")
+    rep.add("Q07", title, status, "RP_flash", d)
+
+
+def check_rp_bootsel(nl, rep):
+    title = ("RP2040 BOOTSEL strap: QSPI_SS pulled up to the flash VCC (or by the chip alone); BOOT to GND through a "
+             "resistor that reads low at boot yet lets QSPI_SS over-drive it")
+    rp = rp_chip(nl, rep, "Q08", title, "RP_boot")
+    if not rp:
+        return
+    ss = nl.rppin(RP_QSPI["QSPI_SS"])
+    if ss is None:
+        rep.add("Q08", title, FAIL, "RP_boot", ["QSPI_SS (56) unconnected: no flash chip select"])
+        return
+    status = PASS
+    d = ["QSPI_SS (56) -> %s" % nl.label(ss)]
+    rv = rp_rail(nl, nl.vdd)
+    vmax = rv[2] if rv else V_VDD * 1.015
+    fls = nl.fitted("flash")
+    fvcc = nl.net(fls[0], "8") if fls else None
+    ups = [(r, parse_number(nl.value(r), "R"), o) for r, p, o in nl.two_pin_parts_on(ss, ("res",))
+           if o in nl.power_nets() and o != nl.gnd]
+    downs = [(r, parse_number(nl.value(r), "R")) for r, p, o in nl.two_pin_parts_on(ss, ("res",)) if o == nl.gnd]
+    direct = [r for r, p in nl.mems(ss) if nl.kind[r] in ("tact", "jumper")]
+    if direct:
+        status = FAIL
+        d.append("%s straight on QSPI_SS: pressed while the chip drives QSPI_SS high, the pin is shorted to GND - the "
+                 "design guide puts 1 kOhm in series (2.2)" % direct)
+    for r, v, o in ups:
+        if fvcc and o != fvcc:
+            status = FAIL
+            d.append("pull-up %s to %s, but the flash VCC is %s: /CS must track the flash's VCC (W25Q 4.1)"
+                     % (r, nl.label(o), nl.label(fvcc)))
+        else:
+            d.append("pull-up %s %s to %s (the flash VCC): /CS follows VCC from the first moment of power-up (W25Q 4.1, "
+                     "6.5); the minimal design has this 10k as an option (design guide 2.2)" % (r, fmt_r(v), nl.label(o)))
+    if not ups:
+        d.append("no external pull-up: only the RP2040's own (Table 616), not guaranteed in the first moments of power-up; "
+                 "the minimal design and the Pico leave it unfitted with the W25Q (design guide 2.2)")
+    if downs:
+        status = FAIL
+        d.append("resistor %s from QSPI_SS to GND: the boot ROM would see 'CS tied low' at every reset (2.8.1)" % downs)
+    rpu = parallel(*([v for _, v, _ in ups] + [RP_RPU[0]]))
+    found = False
+    for ref, rb, net in rp_boot_paths(nl):
+        mem = [(r, p) for r, p in nl.mems(net) if r != ref]
+        btns = [r for r, p in mem if nl.kind[r] == "tact"]
+        jmps = [r for r, p in mem if nl.kind[r] == "jumper"]
+        tps = [r for r, p in mem if nl.kind[r] in ("tp", "conn")]
+        other = [(r, p) for r, p in mem if r not in btns + jmps + tps]
+        if other or not (btns or jmps or tps):
+            status = WARN if status == PASS else status
+            d.append("%s %s from QSPI_SS to %s, which carries %s: not a BOOT strap" % (ref, fmt_r(rb), nl.label(net), mem))
+            continue
+        found = True
+        for b in btns:
+            if not button_to_gnd(nl, b, net):
+                status = FAIL
+                d.append("%s on %s does not close to GND" % (b, nl.label(net)))
+        if rb is None:
+            status = FAIL
+            d.append("%s: value '%s' not readable" % (ref, nl.value(ref)))
+            continue
+        v_low = vmax * rb / (rb + rpu)
+        d.append("BOOT %s: QSPI_SS -> %s %s -> %s -> GND; pressed: %.2f V x %s / (%s + %s) = %.2f V (pull-ups %s || "
+                 "internal >= %s) <= VIL 0.8 V (Table 625): the boot ROM sees CS tied low and enters USB boot (2.8.1)" % (
+                     btns + jmps + tps, ref, fmt_r(rb), nl.label(net), vmax, fmt_r(rb), fmt_r(rb), fmt_r(round(rpu)),
+                     v_low, [fmt_r(v) for _, v, _ in ups] or "none", fmt_r(RP_RPU[0])))
+        if v_low > RP_VIL:
+            status = FAIL
+            d.append("  %.2f V is above VIL 0.8 V: BOOTSEL would not be detected - lower %s or raise the pull-up"
+                     % (v_low, ref))
+        rb_min = RP_VOH_MIN / RP_DRIVE_DEFAULT
+        i = RP_VOH_MIN / rb
+        d.append("  held while QSPI_SS is driven high: %s takes %.1f mA at VOH 2.62 V, within the default 4 mA drive "
+                 "(Tables 614 / 625), so /CS stays >= 2.62 V > the flash's VIH 0.7 VCC = %.2f V (W25Q 9.4): the "
+                 "'over-drive' the design guide asks R1 for (2.2)" % (ref, i * 1e3, 0.7 * vmax))
+        if rb < rb_min:
+            status = FAIL
+            d.append("  %s < %s: more than 4 mA, QSPI_SS cannot hold a valid high with the button pressed" % (
+                fmt_r(rb), fmt_r(round(rb_min))))
+        d.append("  while held the flash /CS sits at %.2f V (selected) but sees no clock: harmless, as on the Pico (R11 1K)"
+                 % v_low)
+    if not found:
+        status = WARN if status == PASS else status
+        d.append("no BOOT strap (button, jumper or test point through a resistor): the boot ROM falls back to USB only "
+                 "when no valid image is found (2.8.1); a valid but broken image could then be left only via SWD")
+    rep.add("Q08", title, status, "RP_boot", d)
+
+
+def check_rp_run(nl, rep):
+    title = ("RP2040 RUN (26): high to run (internal / external pull-up or IOVDD), only a reset button, capacitor or "
+             "test point to GND")
+    rp = rp_chip(nl, rep, "Q09", title, "RP_run")
+    if not rp:
+        return
+    run = nl.rppin(RP_RUN)
+    status = PASS
+    d = ["RUN (26) -> %s" % nl.label(run)]
+    if run is None:
+        d.append("open: the internal pull-up (Table 619; ~50 kOhm on the Pico, 2.1) keeps the chip running - no hardware "
+                 "reset")
+    elif run == nl.gnd:
+        status = FAIL
+        d.append("RUN on GND: the chip is held in reset (2.7)")
+    elif run == nl.vdd:
+        d.append("tied to IOVDD: allowed when no external reset is needed (1.4.2)")
+    elif run in nl.power_nets():
+        status = FAIL
+        d.append("RUN tied to %s: above IOVDD + 0.5 V (Table 622)" % nl.labels[run])
+    else:
+        up = False
+        for r, p in nl.mems(run, exclude=rp):
+            k = nl.kind[r]
+            if k in ("tp", "conn"):
+                d.append("%s: test point / header (an external reset or probe can pull RUN low)" % r)
+            elif k == "tact":
+                if button_to_gnd(nl, r, run):
+                    d.append("%s: push button RUN -> GND = reset (pad pairing in R01)" % r)
+                else:
+                    status = FAIL
+                    d.append("%s on RUN does not close to GND" % r)
+            elif k == "res":
+                _, o = nl.other_end(r, p)
+                v = parse_number(nl.value(r), "R")
+                if o == nl.vdd:
+                    up = True
+                    d.append("%s %s pull-up to IOVDD (on top of the internal one): %.2f mA while the button is held"
+                             % (r, fmt_r(v), V_VDD / v * 1e3 if v else 0))
+                else:
+                    status = FAIL
+                    d.append("%s from RUN to %s: RUN must idle high" % (r, nl.label(o)))
+            elif k == "cap" and nl.other_end(r, p)[1] == nl.gnd:
+                d.append("%s: capacitor to GND delays the release of reset (allowed)" % r)
+            else:
+                status = WARN if status == PASS else status
+                d.append("%s (%s) on RUN: anything driving RUN must only pull it low (open drain)" % (r, k))
+        if not up:
+            d.append("no external pull-up: the internal one holds RUN high (Table 619)")
+    d.append("RUN is a fault-tolerant input (Table 619): a reset line from a probe is safe even with the board off")
+    rep.add("Q09", title, status, "RP_run", d)
+
+
+def check_rp_swd(nl, rep):
+    title = "RP2040 SWCLK (24) / SWDIO (25): test points or a header only (internal pull-ups), GND and 3.3 V for the probe"
+    rp = rp_chip(nl, rep, "Q10", title, "RP_swd")
+    if not rp:
+        return
+    status = PASS
+    d = []
+    reached = False
+    for pin, nm in ((RP_SWCLK, "SWCLK"), (RP_SWDIO, "SWDIO")):
+        net = nl.rppin(pin)
+        if net is None:
+            d.append("%s (%d) open: allowed (internal pull-up) - no debug access; code still loads over USB (2.8.1)"
+                     % (nm, pin))
+            continue
+        others = nl.mems(net, exclude=rp)
+        kinds = sorted({nl.kind[r] for r, _ in others})
+        d.append("%s (%d) -> %s : %s" % (nm, pin, nl.label(net), others or "nothing else"))
+        if net in nl.power_nets():
+            status = FAIL
+            d.append("%s shorted to %s" % (nm, nl.labels[net]))
+        if any(k not in ("tp", "conn", "res") for k in kinds):
+            status = FAIL
+            d.append("%s is loaded by %s - only test points / a debug header (and a series R) belong there" % (nm, kinds))
+        if others:
+            reached = True
+    d.append("internal pull-ups on both (Table 618; nominally 60 kOhm, Pico 4.8): no external resistors needed")
+    if reached:
+        tp_nets = {nl.net(r, p) for r in nl.refs("tp") for p in nl.pins_of(r)}
+        for net, nm in ((nl.gnd, "GND"), (nl.vdd, "3.3 V")):
+            if net not in tp_nets and not any(nl.kind[r] == "conn" for r, _ in nl.mems(net)):
+                status = WARN if status == PASS else status
+                d.append("no test point or header on %s for the probe" % nm)
+    rep.add("Q10", title, status, "RP_swd", d)
+
+
+def check_rp_usb(nl, rep):
+    title = ("RP2040 USB_DP (47) / USB_DM (46): one 27 Ohm series resistor each to one USB port (hub DPn/DMn or the "
+             "receptacle), not swapped, no external pull-up / pull-down")
+    rp = rp_chip(nl, rep, "Q11", title, "RP_usb")
+    if not rp:
+        return
+    dp, dn = nl.rppin(RP_USB_DP), nl.rppin(RP_USB_DM)
+    d = ["USB_DP (47) -> %s ; USB_DM (46) -> %s" % (nl.label(dp), nl.label(dn))]
+    if dp is None or dn is None or dp == dn:
+        rep.add("Q11", title, FAIL, "RP_usb", d + ["USB_DP and USB_DM must be two connected, distinct nets"])
+        return
+    status = PASS
+    far = {}
+    for net, nm, role in ((dp, "USB_DP", "D+"), (dn, "USB_DM", "D-")):
+        rs = nl.two_pin_parts_on(net, ("res",))
+        rest = [(r, p) for r, p in nl.mems(net, exclude=rp) if r not in [x[0] for x in rs] and nl.kind[r] != "tp"]
+        if rest:
+            status = FAIL
+            d.append("%s also carries %s: the bus pull-ups / pull-downs are inside (1.4.2), nothing else belongs here"
+                     % (nm, rest))
+        if len(rs) != 1:
+            status = FAIL
+            d.append("%s needs exactly one 27 Ohm series resistor ('required', 1.4.2 / Table 620), found %s"
+                     % (nm, [r for r, _, _ in rs]))
+            continue
+        r, _, o = rs[0]
+        v = parse_number(nl.value(r), "R")
+        if v is None or not (24.3 <= v <= 29.7):
+            status = FAIL
+            d.append("%s: series resistor %s = %s, not 27 Ohm" % (nm, r, fmt_r(v)))
+        else:
+            d.append("%s -> %s %s Ohm -> %s" % (nm, r, fmt_r(v), nl.label(o)))
+        far[role] = o
+    if len(far) == 2:
+        hubs = nl.fitted("hub")
+        rdp, rdn = receptacle_data_nets(nl)
+        if hubs:
+            h = hubs[0]
+            hp = [CH334P_PINS.get(p, "?") for r, p in nl.mems(far["D+"]) if r == h]
+            hn = [CH334P_PINS.get(p, "?") for r, p in nl.mems(far["D-"]) if r == h]
+            mp = re.fullmatch(r"D([PM])([1-4U])", hp[0]) if len(hp) == 1 else None
+            mn = re.fullmatch(r"D([PM])([1-4U])", hn[0]) if len(hn) == 1 else None
+            if not (mp and mn):
+                status = FAIL
+                d.append("the far side of the resistors meets hub pins %s / %s: expected one downstream DPn / DMn"
+                         % (hp, hn))
+            elif "U" in (mp.group(2), mn.group(2)) or mp.group(2) != mn.group(2):
+                status = FAIL
+                d.append("RP2040 on hub pins %s / %s: must be the two lines of one downstream port" % (hp[0], hn[0]))
+            elif (mp.group(1), mn.group(1)) != ("P", "M"):
+                status = FAIL
+                d.append("SWAPPED: USB_DP reaches %s, USB_DM reaches %s" % (hp[0], hn[0]))
+            else:
+                d.append("hub %s port %s: DP%s = USB_DP, DM%s = USB_DM (full-speed device behind the hub, U03)"
+                         % (h, mp.group(2), mp.group(2), mp.group(2)))
+        elif rdp and rdn:
+            if (far["D+"], far["D-"]) == (rdn, rdp):
+                status = FAIL
+                d.append("SWAPPED: USB_DP reaches the receptacle D-")
+            elif (far["D+"], far["D-"]) != (rdp, rdn):
+                status = FAIL
+                d.append("the resistors do not reach the receptacle D+ / D- (%s / %s)" % (rdp, rdn))
+            else:
+                d.append("straight to the receptacle D+ / D- (as the Pico, 4.7)")
+        else:
+            status = WARN if status == PASS else status
+            d.append("no hub and no receptacle: the USB port is not in this netlist")
+    d.append("a VBUS-detect GPIO is optional: without one, firmware forces VBUS detect in USB_PWR (4.1.2.10 p.394)")
+    d.append("layout: the 27 Ohm parts close to the RP2040, the pair routed as 90 Ohm differential over unbroken ground "
+             "(design guide 2.4.1); USB_VDD 3.3 V checked in Q03")
+    rep.add("Q11", title, status, "RP_usb", d)
+
+
+def check_rp_budget(nl, rep):
+    title = ("3.3 V rail budget: RP2040 + flash + resistive loads (datasheet maxima) vs the AP2112K-3.3 (600 mA) and its "
+             "SOT25 dissipation")
+    rp = rp_chip(nl, rep, "Q12", title, "RP_budget")
+    if not rp:
+        return
+    rail = nl.vdd
+    rv = rp_rail(nl, rail)
+    if rv is None:
+        rep.add("Q12", title, WARN, "RP_budget", ["3.3 V rail %s is not made by a recognised AP2112K-3.3: budget not "
+                                                  "checked" % nl.label(rail)])
+        return
+    ldo = rv[3]
+    status = PASS
+    items = [("RP2040 core regulator, rated maximum (2.10)", RP_VREG_IMAX),
+             ("RP2040 IOVDD: every GPIO + QSPI pin sourcing together, IIOVDD_MAX (Table 625)", RP_IIOVDD_MAX),
+             ("RP2040 USB_VDD, maximum average (Table 637)", RP_USB_VDD_MAX)]
+    for f in nl.fitted("flash"):
+        if nl.net(f, "8") == rail:
+            items.append(("%s ICC program / erase max (W25Q 9.4)" % f, W25_ICC_MAX))
+    unknown = []
+    for r, p in nl.non_cap_members(rail, exclude=(rp, ldo)):
+        k = nl.kind[r]
+        if k in ("tp", "flash"):
+            continue
+        if k == "res":
+            o = nl.other_end(r, p)[1]
+            v = parse_number(nl.value(r), "R")
+            if o in nl.power_nets() and o != nl.gnd:
+                continue
+            if v:
+                items.append(("%s %s to %s, other end grounded" % (r, fmt_r(v), nl.label(o)), V_VDD / v))
+            continue
+        if k == "esd":
+            continue                                    # clamp reference, ~nA
+        unknown.append((r, k))
+    tot = sum(i for _, i in items)
+    d = ["loads on %s (upper bounds, never all at once):" % nl.label(rail)] + \
+        ["  %5.1f mA  %s" % (i * 1e3, txt) for txt, i in items]
+    if unknown:
+        status = WARN
+        d.append("other parts on the rail, not budgeted: %s" % unknown)
+    vin = nl.net(ldo, "1")
+    vin_max = nl.net_voltage_max(vin) or V_VBUS_MAX
+    p = (vin_max - V_VDD) * tot
+    dt = p * AP2112_THETA_JA
+    d.append("total <= %.0f mA vs %s IOUT(MAX) >= 600 mA (p.8): %s" % (tot * 1e3, ldo, "OK" if tot <= AP2112_IOUT else
+                                                                         "EXCEEDED"))
+    if tot > AP2112_IOUT:
+        status = FAIL
+    d.append("headroom: VBUS 4.75 V (USB 2.0 low end) - %.2f V = %.2f V >> dropout 400 mV max at 600 mA (p.8)"
+             % (rv[2], 4.75 - rv[2]))
+    d.append("dissipation at this bound: (%.1f V - 3.3 V) x %.0f mA = %.2f W x 184 C/W = +%.0f C; TJ <= +150 C (p.3) for "
+             "ambient up to %.0f C" % (vin_max, tot * 1e3, p, dt, 150 - dt))
+    if 150 - dt < 40:
+        status = WARN if status == PASS else status
+        d.append("the SOT25 could overheat in a warm case: give U3 copper")
+    rep.add("Q12", title, status, "RP_budget", d)
 
 
 # ---------------------------------------------------------------- charger ---
@@ -1723,8 +2787,8 @@ def check_ldo(nl, rep):
         elif en == nl.gnd:
             s1 = FAIL
             d1.append("%s EN tied to GND: regulator permanently off" % ldo)
-        elif nl.module and nl.module in [r for r, _ in nl.mems(en)]:
-            d1.append("%s EN driven by module pin %s (GPIO high >= 1.5 V enables)" % (ldo, [p for r, p in nl.mems(en) if r == nl.module]))
+        elif nl.mcu and nl.mcu in [r for r, _ in nl.mems(en)]:
+            d1.append("%s EN driven by %s pin %s (GPIO high >= 1.5 V enables)" % (ldo, nl.mcu_word, [p for r, p in nl.mems(en) if r == nl.mcu]))
         else:
             s1 = WARN if s1 == PASS else s1
             d1.append("%s EN on %s" % (ldo, nl.label(en)))
@@ -1744,7 +2808,12 @@ def check_ldo(nl, rep):
                       % (ldo, " - the BlueMicro840 reference leaves its second LDO output (Vout header pin) without a capacitor"
                          if vout != nl.vdd else ""))
         # input voltage: from USB through the Schottky, or from the battery
-        if vin == nl.vin or vin == nl.vbus:
+        if vin == nl.vbus and vin is not None and nl.vbat is None:
+            # USB only (wired variant): no battery, the regulator hangs straight on VBUS
+            d3.append("%s: VIN = VBUS, max %.1f V (USB-C tolerance) <= 6.0 V recommended / 6.5 V abs max; min 4.75 V (USB "
+                      "2.0) leaves %.2f V of headroom over 3.3 V >> the dropout (250 mV typ at 600 mA, p.8); no battery"
+                      % (ldo, V_VBUS_MAX, 4.75 - V_VDD))
+        elif vin == nl.vin or vin == nl.vbus:
             hi = V_VBUS_MAX - (0.3 if vin == nl.vin else 0.0)
             d3.append("%s: VIN max ~%.1f V (USB 5.5 V%s) <= 6.0 V recommended / 6.5 V abs max; min from battery ~3.0 V "
                       ">= 2.5 V (at VBAT < 3.55 V the 3.3 V output drops out gracefully)"
@@ -1758,7 +2827,8 @@ def check_ldo(nl, rep):
             d3.append("%s: VIN net %s not a known rail; voltage not verified" % (ldo, nl.label(vin)))
     rep.add("L01", "AP2112K-3.3: VIN/GND/EN/NC/VOUT wiring, EN level", s1, "AP_pins", d1)
     rep.add("L02", "AP2112K-3.3: input and output capacitors >= 1 uF", s2, "AP_pins", d2)
-    rep.add("L03", "AP2112K-3.3: input voltage within 2.5-6.0 V, output feeds the module", s3, "AP_limits", d3)
+    rep.add("L03", "AP2112K-3.3: input voltage within 2.5-6.0 V, output feeds the %s" % ("RP2040" if nl.rp else "module"),
+            s3, "AP_limits", d3)
 
 
 # ------------------------------------------------------------- power path ---
@@ -1766,6 +2836,26 @@ def check_schottky(nl, rep):
     ds = [r for r in nl.refs("schottky") if not nl.dnp(r)]
     if not ds:
         rep.add("P01", "Schottky VBUS -> VIN", SKIP, "B58_pins", ["no B5819W / 1N5819 found"])
+        return
+    if nl.vin is None and nl.vbat is None:
+        # no power path (USB-only board): the VBUS -> VIN rule does not apply; each Schottky is judged by its role
+        status = SKIP
+        d = ["no power path in this netlist (no VIN node behind a diode, no battery): the VBUS -> VIN rule does not apply"]
+        amp_en = {amp_net(nl, a, "EN") for a in nl.fitted("hpamp")} - {None}
+        rails = set(nl.power_nets())
+        for ref in ds:
+            a, k, assumed = nl.diode_ak(ref)
+            an, kn = nl.net(ref, a), nl.net(ref, k)
+            line = "%s: anode(%s) -> %s ; cathode(%s) -> %s" % (nl.desc(ref), a, nl.label(an), k, nl.label(kn))
+            if {an, kn} & amp_en:
+                d.append(line + " - the amplifier-EN discharge diode, judged in A14")
+            elif an in rails and kn in rails:
+                status = WARN
+                d.append(line + " - between two power rails with no power path: role unknown")
+            else:
+                d.append(line + " - signal use, not in a power path")
+        rep.add("P01", "B5819W Schottky: power-path diode VBUS -> VIN when there is a power path, otherwise judged by its "
+                "role", status, "B58_pins", d)
         return
     status = PASS
     d = []
@@ -2196,6 +3286,8 @@ def usb_role(nl, ref, pin):
         return {str(E73_DP): "D+", str(E73_DN): "D-"}.get(str(pin))
     if k == "codec":
         return {"41": "D+", "42": "D-"}.get(str(pin))
+    if k == "rp2040":
+        return {str(RP_USB_DP): "D+", str(RP_USB_DM): "D-"}.get(str(pin))
     if k == "usbc":
         return USBC_ROLE.get(str(pin)) if USBC_ROLE.get(str(pin)) in ("D+", "D-") else None
     if k == "hub":
@@ -2229,7 +3321,7 @@ def follow_usb_line(nl, net, hub):
             if r in (hub, came_from):
                 continue
             k = nl.kind[r]
-            if k in ("module", "codec") and usb_role(nl, r, p):
+            if k in ("module", "codec", "rp2040") and usb_role(nl, r, p):
                 devs.append((r, p, came_from))
             elif k == "cap" and len(nl.pins_of(r)) == 2 and nl.other_end(r, p)[1] == nl.gnd:
                 caps.append((r, parse_number(nl.value(r), "F")))
@@ -2454,6 +3546,18 @@ def check_usb_topology(nl, rep):
                 if series or caps:
                     problems.append("%s%s: series %s / shunt %s - the nRF52840 lines are wired straight "
                                     "(PS 7.3 Fig.210)" % (line, k, series, caps))
+            elif kind == "rp2040":
+                # RP2040 datasheet 1.4.2 / Table 620: a 27 Ohm series termination resistor is required on each pin
+                if len(series) != 1:
+                    problems.append("%s%s: %s - the RP2040 needs exactly one 27 Ohm series resistor per line" % (
+                        line, k, "no series resistor" if not series else "%d resistors in series" % len(series)))
+                for r, v in series:
+                    if v is None or not (24.3 <= v <= 29.7):
+                        problems.append("%s%s: series resistor %s = %s, not 27 Ohm" % (line, k, r, fmt_r(v)))
+                    else:
+                        notes.append("%s%s via %s %s Ohm" % (line, k, r, fmt_r(v)))
+                if caps:
+                    problems.append("%s%s: shunt %s - none in the RP2040 documents" % (line, k, caps))
             elif kind == "codec":
                 if len(series) != 1:
                     if not series:
@@ -2480,7 +3584,8 @@ def check_usb_topology(nl, rep):
             d.append("%s: D+ <- DP%s, D- <- DM%s%s%s" % (
                 line_txt, k, k, (" ; " + "; ".join(notes)) if notes else "",
                 " (C-Media demo board R4/R66 22 Ohm, app note 3.5 39 Ohm)" if kind == "codec" else
-                " (straight, as PS 7.3 Fig.210)" if kind == "module" else ""))
+                " (straight, as PS 7.3 Fig.210)" if kind == "module" else
+                " (27 Ohm series termination, RP2040 datasheet 1.4.2 / Table 620)" if kind == "rp2040" else ""))
         if notes and any("no series resistor" in x for x in notes):
             status = WARN if status == PASS else status
     for dev, ports in seen_dev.items():
@@ -2490,7 +3595,10 @@ def check_usb_topology(nl, rep):
     if nl.module and nl.module not in seen_dev:
         status = FAIL
         d.append("the module is not on any downstream port")
-    rep.add("U03", title, status, "CH_usb", d)
+    if nl.rp and nl.rp not in seen_dev:
+        status = FAIL
+        d.append("the RP2040 is not on any downstream port")
+    rep.add("U03", title, status, SRC["CH_usb"] + "; " + SRC["RP_usb"] if nl.rp else "CH_usb", d)
 
 
 # ---------------------------------------------------------------- CH334P hub --
@@ -2560,9 +3668,13 @@ def check_hub_power(nl, rep):
             if load and five:
                 status = WARN if status == PASS else status
                 d.append("VDD33 also feeds %s: the internal LDO supplies at most 20 mA to outside loads (p.19 4.2)" % load)
-        d.append("V5 straight from VBUS (as p.26 6.1); p.28 6.4 suggests the on-board 3.3 V for embedded hubs, but "
-                 "here that rail is battery-backed and the hub would then draw its 0.12-0.4 mA sleep current from the "
-                 "cell: the VBUS supply is the better choice")
+        if nl.vbat is None:
+            d.append("V5 straight from VBUS (as p.26 6.1); p.28 6.4's embedded-hub option (V5 = VDD33 = the on-board "
+                     "3.3 V) would put the hub on the 3.3 V regulator instead - either is allowed")
+        else:
+            d.append("V5 straight from VBUS (as p.26 6.1); p.28 6.4 suggests the on-board 3.3 V for embedded hubs, but "
+                     "here that rail is battery-backed and the hub would then draw its 0.12-0.4 mA sleep current from the "
+                     "cell: the VBUS supply is the better choice")
     rep.add("H01", title, status, "CH_power", d)
 
 
@@ -2644,12 +3756,12 @@ def check_hub_cfg(nl, rep):
                      "asks to leave it floating" % nl.labels[rst])
         else:
             others = nl.mems(rst, exclude=h)
-            gp = [p for r, p in others if r == nl.module]
+            gp = [p for r, p in others if r == nl.mcu]
             dio = [r for r, p in others if nl.kind[r] in ("schottky", "mdiode")]
             if gp:
                 status = WARN if status == PASS else status
-                d.append("RESET#/CDP driven straight by module pin %s: a high level at power-up turns CDP on and "
-                         "sleep off (p.11); Fig.3-2-2 puts a Schottky in series" % gp)
+                d.append("RESET#/CDP driven straight by %s pin %s: a high level at power-up turns CDP on and "
+                         "sleep off (p.11); Fig.3-2-2 puts a Schottky in series" % (nl.mcu_word, gp))
             elif dio:
                 d.append("RESET#/CDP driven through %s (p.11 Fig.3-2-2)" % dio)
             else:
@@ -3242,10 +4354,10 @@ def amp_gain_states(nl, a):
                if o in nl.power_nets() and o != nl.gnd]
         downs = [(r, parse_number(nl.value(r), "R")) for r, p, o in nl.two_pin_parts_on(net, ("res",)) if o == nl.gnd]
         jmp = [(r, o) for r, p, o in nl.two_pin_parts_on(net, ("jumper",))]
-        gp = [p for r, p in nl.mems(net) if r == nl.module]
+        gp = [p for r, p in nl.mems(net) if r == nl.mcu]
         states = []
         if gp:
-            states.append(("firmware", None, "%s driven by module pin %s (firmware sets the gain)" % (name, gp)))
+            states.append(("firmware", None, "%s driven by %s pin %s (firmware sets the gain)" % (name, nl.mcu_word, gp)))
             return states
         base = None
         txt = ""
@@ -3342,6 +4454,7 @@ def check_amp_ctl(nl, rep):
         return
     status = PASS
     d = []
+    rail_en = False
     for a in amps:
         combos, notes = amp_gain_states(nl, a)
         for label, v0, v1, txt in combos:
@@ -3372,14 +4485,14 @@ def check_amp_ctl(nl, rep):
             d.append("EN tied to GND: amplifier permanently off")
             continue
         mem = nl.mems(en, exclude=a)
-        gp = [p for r, p in mem if r == nl.module]
+        gp = [p for r, p in mem if r == nl.mcu]
         rs = [(r, o, parse_number(nl.value(r), "R")) for r, p, o in nl.two_pin_parts_on(en, ("res",))]
         cs_ = [(r, parse_number(nl.value(r), "F")) for r, p, o in nl.two_pin_parts_on(en, ("cap",)) if o == nl.gnd]
         ds = [r for r, p in mem if nl.kind[r] in ("schottky", "mdiode")]
         if gp:
             status = WARN if status == PASS else status
-            d.append("EN driven straight by module pin %s: firmware alone must keep it low until the source has "
-                     "settled and drop it first on power-down (p.12)" % gp)
+            d.append("EN driven straight by %s pin %s: firmware alone must keep it low until the source has "
+                     "settled and drop it first on power-down (p.12)" % (nl.mcu_word, gp))
             continue
         ctrl = [(r, o, v) for r, o, v in rs if o not in (nl.gnd, None)]
         if len(ctrl) != 1:
@@ -3387,17 +4500,24 @@ def check_amp_ctl(nl, rep):
             d.append("EN on %s with %s: cannot identify the control signal" % (nl.label(en), mem))
             continue
         rref, cnet, rv = ctrl[0]
-        cgp = [p for r, p in nl.mems(cnet) if r == nl.module]
+        cgp = [p for r, p in nl.mems(cnet) if r == nl.mcu]
         sw = [r for r, p in nl.mems(cnet) if nl.kind[r] == "loadsw" and p == "3"]
         ctot = sum(x for _, x in cs_ if x)
+        if cnet is not None and cnet in (nl.vbus, nl.vaud, nl.vdd):
+            # wired variant: EN follows a supply rail (VBUS) through an RC, no firmware involved
+            st, lines = amp_en_from_rail(nl, a, rref, cnet, rv, cs_, ds, sw)
+            d += lines
+            rail_en = True
+            status = FAIL if FAIL in (status, st) else (WARN if WARN in (status, st) else status)
+            continue
         if not cgp:
             status = WARN if status == PASS else status
-            d.append("EN control net %s is not driven by a module GPIO" % nl.label(cnet))
+            d.append("EN control net %s is not driven by a %s GPIO" % (nl.label(cnet), nl.mcu_word))
             continue
         vgpio = V_VDD
         v_inf = vgpio - (rv or 0) * 1e-6         # 1 uA EN input current (p.5)
-        d.append("EN <- %s %s <- %s (module pin %s%s); %s to GND = %s" % (
-            rref, fmt_r(rv), nl.label(cnet), cgp, ", also the %s ON pin" % sw if sw else "",
+        d.append("EN <- %s %s <- %s (%s pin %s%s); %s to GND = %s" % (
+            rref, fmt_r(rv), nl.label(cnet), nl.mcu_word, cgp, ", also the %s ON pin" % sw if sw else "",
             [(r, fmt_c(x)) for r, x in cs_], fmt_c(ctot)))
         if v_inf < 1.3:
             status = FAIL
@@ -3483,7 +4603,96 @@ def check_amp_ctl(nl, rep):
                      "steady current to %.1f uA but %s dumps its charge into the EN clamp: firmware must drop %s as "
                      "soon as VBUS goes away" % (vgpio, nl.labels.get(vdd, vdd), rref, vgpio / (rv or 1) * 1e6,
                                                  fmt_c(ctot), nl.label(cnet)))
-    rep.add("A14", title, status, "TPA_ctl", d)
+    rep.add("A14", title, status, SRC["TPA_ctl"] + "; " + SRC["TPA_ctl_rail"] if rail_en else "TPA_ctl", d)
+
+
+def amp_en_from_rail(nl, a, rref, cnet, rv, cs_, ds, sw):
+    """A14 for an amplifier EN that follows a supply rail through an RC (wired board: VBUS - 1M - EN, 470 nF to GND,
+    Schottky EN -> VBUS).  Returns (status, lines)."""
+    st = PASS
+    d = []
+    ctot = sum(x for _, x in cs_ if x)
+    en = amp_net(nl, a, "EN")
+    vdd = amp_net(nl, a, "VDD")
+    vnom = nl.net_voltage_nom(cnet) or V_VBUS_NOM
+    vmin = 4.75 if cnet in (nl.vbus, nl.vaud) else vnom
+    v_inf = vmin - (rv or 0) * 1e-6                       # 1 uA EN input current (p.5)
+    # does the amplifier supply follow the same rail? (directly, or through a load switch that the rail keeps on)
+    # (a closed TPS22919 has no reverse blocking: its output follows the input down, p.12-14)
+    follow_sw = [s for s in nl.fitted("loadsw") if nl.net(s, "1") == cnet and nl.net(s, "6") == vdd]
+    follows = vdd == cnet or bool(follow_sw)
+    on_rail_sw = [s for s in follow_sw if nl.net(s, "3") == cnet]
+    d.append("EN <- %s %s <- %s (the supply rail itself, no firmware%s); %s to GND = %s" % (
+        rref, fmt_r(rv), nl.label(cnet), ", also the %s ON pin" % sw if sw else "", [(r, fmt_c(x)) for r, x in cs_],
+        fmt_c(ctot)))
+    if v_inf < 1.3:
+        st = FAIL
+        d.append("steady EN %.2f V < VIH 1.3 V (rail at %.2f V, 1 uA through %s)" % (v_inf, vmin, fmt_r(rv)))
+    else:
+        d.append("steady EN >= %.2f V with the rail at its %.2f V minimum and the 1 uA input current: above VIH 1.3 V "
+                 "(p.4-5)" % (v_inf, vmin))
+    tau = (rv or 0) * ctot
+    if tau > 0:
+        t_lo = -tau * math.log(1 - 0.6 / vnom)
+        t_hi = -tau * math.log(1 - 1.3 / v_inf) if v_inf > 1.3 else float("inf")
+        d.append("turn-on: tau = %s x %s = %.0f ms -> EN passes 0.6-1.3 V %.0f-%.0f ms after the cable is plugged; the "
+                 "switched rail is up after ~2 ms (TPS22919 p.5): the amplifier starts after its supply and the codec "
+                 "(p.12 order kept; the CM108B output settling time is not specified - listen for a plug-in pop)" % (
+                     fmt_r(rv), fmt_c(ctot), tau * 1e3, t_lo * 1e3, t_hi * 1e3))
+        if t_lo < 5e-3:
+            st = WARN if st == PASS else st
+            d.append("EN rises almost with the rail: no real delay after the source is powered (p.12)")
+    else:
+        st = WARN if st == PASS else st
+        d.append("no capacitor on EN: the amplifier turns on together with its source (p.12 asks for after)")
+    dio_ok = False
+    if not ds:
+        if tau > 0.01:
+            st = WARN if st == PASS else st
+            d.append("no discharge diode: after an unplug EN keeps its charge for ~%.0f ms, so a quick re-plug starts "
+                     "the amplifier without delay and EN can stay above the falling VDD + 0.3 V (p.4)" % (tau * 1e3))
+    else:
+        dref = ds[0]
+        da, dk, _ = nl.diode_ak(dref)
+        if nl.net(dref, da) == en and nl.net(dref, dk) == cnet:
+            dio_ok = True
+            d.append("turn-off: %s (anode EN, cathode %s) drags EN down with the rail, one diode drop above it, and "
+                     "empties %s at every unplug: the delay starts from 0 V again at the next plug-in; reverse voltage "
+                     "<= ~1 V << VRRM 40 V (C8598.pdf p.1)" % (dref, nl.label(cnet), fmt_c(ctot)))
+        elif nl.net(dref, dk) == en and nl.net(dref, da) == cnet:
+            st = FAIL
+            d.append("%s reversed (anode on %s, cathode on EN): EN jumps up with the rail - no turn-on delay"
+                     % (dref, nl.label(cnet)))
+        else:
+            st = WARN if st == PASS else st
+            d.append("%s on EN goes to %s / %s" % (dref, nl.label(nl.net(dref, da)), nl.label(nl.net(dref, dk))))
+    if follows:
+        d.append("EN vs VDD + 0.3 V (abs max p.4): VDD %s is the same rail%s; steady EN <= the rail, at power-up EN "
+                 "lags far behind VDD, at power-down EN sits one Schottky drop above the falling rail (B5819W: only "
+                 "VF 0.6 V at 1 A is specified, p.1; at the milliamps that discharge %s it is a few tenths of a volt) - at the "
+                 "0.3 V edge for a moment, with at most %.1f uJ left in %s once EN is below VIH" % (
+                     nl.label(vdd), " through %s (ON = %s, so it stays closed while the rail falls)" % (
+                         on_rail_sw, nl.label(cnet)) if on_rail_sw else " through %s while it is on" % follow_sw
+                     if follow_sw else "", fmt_c(ctot), 0.5 * ctot * 1.3 ** 2 * 1e6,
+                     fmt_c(ctot)) if dio_ok else "EN vs VDD: see the turn-off line")
+        on_rail = {vdd} | {o for _, _, o in nl.two_pin_parts_on(vdd, ("ind",)) if o}
+        codecs = sorted({r for n in on_rail for r, p in nl.mems(n) if nl.kind[r] == "codec"})
+        if codecs:
+            c_rail = nl.cap_total(cnet) + (rail_capacitance(nl, vdd) if vdd != cnet else 0.0)
+            i_load = 37.25e-3 * len(codecs) + 2.1e-3
+            t_win = c_rail * (4.5 - 2.3) / i_load
+            st = WARN if st == PASS else st
+            d.append("power-down order NOT kept (p.12: 'deactivate the TPA6132A2 before deactivating the audio input "
+                     "source'): on unplug EN stays above VIH 1.3 V until the rail is down to ~1 V, while %s drops "
+                     "below its 4.5 V minimum (CM108B p.20) as soon as the rail does. From 4.5 V to the amplifier's own "
+                     "2.3 V minimum (p.4) the amplifier is enabled and powered while its source browns out - ~%.1f ms "
+                     "with %s on the rail and only the codec + amplifier draining it (less with the hub and the 3.3 V "
+                     "regulator also loading VBUS). The TPA6132A2 lists no undervoltage lockout. Firmware cannot help: "
+                     "EN is not under its control and nothing senses VBUS (without VBUS detection the RP2040 cannot "
+                     "tell an unplug from a suspend, RP2040 datasheet 4.1.2.8.4). A fix needs EN to fall while VBUS is "
+                     "still above 4.5 V (e.g. a ~4.6 V VBUS supervisor driving EN); otherwise bench-check for a pop when the "
+                     "cable is pulled with headphones in" % (codecs, t_win * 1e3, fmt_c(c_rail)))
+    return st, d
 
 
 # ---------------------------------------------------------------- TPS22919 switch --
@@ -3558,6 +4767,7 @@ def check_loadsw_on(nl, rep):
         return
     status = PASS
     d = []
+    tied_in = False
     for s in sws:
         on = nl.net(s, "3")
         d.append("%s ON(3) -> %s" % (s, nl.label(on)))
@@ -3569,19 +4779,42 @@ def check_loadsw_on(nl, rep):
             status = WARN if status == PASS else status
             d.append("ON tied to GND: switch permanently off")
             continue
+        if on == nl.net(s, "1") and on in nl.power_nets():
+            # wired variant: ON tied to the switch's own IN (VBUS) - on whenever the cable is in
+            tied_in = True
+            vmax = nl.net_voltage_max(on) or V_VBUS_MAX
+            vout = nl.net(s, "6")
+            cl = rail_capacitance(nl, vout)
+            d.append("ON tied to its own IN (%s): on whenever %s is present; %.1f V max <= VIH range 1-5.5 V and abs "
+                     "max 6 V (p.4), never floating (p.3); the smart pull-down plays no part (p.13 8.3.1), so no "
+                     "pull-down resistor is needed" % (nl.labels[on], nl.labels[on], vmax))
+            d.append("role: soft start only - %s on %s charged at 3.2 mV/us (~%.0f mA, tON ~2 ms at 5 V, p.5) "
+                     "after the cable has made contact, instead of being hard-wired to %s (%s directly on it)" % (
+                         fmt_c(cl), nl.label(vout), TPS_SR * cl * 1e3, nl.labels[on], fmt_c(nl.cap_total(on))))
+            d.append("on unplug the switch stays closed until %s falls below VIH (~1 V): with no reverse-current "
+                     "blocking specified (p.12-14) the %s back-feed %s and everything discharges together - harmless; "
+                     "the QOD path (S03) only acts once ON < VIL 0.35 V, i.e. at the very end" % (
+                         nl.labels[on], fmt_c(cl), nl.labels[on]))
+            others = [(x, p) for x, p in nl.mems(on) if nl.kind[x] in ("res",) and
+                      nl.other_end(x, p)[1] not in nl.power_nets()]
+            if others:
+                d.append("the same rail also drives %s (amplifier EN network, judged in A14: the unplug order is the "
+                         "real risk there, not the switch)" % sorted({x for x, _ in others}))
+            continue
         if on in nl.power_nets():
             status = WARN if status == PASS else status
             d.append("ON tied to %s: switch always on (not switchable)" % nl.labels[on])
             continue
-        gp = [int(p) for r, p in nl.mems(on) if r == nl.module]
+        gp = [int(p) for r, p in nl.mems(on) if r == nl.mcu]
         pulls = nl.resistors_between(on, nl.gnd)
         if not gp:
             status = WARN if status == PASS else status
-            d.append("ON not driven by a module GPIO: %s" % nl.mems(on, exclude=s))
+            d.append("ON not driven by a %s GPIO: %s" % (nl.mcu_word, nl.mems(on, exclude=s)))
         else:
             pin = gp[0]
-            d.append("driven by module pin %d %s: 3.3 V high >= VIH 1 V, abs max 6 V (p.4)" % (pin, E73_PINS[pin][0]))
-            if pin in (E73_P1_04, E73_P1_10):
+            d.append("driven by %s pin %d %s: 3.3 V high >= VIH 1 V, abs max 6 V (p.4)" % (nl.mcu_word, pin,
+                                                                                         nl.mcu_pin_label(pin)))
+            if nl.module and pin in (E73_P1_04, E73_P1_10):
                 status = WARN if status == PASS else status
                 d.append("pin %s is a bootloader LED pin (board.h): the bootloader toggles it and would switch the "
                          "audio supply" % E73_PINS[pin][0])
@@ -3597,7 +4830,7 @@ def check_loadsw_on(nl, rep):
                      "when high" % (r, fmt_r(v), (v or 0) * ileak * 1e3, V_VDD / (v or 1) * 1e6))
             if v and v * ileak > 0.35:
                 status = FAIL
-            others = [(x, p) for x, p in nl.mems(on) if x not in (s, nl.module, r)]
+            others = [(x, p) for x, p in nl.mems(on) if x not in (s, nl.mcu, r)]
             if others:
                 d.append("the enable also feeds %s (amplifier EN network, A14)" % sorted({x for x, _ in others}))
                 dio = [x for x, p in others if nl.kind[x] in ("schottky", "mdiode")]
@@ -3611,7 +4844,10 @@ def check_loadsw_on(nl, rep):
                     d.append("if the GPIO goes high-Z while on (MCU reset), %s back-feeds ON from the EN capacitor %s: "
                              "the switch opens only ~%.0f ms later (%s x %s)" % (dio, fmt_c(c), v * c * 1e3,
                                                                                     fmt_r(v), fmt_c(c)))
-    rep.add("S02", title, status, "TPS_on", d)
+    if tied_in:
+        title = "TPS22919 ON (sound-card enable): a GPIO with a pull-down, or tied to its own IN (always on: soft start " \
+                "only); never floating"
+    rep.add("S02", title, status, "TPS_on_rail" if tied_in else "TPS_on", d)
 
 
 def check_loadsw_qod(nl, rep):
@@ -3747,6 +4983,8 @@ def check_leds(nl, rep):
             return ("gnd" if net == nl.gnd else "supply", net, None)
         if nl.module and nl.module in [r for r, _ in nl.mems(net)]:
             return ("gpio", net, None)
+        if nl.rp and any(r == nl.rp and int(p) in RP_GPIO for r, p in nl.mems(net)):
+            return ("gpio", net, None)
         if nl.charger and (nl.charger, nl.pin_by_role(nl.charger, CHARGER_ROLE, "STAT")) in nl.mems(net):
             return ("stat", net, None)
         rs = nl.two_pin_parts_on(net, ("res",), exclude=exclude)
@@ -3800,7 +5038,18 @@ def check_leds(nl, rep):
         if i > ifmax:
             status = FAIL
             d.append("  exceeds the LED maximum forward current")
-        if ka == "gpio" or kk == "gpio":
+        if (ka == "gpio" or kk == "gpio") and nl.rp:
+            # RP2040 drive strength 2/4/8/12 mA, default 4 mA; VOH >= 2.62 V at the selected current (Tables 614, 625)
+            if i > 12.0:
+                status = FAIL
+                d.append("  above the 12 mA strongest drive setting (Table 614)")
+            elif i > 4.0:
+                status = WARN if status == PASS else status
+                d.append("  above the default 4 mA drive: firmware must select 8 or 12 mA (Table 614), or the LED is dimmer")
+            else:
+                d.append("  within the default 4 mA drive (VOH >= 2.62 V at 4 mA, Table 625); counts toward the 50 mA "
+                         "all-pin limit (IIOVDD_MAX)")
+        elif ka == "gpio" or kk == "gpio":
             if i > 4.0:
                 status = FAIL
                 d.append("  exceeds the GPIO standard-drive capability (IOH/IOL max 4 mA): needs high drive (<= 15 mA)")
@@ -3816,21 +5065,39 @@ def check_leds(nl, rep):
         if "stat" in (ka, kk):
             d.append("  charge indicator on the %s status pin (%s; see C04)" % (nl.chg_model, SRC[md.get("src", "TP_chrg")].split(" (")[0]))
         if ka == "gpio":
-            pin = [int(p) for rr, p in nl.mems(fa) if rr == nl.module][0]
-            d.append("  active-high LED on module pin %d %s" % (pin, E73_PINS[pin][0]))
+            pin = [int(p) for rr, p in nl.mems(fa) if rr == nl.mcu][0]
+            d.append("  active-high LED on %s pin %d %s" % (nl.mcu_word, pin, nl.mcu_pin_label(pin)))
         elif kk == "gpio":
-            pin = [int(p) for rr, p in nl.mems(fk) if rr == nl.module][0]
+            pin = [int(p) for rr, p in nl.mems(fk) if rr == nl.mcu][0]
             vhi_max = nl.net_voltage_max(fa) or V_VDD
-            d.append("  active-low LED on module pin %d %s from %s" % (pin, E73_PINS[pin][0], nl.labels.get(fa, fa)))
+            d.append("  active-low LED on %s pin %d %s from %s" % (nl.mcu_word, pin, nl.mcu_pin_label(pin),
+                                                                 nl.labels.get(fa, fa)))
             if vhi_max - vfmin > V_VDD + 0.3:
                 status = WARN if status == PASS else status
                 d.append("  with the pin high-Z the LED pulls it to %.1f - %.2f = %.2f V > VI/O max %.1f V"
                          % (vhi_max, vfmin, vhi_max - vfmin, V_VDD + 0.3))
-    rep.add("D01", "LEDs: polarity, series resistor, current within LED / driver limits", status, "LED_red", d)
+    meta_led = (nl.data.get("matrix") or {}).get("status_led")
+    if nl.rp and meta_led:
+        # the firmware drives the pin named in the metadata: it must be the one with the LED on it
+        pad = nl.mcu_pin_by_name(meta_led)
+        net = nl.rppin(pad) if pad else None
+        near = {net} | {o for _, _, o in nl.two_pin_parts_on(net, ("res",))} if net else set()
+        hit = sorted(l for l in leds if near & {nl.net(l, p) for p in nl.pins_of(l)})
+        if hit:
+            d.append("matrix.status_led %s = pad %d %s: drives %s" % (meta_led, pad, RP_PINS[pad], hit))
+        else:
+            status = FAIL
+            d.append("matrix.status_led %s (pad %s) has no LED on it: the firmware would drive the wrong pin"
+                     % (meta_led, pad))
+    rep.add("D01", "LEDs: polarity, series resistor, current within LED / driver limits", status,
+            SRC["LED_red"] + "; " + SRC["RP_io"] if nl.rp else "LED_red", d)
 
 
 # --------------------------------------------------------- reset button -----
 def check_reset_button(nl, rep):
+    if nl.rp:
+        check_rp_buttons(nl, rep)
+        return
     if not nl.module:
         rep.add("R01", "reset button", SKIP, "TACT", [])
         return
@@ -3862,6 +5129,43 @@ def check_reset_button(nl, rep):
                          % tuple(used))
         d.append("contact rating 50 mA / 12 V: fine for a logic input; no debouncing needed (reset)")
     rep.add("R01", "reset push button between RESET and GND, unused pads open", status, "TACT", d)
+
+
+def check_rp_buttons(nl, rep):
+    """R01 on an RP2040: the RESET (RUN) and BOOT (QSPI_SS strap) push buttons close to GND, pads paired right."""
+    title = "RESET (RUN) and BOOT (QSPI_SS strap) push buttons between their signal and GND, unused pads open"
+    run = nl.rppin(RP_RUN)
+    sig = {}
+    for t in nl.fitted("tact"):
+        nets = {nl.net(t, p) for p in nl.pins_of(t)}
+        if run is not None and run in nets:
+            sig[t] = (run, "RESET: RUN")
+        for ref, rb, bnet in rp_boot_paths(nl):
+            if bnet in nets:
+                sig[t] = (bnet, "BOOT: QSPI_SS through %s %s" % (ref, fmt_r(rb)))
+    if not sig:
+        rep.add("R01", title, SKIP, "TACT", ["no tactile switch on RUN or on a QSPI_SS strap"])
+        return
+    status = PASS
+    d = []
+    for t, (net, what) in sorted(sig.items()):
+        nets = {p: nl.net(t, p) for p in nl.pins_of(t)}
+        used = {p: n for p, n in nets.items() if n is not None}
+        d.append("%s (%s): %s" % (nl.desc(t), what, {p: nl.label(n) for p, n in nets.items()}))
+        if set(used.values()) != {net, nl.gnd}:
+            status = FAIL
+            d.append("the used pads must be exactly %s and GND" % nl.label(net))
+        if len(nets) == 4:
+            if len(used) != 2:
+                status = FAIL
+                d.append("a 4-pad switch must use one pad of each internal pair; %d pads connected" % len(used))
+            else:
+                status = WARN if status == PASS else status
+                d.append("datasheet: pads A-B and C-D are joined internally; it only shows letters, so the footprint's "
+                         "1-4 numbering cannot be verified here - on the bare board measure that pad %s to pad %s is "
+                         "OPEN when not pressed (if they are an internal pair the switch is always closed)" % tuple(used))
+    d.append("contact rating 50 mA / 12 V: fine for logic-level straps; no debouncing needed (reset / boot strap)")
+    rep.add("R01", title, status, "TACT", d)
 
 
 # ------------------------------------------------------------ test points ---
@@ -3911,6 +5215,14 @@ def pin_may_float(nl, ref, pin):
         return TPS22919_PINS.get(pin) in ("NC", "QOD")  # p.3
     if k == "jack":
         return True
+    if k == "rp2040":
+        # supplies, the ground pad and TESTEN must be connected (Tables 619 / 621); GPIO have pull-downs at reset
+        # (Table 615); XIN/XOUT, QSPI, USB, RUN and SWD are judged by Q06-Q11
+        if not pin.isdigit() or int(pin) not in RP_PINS:
+            return False
+        return not (int(pin) in RP_SUPPLY_PINS - {RP_VREG_VOUT} or int(pin) == RP_TESTEN)
+    if k == "flash":
+        return False                                    # all eight pins have a function (W25Q128JV p.5)
     return None
 
 
@@ -3993,7 +5305,7 @@ def matrix_meta_pins(nl, key):
         return None
     out = []
     for name in lst:
-        pin = e73_pin_by_name(name)
+        pin = nl.mcu_pin_by_name(name)
         out.append(pin)
     return out
 
@@ -4005,12 +5317,12 @@ def check_matrix(nl, rep):
         rep.add("K01", "key matrix cells", SKIP, "D4148", ["no key switches"])
         rep.add("K02", "matrix nets and coordinates", SKIP, "D4148", [])
         return
-    if not nl.module:
+    if not nl.mcu:
         rep.add("K01", "key matrix cells", FAIL, "D4148", ["no module"])
         return
     s1 = PASS
     d1 = []
-    gpio_net = {nl.modpin(p): p for p in E73_GPIO if nl.modpin(p)}
+    gpio_net = nl.mcu_gpio_nets()
     cells = []       # (ref, col_net, row_net, diode)
     col_nets, row_nets = set(), set()
 
@@ -4020,7 +5332,7 @@ def check_matrix(nl, rep):
         colp = [p for p, n in nets.items() if n in gpio_net]
         if len(colp) != 1:
             s1 = FAIL
-            d1.append("%s: expected exactly one pin on a column (module GPIO) net, got %s" % (label, {p: nl.label(n) for p, n in nets.items()}))
+            d1.append("%s: expected exactly one pin on a column (%s GPIO) net, got %s" % (label, nl.mcu_word, {p: nl.label(n) for p, n in nets.items()}))
             return
         cp = colp[0]
         sp = [p for p in pins if p != cp][0]
@@ -4045,7 +5357,7 @@ def check_matrix(nl, rep):
         rn = nl.net(dref, k)
         if rn not in gpio_net:
             s1 = FAIL
-            d1.append("%s: diode %s cathode on %s which is not a module GPIO (row) net" % (label, dref, nl.label(rn)))
+            d1.append("%s: diode %s cathode on %s which is not a %s GPIO (row) net" % (label, dref, nl.label(rn), nl.mcu_word))
             return
         if rn == cn:
             s1 = FAIL
@@ -4090,17 +5402,17 @@ def check_matrix(nl, rep):
     s2 = PASS
     d2 = []
     for cn in sorted(col_nets):
-        bad = [(r, p) for r, p in nl.mems(cn) if not ((nl.kind[r] == "key") or (nl.kind[r] == "enc" and p.upper() in ("S1", "S2")) or r == nl.module)]
-        mp = nl.module_pins_on(cn)
+        bad = [(r, p) for r, p in nl.mems(cn) if not ((nl.kind[r] == "key") or (nl.kind[r] == "enc" and p.upper() in ("S1", "S2")) or r == nl.mcu)]
+        mp = nl.mcu_pins_on(cn)
         if bad or len(mp) != 1:
             s2 = FAIL
-            d2.append("column net %s: foreign members %s, module pins %s" % (cn, bad, mp))
+            d2.append("column net %s: foreign members %s, %s pins %s" % (cn, bad, nl.mcu_word, mp))
     for rn in sorted(row_nets):
-        bad = [(r, p) for r, p in nl.mems(rn) if not (nl.kind[r] == "mdiode" or r == nl.module)]
-        mp = nl.module_pins_on(rn)
+        bad = [(r, p) for r, p in nl.mems(rn) if not (nl.kind[r] == "mdiode" or r == nl.mcu)]
+        mp = nl.mcu_pins_on(rn)
         if bad or len(mp) != 1:
             s2 = FAIL
-            d2.append("row net %s: foreign members %s, module pins %s" % (rn, bad, mp))
+            d2.append("row net %s: foreign members %s, %s pins %s" % (rn, bad, nl.mcu_word, mp))
     if col_nets & row_nets:
         s2 = FAIL
         d2.append("nets used both as row and column: %s" % (col_nets & row_nets))
@@ -4112,17 +5424,17 @@ def check_matrix(nl, rep):
         if None in rows_meta or set(rows_meta) != set(row_pin.values()):
             s2 = FAIL
             d2.append("matrix.rows %s does not match the row pins found %s"
-                      % (nl.data["matrix"].get("rows"), sorted(E73_PINS[p][0] for p in row_pin.values())))
+                      % (nl.data["matrix"].get("rows"), sorted(nl.mcu_pin_label(p) for p in row_pin.values())))
         if None in (cols_meta or [None]) or set(cols_meta or []) != set(col_pin.values()):
             s2 = FAIL
             d2.append("matrix.cols %s does not match the column pins found %s"
-                      % (nl.data["matrix"].get("cols"), sorted(E73_PINS[p][0] for p in col_pin.values())))
+                      % (nl.data["matrix"].get("cols"), sorted(nl.mcu_pin_label(p) for p in col_pin.values())))
         row_index = {p: i for i, p in enumerate(rows_meta)}
         col_index = {p: i for i, p in enumerate(cols_meta or [])}
     else:
         row_index = {p: i for i, p in enumerate(sorted(row_pin.values()))}
         col_index = {p: i for i, p in enumerate(sorted(col_pin.values()))}
-        d2.append("no matrix metadata: rows/cols numbered by module pin order")
+        d2.append("no matrix metadata: rows/cols numbered by %s pin order" % nl.mcu_word)
     coords = defaultdict(list)
     for ref, cn, rn, dref, cp in cells:
         r = row_index.get(row_pin[rn])
@@ -4132,7 +5444,7 @@ def check_matrix(nl, rep):
         if r is None or c is None:
             s2 = FAIL
             d2.append("%s: its row/column pin (%s / %s) is not listed in the matrix metadata"
-                      % (ref, E73_PINS[row_pin[rn]][0], E73_PINS[col_pin[cn]][0]))
+                      % (ref, nl.mcu_pin_label(row_pin[rn]), nl.mcu_pin_label(col_pin[cn])))
         m = re.search(r"\((\d+)\s*,\s*(\d+)\)", note)
         if m and (int(m.group(1)), int(m.group(2))) != (r, c):
             s2 = WARN if s2 == PASS else s2
@@ -4143,18 +5455,19 @@ def check_matrix(nl, rep):
         d2.append("two switches on the same (row, col): %s" % dups)
     d2.insert(0, "%d rows x %d columns, %d cells occupied, rows %s, cols %s" % (
         len(row_nets), len(col_nets), len(coords),
-        [E73_PINS[p][0].split("/")[0] for p in (rows_meta or sorted(row_pin.values()))],
-        [E73_PINS[p][0].split("/")[0] for p in (cols_meta or sorted(col_pin.values()))]))
+        [nl.mcu_pin_label(p).split("/")[0] for p in (rows_meta or sorted(row_pin.values()))],
+        [nl.mcu_pin_label(p).split("/")[0] for p in (cols_meta or sorted(col_pin.values()))]))
     # gpio metadata
     g = nl.data.get("gpio")
     if g:
-        wrong = [(p, n, nl.modpin(int(p))) for p, n in g.items() if nl.modpin(int(p)) != n]
+        wrong = [(p, n, nl.mcupin(int(p))) for p, n in g.items() if nl.mcupin(int(p)) != n]
         if wrong:
             s2 = FAIL
             d2.append("gpio metadata mismatch (pin, claimed net, actual net): %s" % wrong)
         else:
             d2.append("gpio metadata (%d entries) agrees with the netlist" % len(g))
-    rep.add("K02", "row/column nets pure (one module pin each), no duplicate cell, metadata agrees", s2, "D4148", d2)
+    rep.add("K02", "row/column nets pure (one %s pin each), no duplicate cell, metadata agrees" % nl.mcu_word, s2, "D4148",
+            d2)
 
 
 def check_encoders(nl, rep):
@@ -4164,7 +5477,7 @@ def check_encoders(nl, rep):
         return
     status = PASS
     d = []
-    gpio_net = {nl.modpin(p): p for p in E73_GPIO if nl.modpin(p)}
+    gpio_net = nl.mcu_gpio_nets()
     found = []
     for e in encs:
         pins = {p.upper(): p for p in nl.pins_of(e)}
@@ -4176,13 +5489,13 @@ def check_encoders(nl, rep):
             net = nl.net(e, p) if p else None
             if net is None or net not in gpio_net:
                 status = FAIL
-                d.append("%s: %s must go to a module GPIO" % (e, nm))
+                d.append("%s: %s must go to a %s GPIO" % (e, nm, nl.mcu_word))
                 continue
             extra = nl.mems(net, exclude=e)
-            if len(extra) != 1 or extra[0][0] != nl.module:
+            if len(extra) != 1 or extra[0][0] != nl.mcu:
                 status = FAIL
                 d.append("%s: %s net %s shared with %s (must be a dedicated GPIO)" % (e, nm, net, extra))
-            ab.append(E73_PINS[gpio_net[net]][0].split("/")[0])
+            ab.append(nl.mcu_pin_label(gpio_net[net]).split("/")[0])
         found.append(tuple(ab))
         for nm in ("C", "MP"):
             ps = [p for u, p in pins.items() if u == nm or u.startswith(nm)]
@@ -4193,11 +5506,19 @@ def check_encoders(nl, rep):
                     d.append("%s: %s on %s, expected GND" % (e, p, nl.label(nl.net(e, p))))
         if not ("S1" in pins and "S2" in pins):
             d.append("%s: no push switch pins" % e)
-    d.append("A/B read with the GPIO internal pull-ups (13 kOhm -> ~0.25 mA): within the 10 mA / 5 V DC contact rating; "
-             "C (common) to GND")
+    if nl.rp:
+        d.append("A/B read with the GPIO internal pull-ups (50-80 kOhm, RP2040 Table 625 -> <= 66 uA): within the "
+                 "10 mA / 5 V DC contact rating; C (common) to GND")
+    else:
+        d.append("A/B read with the GPIO internal pull-ups (13 kOhm -> ~0.25 mA): within the 10 mA / 5 V DC contact rating; "
+                 "C (common) to GND")
     meta = (nl.data.get("matrix") or {}).get("encoders")
     if meta is not None:
-        want = {tuple(sorted((x["a"].replace("_", "."), x["b"].replace("_", ".")))) for x in meta}
+        if nl.rp:
+            want = {tuple(sorted(RP_PINS.get(rp_pin_by_name(x[k]) or 0, x[k]).split("/")[0] for k in ("a", "b")))
+                    for x in meta}
+        else:
+            want = {tuple(sorted((x["a"].replace("_", "."), x["b"].replace("_", ".")))) for x in meta}
         got = {tuple(sorted(ab)) for ab in found}
         if want != got:
             status = WARN if status == PASS else status
@@ -4210,7 +5531,8 @@ def check_encoders(nl, rep):
 # ------------------------------------------------------------- bootloader ---
 def check_bootloader(nl, rep):
     if not nl.module:
-        rep.add("B01", "bootloader pin usage", SKIP, "BOOT", [])
+        rep.add("B01", "bootloader pin usage", SKIP, "BOOT",
+                ["no E73: the RP2040 boots from its USB boot ROM (BOOTSEL strap checked in Q08)"] if nl.rp else [])
         return
     status = PASS
     d = []
@@ -4258,6 +5580,9 @@ def run(path):
         ("M03", check_module_vbus), ("M04", check_module_usb_data), ("M05", check_module_swd),
         ("M06", check_module_reset), ("M07", check_crystal), ("M08", check_nfc), ("M09", check_dcch),
         ("M10", check_gpio_nets), ("M11", check_gpio_overvoltage), ("M12", check_module_pin_names),
+        ("Q01", check_rp_pins), ("Q02", check_rp_gnd), ("Q03", check_rp_supply), ("Q04", check_rp_decoupling),
+        ("Q05", check_rp_core), ("Q06", check_rp_crystal), ("Q07", check_rp_flash), ("Q08", check_rp_bootsel),
+        ("Q09", check_rp_run), ("Q10", check_rp_swd), ("Q11", check_rp_usb), ("Q12", check_rp_budget),
         ("C01", check_charger_pins), ("C02", check_charger_bypass), ("C03", check_charger_prog),
         ("C04", check_charger_stat), ("C05", check_charger_outcap), ("C06", check_charger_detect),
         ("L01-L03", check_ldo),

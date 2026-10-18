@@ -1,13 +1,14 @@
 """Placement of the electronics (everything that is not a key) in the strip behind the top row, bottom side.
 
-The connectivity comes from pcb/circuit.py; this file only decides where each part goes and which module pad
+The connectivity comes from pcb/circuit.py; this file only decides where each part goes and which RP2040 pad
 takes which matrix line (chosen from the geometry so that the fan-out does not cross itself). A few connections are
-drawn here instead of by the autorouter: the USB high-speed pair (usb_pair), the hub's downstream escapes, the
-escape vias of the module's inner pads and of the codec's ground pins.
+drawn here instead of by the autorouter: the USB high-speed pair (usb_pair), the hub's downstream escapes and its
+crystal, the RP2040's ground (exposed pad and TESTEN) and core supply, the codec's and the amplifier's ground pins and the
+amplifier's supply.
 """
 import math
 
-from circuit import RP_FIXED, RP_GPIO, RP_INNER_GPIO, electronics as circuit_parts, rp_pin
+from circuit import RP_FIXED, RP_GPIO, electronics as circuit_parts, rp_pin
 
 STRIP_DEPTH = 22.0  # mm of PCB behind the top row
 
@@ -15,16 +16,12 @@ X_USB = 110.0  # KiCad x of the USB-C receptacle (about 30% of the width, like t
 X_MCU = 135.0
 X_CODEC = 200.0  # sound card: codec, its parts to the right of it, the headset jack on the back edge
 X_JACK = 243.0
-X_SW = 88.0  # power switch
-SWD_PITCH = 2.54
-# Antenna (the module's end at the back edge): no copper on either layer under it and for a margin past it. The
-# matrix leaves the three pads next to the antenna free (E73_NEAR_ANTENNA), so the copper-free area reaches past them.
-ANTENNA_KEEPOUT = 4.6  # depth from the back edge (mm)
-ANTENNA_HALF_WIDTH = 13.0  # either side of the module's axis: no track runs along the back edge past the antenna
-# Under the module, on its own layer (bottom): ground copper only (Ebyte E73 datasheet 5.1), apart from the escapes of
-# the inner pads; the area, relative to the module centre (x0, y0, x1, y1)
-UNDER_MODULE = (-2.8, -8.0, 5.0, 3.3)
-ROW_PADS = (15, 17, 10, 8)  # front-edge and front-right pads of the module, for the 4 row lines
+Y_MCU = 12.5  # RP2040 centre, behind the strip's front edge (the back edge is y = top)
+SWD_PITCH, SWD_Y = 2.0, 9.8  # SWD pads: pitch, and their row behind the RP2040's centre (mm)
+# The RP2040 is turned so that its QSPI / USB / supply side faces the back edge and its crystal / SWD side the keys;
+# the matrix lines and the status LED leave from the two sides that face along the strip (pads 1-14 and 29-42).
+MATRIX_SIDES = (range(1, 15), range(29, 43))
+EP_VIAS = ((0.0, 0.0), (0.8, 0.0), (-0.8, 0.0), (0.0, 0.8), (0.0, -0.8))  # ground vias in the exposed pad (mm)
 CODEC_VIA = 2.6  # ground vias under the codec, this far from its centre
 HS_CORRIDOR = "usb-hs-corridor"  # rule area under the USB high-speed pair (finish_pcb.py finds it by name)
 JACK_PEG = 1.0  # locating holes of the headset jack (HRO PJ-320D-4A drawing: 1.00 mm for 0.75 mm pegs)
@@ -48,37 +45,57 @@ def pad_xy(fp, num):
 
 
 def positions(top):
-    """ref -> (x, y, rotation) in board mm. Everything is on the bottom side (KiCad mirrors the footprint
-    top<->bottom, so orientation 0 points a footprint's +y side towards the back edge). The RP2040 block sits where
-    the nRF module was; the sound card is unchanged."""
-    m = X_MCU
+    """ref -> (x, y, rotation) in board mm. Every connector faces the back edge (board y = top): on the bottom side
+    KiCad mirrors the footprint top<->bottom, so orientation 0 already points a footprint's +y side towards the back
+    edge. Vertical two-pad parts: rotation 90 puts pad 1 towards the keys, 270 towards the back edge."""
+    m, c = X_MCU, top + Y_MCU
     pos = {
-        # --- RP2040, QSPI flash, 12 MHz crystal, decoupling ring
-        "U1": (m, top + 11.0, 0),
-        "U2": (m + 16.0, top + 11.0, 0), "C15": (m + 19.0, top + 16.0, 90),
-        "Y1": (m - 9.0, top + 11.0, 0), "C13": (m - 9.0, top + 15.0, 0), "C14": (m - 9.0, top + 7.0, 0),
-        "R01": (m - 6.0, top + 11.5, 90),
-        "C01": (m - 7.5, top + 3.5, 0), "C02": (m - 4.5, top + 3.5, 0), "C03": (m - 1.5, top + 3.5, 0),
-        "C04": (m + 1.5, top + 3.5, 0), "C05": (m + 4.5, top + 3.5, 0), "C06": (m + 7.5, top + 3.5, 0),
-        "C07": (m - 7.5, top + 18.5, 0), "C08": (m - 4.5, top + 18.5, 0), "C09": (m - 1.5, top + 18.5, 0),
-        "C10": (m + 1.5, top + 18.5, 0), "C11": (m + 4.5, top + 18.5, 0), "C12": (m + 7.5, top + 18.5, 0),
-        "R05": (m + 10.5, top + 3.5, 90), "R06": (m + 13.5, top + 3.5, 90),
-        "R02": (m + 10.5, top + 15.0, 90), "R03": (m + 10.5, top + 18.5, 90),
-        "C16": (m - 38.0, top + 14.0, 0), "R04": (m - 13.0, top + 3.5, 90),
-        # --- freed left area: SWD pads, buttons, LED, 3.3 V regulator and its capacitors, VBUS test pad
-        "TP1": (m - 62.0, top + 6.0, 0), "TP2": (m - 62.0, top + 8.54, 0),
-        "TP3": (m - 62.0, top + 11.08, 0), "TP4": (m - 62.0, top + 13.62, 0),
-        "SW101": (m - 50.0, top + 6.0, 0), "SW102": (m - 50.0, top + 15.0, 0),
-        "D60": (m - 40.0, top + 4.5, 90), "R07": (m - 40.0, top + 7.5, 90),
-        "U4": (m - 34.0, top + 11.0, 0), "C18": (m - 37.5, top + 11.0, 90), "C17": (m - 29.5, top + 16.0, 90),
-        "C19": (m - 34.0, top + 16.0, 90), "TP5": (m - 45.0, top + 19.5, 0),
-        # --- USB-C on the back edge, CC resistors, ESD array
-        "J1": (X_USB, top - 0.4 + 3.65, 0), "R08": (X_USB - 5.5, top + 11.0, 90), "R09": (X_USB + 5.5, top + 10.6, 270),
-        "U3": (X_USB, top + 12.5, 180),
-        # --- USB hub right behind the ESD array
+        # RP2040 turned 180 degrees: pads 43-56 (supplies, USB, QSPI) towards the back edge, 15-28 (crystal, SWD,
+        # RUN) towards the keys, 1-14 on the right, 29-42 on the left
+        "U1": (m, c, 180),
+        # behind it, in the order of their pads (left to right: ADC_AVDD, VREG_VIN, VREG_VOUT, USB D- / D+,
+        # USB_VDD, IOVDD, DVDD) and left of the QSPI pads, so that no two connections cross: the supply capacitors
+        # and the two 27 ohm resistors, supply pad towards the RP2040
+        "C8": (m - 11.6, c - 7.4, 270), "C11": (m - 10.0, c - 7.4, 270), "C12": (m - 8.4, c - 7.4, 270),
+        "R6": (m - 6.8, c - 7.4, 270), "R5": (m - 5.2, c - 7.4, 270), "C7": (m - 3.6, c - 7.4, 270),
+        "C6": (m - 2.0, c - 7.4, 270), "C10": (m - 0.4, c - 7.4, 270),
+        # QSPI flash behind-right of the QSPI pads (51-56): /CS, DO, WP, GND face them from the front backwards, DI,
+        # CLK, HOLD come round its back edge in the same order; VCC capacitor and /CS pull-up at its front
+        "U2": (m + 8.8, top + 4.3, 0), "C15": (m + 14.4, top + 7.6, 0), "R2": (m + 9.2, top + 8.2, 180),
+        # the side supply pins: IOVDD 1 (right, back end), 10 (right), 33 (left), 42 (left, back end); the two in the
+        # middle of a side 5.5 mm out, so that the matrix lines around them can fan out first
+        "C1": (m + 6.0, c - 3.0, 0), "C2": (m + 9.5, c + 1.0, 0),
+        "C4": (m - 9.5, c + 1.0, 180), "C5": (m - 6.0, c - 3.2, 180),
+        # in front, in the order of their pads (DVDD 23, IOVDD 22, XOUT 21, XIN 20) and right of the SWD and RUN pads
+        # (24-26, whose lines leave to the left): the core and I/O capacitors, the 1k on XOUT, the 12 MHz crystal (XOUT
+        # end to the left, XIN to the right) and its load capacitors
+        "C9": (m - 0.1, c + 6.8, 270), "C3": (m + 1.4, c + 6.8, 270), "R1": (m + 2.9, c + 6.8, 270),
+        "Y1": (m + 5.9, c + 7.2, 270), "C13": (m + 9.2, c + 6.1, 0), "C14": (m + 3.5, c + 10.2, 180),
+        # SWD pads in one row in front of the RP2040, just past the strip, below their pins (lines drawn here):
+        # SWCLK, SWDIO, RESET, GND; the 3V3 pad behind the package, next to its capacitors
+        "TP2": (m - 1.0, c + SWD_Y, 0), "TP1": (m - 1.0 - SWD_PITCH, c + SWD_Y, 0),
+        "TP5": (m - 1.0 - 2 * SWD_PITCH, c + SWD_Y, 0), "TP4": (m - 1.0 - 3 * SWD_PITCH, c + SWD_Y, 0),
+        "TP3": (m - 14.2, c - 7.4, 0),
+        "C103": (m - 11.8, c - 3.6, 0),
+        # BOOT and RESET buttons right of the flash (BOOT under the case's paperclip hole), the BOOT resistor and
+        # the RUN pull-up next to them
+        "SW101": (m + 21.0, top + 5.5, 0), "SW102": (m + 29.5, top + 5.5, 0),
+        "R3": (m + 17.0, top + 5.5, 90), "R4": (m + 25.2, top + 5.5, 90),
+        "TP6": (82.5, top + 19.3, 0),
+        # USB-C on the back edge (overhangs it by 0.4 mm), CC resistors and ESD array behind it; the ESD array is
+        # turned so that D+ is the upper pin on both sides (the order of the hub's upstream pins)
+        "J1": (X_USB, top - 0.4 + 3.65, 0), "R108": (X_USB - 5.5, top + 11.0, 90), "R109": (X_USB + 5.5, top + 10.6, 270),
+        "U4": (X_USB, top + 12.5, 180),
+        # USB hub right behind the ESD array: upstream pins (left side) facing it, the crystal on its right, the
+        # supply capacitors above it; ports 2 and 3 (front side) go down to the channel along the keys, port 3 to
+        # the RP2040, port 2 to the codec
         "U5": (X_USB + 6.5, top + 17.5, 180), "Y2": (X_USB + 10.55, top + 17.6, 90),
         "C110": (X_USB + 6.9, top + 13.8, 90), "C112": (X_USB + 8.6, top + 13.8, 90),
         "C111": (X_USB + 10.3, top + 13.8, 90),
+        # status LED behind the port window in the back wall, as on the wireless board
+        "D103": (101.0, top + 2.0, 90), "R107": (101.0, top + 5.2, 90),
+        # 3.3 V regulator with its input and output capacitors next to its pins (the wireless board's place)
+        "U3": (103.0, top + 19.0, 0), "C102": (99.6, top + 19.0, 90), "C108": (106.4, top + 19.0, 90),
     }
     pos.update(audio_positions(top))
     return pos
@@ -112,10 +129,10 @@ def audio_positions(top):
         "U7": (m, top + 10.0, 0),
         "JP3": (m - 1.4, top + 5.6, 0), "R112": (m + 1.8, top + 5.6, 270), "C135": (m + 4.0, top + 6.6, 90),
         "C136": (m + 3.4, top + 9.9, 90), "C134": (m + 3.4, top + 13.2, 270), "C133": (m, top + 14.6, 270),
-        # amplifier enable: 1M + 470 nF delay from P1.02, Schottky to switch it off at once
+        # amplifier enable: 1M + 470 nF delay from VBUS, Schottky that drags it down with VBUS
         "C137": (m + 2.2, top + 16.4, 270), "R113": (m + 4.6, top + 16.4, 90), "D104": (m + 4.0, top + 20.2, 0),
-        # supply switch (VBUS -> AUD_5V) with its input capacitor and pull-down, AUD_5V bulk
-        "U8": (c + 12.6, top + 17.6, 0), "C130": (c + 12.6, top + 20.4, 270), "R117": (c + 14.8, top + 20.8, 90),
+        # supply switch (VBUS -> AUD_5V) with its input capacitor, AUD_5V bulk
+        "U8": (c + 12.6, top + 17.6, 0), "C130": (c + 12.6, top + 20.4, 270),
         "R118": (c + 14.86, top + 17.6, 90), "C113": (m, top + 18.8, 90), "C114": (c + 14.4, top + 14.4, 90),
         # ferrites and 100 pF next to the jack's tip and ring 1 (a filter at the connector, against RF and ESD)
         "L104": (j - 9.2, top + 6.6, 90), "L103": (j - 9.2, top + 12.6, 90),
@@ -145,6 +162,9 @@ def add_electronics(B, left, top, right, keys_top):
                               lcsc=part.lcsc, in_bom=part.lcsc is not None)
     u1 = placed["U1"]
     import pcbnew
+    rp2040_ground(B, placed)
+    rp2040_core(B, placed)
+    swd_lines(B, placed)
     usb_pair(B, placed)
     hub_ports(B, placed)
     for pad in placed["J3"].Pads():  # the jack's locating pegs: 1.0 mm holes as on the HRO drawing (KiCad: 1.6)
@@ -152,9 +172,9 @@ def add_electronics(B, left, top, right, keys_top):
             size = pcbnew.VECTOR2I(pcbnew.FromMM(JACK_PEG), pcbnew.FromMM(JACK_PEG))
             pad.SetDrillSize(size)
             pad.SetSize(size)
-    for ref, path in MODELS.items():
+    for ref, step in MODELS.items():
         model = pcbnew.FP_3DMODEL()
-        model.m_Filename = path
+        model.m_Filename = step
         placed[ref].Models().clear()
         placed[ref].Models().push_back(model)
     # the hub's exposed pad (its only ground) is ringed by its pins: a via at its centre, between the four paste
@@ -167,6 +187,14 @@ def add_electronics(B, left, top, right, keys_top):
         gnd_via(B, placed[ref])
     x0, y0, x1, y1 = HUB_KEEPOUT
     keepout(B, hx + x0, hy + y0, hx + x1, hy + y1, layers=(pcbnew.F_Cu,), pours=True, vias=True, name="hub")
+    # the hub's crystal, drawn here (short, and the autorouter does not always find them among the lines around the
+    # hub): XI (pin 2) down into the crystal's pin 1, XO (pin 1) up over the crystal's ground pad into its pin 3
+    u5, y2 = placed["U5"], placed["Y2"]
+    xo, xi = pad_xy(u5, 1), pad_xy(u5, 2)
+    p1, p2, p3 = (pad_xy(y2, n) for n in (1, 2, 3))
+    path(B, "HUB_XI", [xi, (xi[0] + 0.6, xi[1]), (p1[0], xi[1] + 1.1), p1], width=0.25)
+    y_over = p2[1] - 1.15  # between the crystal's ground pad and the capacitors above it
+    path(B, "HUB_XO", [xo, (xo[0] + 0.96, y_over), (p3[0] - 0.8, y_over), (p3[0], y_over + 0.8), p3], width=0.25)
     # the codec's ground pins sit between signal pins, where neither the pour nor the router can reach them: a short
     # track from each one inwards to a via under the chip's body (no exposed pad there), into the top ground pour
     u6 = placed["U6"]
@@ -192,23 +220,32 @@ def add_electronics(B, left, top, right, keys_top):
         out = math.copysign(1.15, y - ay)
         stub(B, "GND", x, y, x, y + out, width=0.2)
     gnd_via(B, placed["C133"])
+    # the amplifier's supply, VDD (pin 14), straight down into its 2.2 uF (C133), beside the SGND via
+    x14, y14 = pad_xy(u7, 14)
+    xc, yc = pad_xy(placed["C133"], 1)
+    sgnd = pad_xy(u7, 15)[0]
+    xs = x14 + math.copysign(0.1, x14 - sgnd)  # 0.1 mm further from the SGND via
+    path(B, "AUD_5V", [(x14, y14), (x14, y14 + 0.5), (xs, y14 + 0.6), (xs, yc - 0.2)], width=0.25)
     x0, y0, x1, y1 = AMP_KEEPOUT
     keepout(B, ax + x0, ay + y0, ax + x1, ay + y1, layers=(pcbnew.F_Cu,), pours=True, vias=True, name="amplifier")
+    # the load switch's GND (pin 2) sits between its IN and ON pins, both on VBUS here: a via of its own just outside
+    # the package, or the VBUS connection between them can wall it in
+    gx, gy = pad_xy(placed["U8"], 2)
+    stub(B, "GND", gx, gy, gx + math.copysign(1.35, gx - pad_xy(placed["U8"], 5)[0]), gy, width=0.25)
     x23, y23 = pad_xy(u6, 23)  # TEST, next to 24: to the same via
     x24, y24 = pad_xy(u6, 24)
     track(B, "GND", x23, y23, x24, cy + math.copysign(CODEC_VIA, y24 - cy))
 
-    ports = {"usb": (X_USB, top), "window": (81.0, top, X_USB + 7.0),
-             "reset": pos["SW102"][:2], "jack": (X_JACK, top)}
+    ports = {"usb": (X_USB, top), "window": (pos["D103"][0] - 4.0, top, X_USB + 7.0),
+             "boot": pos["SW101"][:2], "jack": (X_JACK, top)}
     for i, x in enumerate(BOLTS_X, start=1):
         fp = B.place("MountingHole", "MountingHole_3.2mm_M3", "HB%d" % i, x, top + 11.0, value="case bolt",
                      in_bom=False)
         enlarge_hole(fp, BOLT_HOLE)
     ports["bolts"] = [(x, top + 11.0) for x in BOLTS_X]
-    rows, cols, gpio = assign_matrix_pins(B, u1)
-    escape_inner_pads(B, u1)
+    rows, cols, led, gpio = assign_matrix_pins(B, u1)
     labels(B, placed, top)
-    ports["matrix"] = dict(rows=rows, cols=cols, battery_adc="P0_31", status_led="P1_04")
+    ports["matrix"] = dict(rows=rows, cols=cols, status_led=led)
     ports["gpio"] = gpio
     return ports
 
@@ -224,7 +261,7 @@ def usb_pair(B, placed):
         through it, the way ST lays it out); its VBUS pin takes a via under its body, its GND pin a via beside it;
       * hub: D+ makes a small detour (the length D- loses going round the ESD array), then both run down and enter
         the hub's upstream pins (12, 11) from the left."""
-    j1, u4, u5 = placed["J1"], placed["U3"], placed["U5"]
+    j1, u4, u5 = placed["J1"], placed["U4"], placed["U5"]
     dn_b, dp_a, dn_a, dp_b = (pad_xy(j1, n) for n in ("B7", "A6", "A7", "B6"))
     assert dn_b[0] < dp_a[0] < dn_a[0] < dp_b[0], "unexpected USB-C pad order"
     half = pcbnew_mm(j1.FindPadByNumber("A6").GetBoundingBox().GetHeight()) / 2
@@ -263,7 +300,7 @@ def usb_pair(B, placed):
     for (x0, y0), (x1, y1) in (((x_side, y_link), (va[0], y_link)), ((va[0], y_link), (vb[0], y_link)),
                                ((x_side, y_link), (x_side, uy)), ((x_side, uy), (ux - 0.2, uy))):
         track(B, "VBUS", x0, y0, x1, y1, width=0.4, locked=True, layer="F")
-    via(B, "VBUS", x_side, uy)  # where the charger's VBUS joins, on the bottom layer
+    via(B, "VBUS", x_side, uy)  # where the rest of VBUS (regulator, sound card) joins, on the bottom layer
     # the hub's V5 (pin 15) through its 1 uF: no top-layer track may cross the hub (keep-out in add_electronics), so
     # the feed runs on the bottom layer to a via just outside that area, then on the top layer to the A9 via
     v15, c110 = pad_xy(u5, 15), pad_xy(placed["C110"], 1)
@@ -305,28 +342,78 @@ def hub_ports(B, placed):
         via(B, net, x_end, y_run)
 
 
+def rp2040_ground(B, placed):
+    """The RP2040's only ground is its exposed pad, ringed by its pins where no pour can reach: five vias in it (one at
+    the centre, four between the paste windows) take it to the top ground plane. TESTEN, grounded, joins the pad by a
+    short track inwards; the supply capacitors' ground pads each get their own via."""
+    u1 = placed["U1"]
+    cx, cy = pad_centre(u1)
+    for dx, dy in EP_VIAS:
+        via(B, "GND", cx + dx, cy + dy)
+    x, y = pad_xy(u1, 19)
+    track(B, "GND", x, y, x, cy + math.copysign(1.2, y - cy), width=0.2)  # straight in, 1.2 mm from the centre
+    for ref in ("C1", "C2", "C3", "C4", "C5", "C6", "C7", "C8", "C9", "C10", "C11", "C12", "C13", "C14", "C15"):
+        gnd_via(B, placed[ref], reach=0.85)
+
+
+def rp2040_core(B, placed):
+    """The 1.1 V core supply, drawn here: VREG_VOUT (45) and DVDD (50) on the back side and DVDD (23) on the front are
+    joined under the package, in the ring between the pins and the exposed pad (the autorouter does not reliably get
+    across the package between the matrix lines); each pin's own capacitor is then a short hop outside."""
+    u1 = placed["U1"]
+    cx, cy = pad_centre(u1)
+    r = 2.3  # the ring: pins end 3.0 mm from the centre, the exposed pad 1.6 mm
+    p45, p50, p23 = (pad_xy(u1, n) for n in (45, 50, 23))
+    sy = math.copysign(1.0, p45[1] - cy)  # the side 45 and 50 are on
+    sx = math.copysign(1.0, (p45[0] + p23[0]) / 2 - cx)  # round the side nearer to 45 and 23
+    a, b = (p45[0], cy + sy * r), (p50[0], cy + sy * r)
+    path(B, "1V1", [p45, a, b, p50], width=0.2)
+    path(B, "1V1", [a, (cx + sx * r, a[1]), (cx + sx * r, cy - sy * r), (p23[0], cy - sy * r), p23], width=0.2)
+
+
+def swd_lines(B, placed):
+    """SWCLK, SWDIO and RUN (pins 24-26) straight from their pins to their pads in the row in front of the package,
+    drawn here: between the matrix lines that come down on the left and the RP2040's own capacitors on the right the
+    autorouter does not reliably find a way out for all three."""
+    u1 = placed["U1"]
+    for k, (pin, ref) in enumerate(((24, "TP2"), (25, "TP1"), (26, "TP5"))):
+        x, y = pad_xy(u1, pin)
+        tx, ty = pad_centre(placed[ref])
+        net = placed[ref].Pads()[0].GetNetname()
+        bend = ty - (x - tx) - 1.0  # 45 degrees across to the pad's column, 1 mm before it
+        path(B, net, [(x, y), (x, bend), (tx, bend + (x - tx)), (tx, ty)] if tx != x else [(x, y), (tx, ty)], width=0.2)
+
+
 def assign_matrix_pins(B, u1):
-    """Map ROW*/COL* nets onto the RP2040's GPIO pads so the fan-out does not cross itself: nets and pads are both
-    sorted by angle around the package and matched in order."""
+    """Map ROW*/COL* nets and the status LED onto the RP2040's GPIO pads on the two sides facing along the strip, so
+    that the fan-out does not cross itself: nets and pads are both sorted by angle around the package and matched
+    in order. Returns the RMK pin names of the rows, the columns and the LED, and {pad: net}."""
     import pcbnew
     cx, cy = pcbnew.ToMM(u1.GetPosition().x), pcbnew.ToMM(u1.GetPosition().y)
-    nets = sorted(n for n in B.nets if n.startswith(("ROW", "COL")))
-    assert len(nets) <= len(RP_GPIO), "%d matrix lines but only %d free pads" % (len(nets), len(RP_GPIO))
+    nets = sorted(n for n in B.nets if n.startswith(("ROW", "COL"))) + ["LED_RED"]
+    pool = [p for p in RP_GPIO if p not in RP_FIXED and any(p in side for side in MATRIX_SIDES)]
+    assert len(nets) <= len(pool), "%d lines but only %d free pads" % (len(nets), len(pool))
     target = {}
     for fp in B.footprints:
         for p in fp.Pads():
             n = p.GetNetname()
-            if n in nets:
+            if n in nets and fp.GetReference() != "U1":
                 x, y = pcbnew.ToMM(p.GetPosition().x), pcbnew.ToMM(p.GetPosition().y)
                 d = (x - cx) ** 2 + (y - cy) ** 2
                 if n not in target or d < target[n][0]:
                     target[n] = (d, x, y)
 
-    def key(x, y):  # angle around the package, starting from straight behind it
+    def key(x, y):  # angle around the package, starting from straight behind it (never inside the key area)
         return (math.atan2(y - cy, x - cx) - 1.5 * math.pi) % (2 * math.pi)
 
-    pads = list(RP_GPIO)[:len(nets)]
+    # the pads are taken from the two sides in proportion to the lines that leave on each side
     nets_sorted = sorted(nets, key=lambda n: key(target[n][1], target[n][2]))
+    right = [p for p in pool if pad_xy(u1, p)[0] > cx]
+    left = [p for p in pool if pad_xy(u1, p)[0] < cx]
+    n_right = sum(1 for n in nets if target[n][1] > cx)
+    n_right = min(max(n_right, len(nets) - len(left)), len(right))
+    pads = sorted(right, key=lambda n: key(*pad_xy(u1, n)))[-n_right:] if n_right else []
+    pads += sorted(left, key=lambda n: key(*pad_xy(u1, n)))[:len(nets) - n_right]
     pads_sorted = sorted(pads, key=lambda n: key(*pad_xy(u1, n)))
     mapping = dict(zip(nets_sorted, pads_sorted))
     for net, pad in mapping.items():
@@ -336,12 +423,7 @@ def assign_matrix_pins(B, u1):
     rows = [rp_pin(mapping["ROW%d" % r]) for r in range(n_rows)]
     cols = [rp_pin(mapping["COL%d" % c]) for c in range(n_cols)]
     gpio = {str(pad): net for net, pad in mapping.items()}
-    return rows, cols, gpio
-
-
-def escape_inner_pads(B, u1):
-    """No inner pads on the RP2040 QFN: every GPIO pad escapes directly."""
-    return
+    return rows, cols, rp_pin(mapping["LED_RED"]), gpio
 
 
 def gnd_via(B, fp, reach=0.95):
@@ -445,24 +527,23 @@ def label(B, text, x, y, size=0.9):
 
 
 def labels(B, placed, top):
-    """What a builder needs to read on the bottom: the SWD pads, the battery polarity, the jumpers, the LEDs, the
-    power test points, the reset button, the headset jack and the board's name."""
-    import pcbnew
-    for ref, text in (("TP1", "CLK"), ("TP2", "DIO"), ("TP4", "GND"), ("TP3", "3V3")):
+    """What a builder needs to read on the bottom: the SWD pads, the jumper, the LED, the VBUS test point, the BOOT
+    and RESET buttons, the headset jack and the board's name."""
+    for ref, text in (("TP1", "DIO"), ("TP2", "CLK"), ("TP4", "GND"), ("TP3", "3V3"), ("TP5", "RST")):
         x, y = pad_centre(placed[ref])
-        label(B, text, x + 2.3, y + 0.35, 0.8)
-    x, y = pad_centre(placed["TP2"])
-    label(B, "SWD", x, y - 2.0, 0.8)
-    x, y = pad_centre(placed["TP5"])
+        label(B, text, x, y + 1.35, 0.6)
+    x, y = pad_centre(placed["TP4"])
+    label(B, "SWD", x - 2.0, y + 0.3, 0.7)
+    x, y = pad_centre(placed["TP6"])
     label(B, "VBUS", x, y + 2.3, 0.7)
-    x, y = pad_centre(placed["D60"])
+    x, y = pad_centre(placed["D103"])
     label(B, "CAPS", x, y + 1.9, 0.7)
     for ref, text, dx, dy in (("JP3", "-6dB", 0.0, -1.9),):
         x, y = pad_centre(placed[ref])
         label(B, text, x + dx, y + dy, 0.7)
-    for ref, text in (("SW101", "BOOT"), ("SW102", "RUN")):
+    for ref, text in (("SW101", "BOOT"), ("SW102", "RESET")):
         x, y = pad_centre(placed[ref])
         label(B, text, x, y + 3.6, 0.8)
     x, y = pad_centre(placed["J3"])
     label(B, "HEADSET (CTIA)", x - 1.0, y + 7.3, 0.8)
-    label(B, "LIRA USB  rev A", 168.0, top + 4.0, 1.5)
+    label(B, "LIRA  wired  rev A", 88.0, top + 12.0, 1.5)

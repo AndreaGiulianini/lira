@@ -26,8 +26,8 @@ OUT = BUILD / "review"
 PCB = BUILD / "pcb/lira.kicad_pcb"
 LIB = "KICAD6_3RD_PARTY=%s" % (ROOT / "lib")
 BG = "#0b1520"  # dark background for the copper layers (KiCad's colours: red top copper, blue bottom copper)
-SCH_ZOOM = (0.035, 0.135, 0.985, 0.495)  # schematic: USB, hub, power path, charger, regulator, module, audio
-STRIP_REFS = re.compile(r"^(U\d|J\d|Q\d|Y\d|L\d|SW10\d|D10\d|C1\d\d|R1\d\d|JP\d|TP)")
+SCH_ZOOM = (0.035, 0.135, 0.985, 0.495)  # schematic: USB, hub, regulator, crystal, flash, RP2040, audio
+STRIP_REFS = re.compile(r"^(U\d|J\d|Y\d|L\d|SW10\d|D10\d|C\d+|R\d+|JP\d|TP)")
 
 
 def run(cmd):
@@ -118,7 +118,7 @@ def main():
     show_svg(bottom, OUT / "03-pcb-bottom-layer.png", 6000, BG,
              label="BOTTOM layer (B.Cu + silkscreen + edge), seen from BELOW (mirrored) - all SMD parts are here")
     show_svg(bottom, OUT / "04-pcb-bottom-layer-electronics-zoom.png", 4400, BG, strip_crop(parts, True),
-             label="BOTTOM layer, electronics area (module, USB-C, hub, sound card, charger, regulator, power path), seen from below")
+             label="BOTTOM layer, electronics area (RP2040, flash, USB-C, hub, sound card, regulator), seen from below")
     show_svg(top, OUT / "05-pcb-top-layer-electronics-zoom.png", 4400, BG, strip_crop(parts, False),
              label="TOP layer, same area, seen from above")
     # 6-8 3D, straight down, same orientation as the 2D images

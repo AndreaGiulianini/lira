@@ -5,20 +5,12 @@ product_name = "Lira"
 manufacturer = "Lira"
 vendor_id = 0x4c4b
 product_id = 0x0040
-chip = "nrf52840"
+chip = "rp2040"
 usb_enable = true
 
-[chip.nrf52840]
-# Normal-voltage mode (VDD = VDDH = 3.3 V from the AP2112K): REG0 is not used -> OFF.
-dcdc_reg0 = false
-# REG1 DC/DC left OFF for the first bring-up (safe whatever the module contains: Nordic says a DC/DC enabled
-# without its inductor blocks the chip). The Ebyte datasheet shows the REG1 inductor inside the module:
-# once the board works, dcdc_reg1 = true saves a few mA.
-dcdc_reg1 = false
-
 [matrix]
-row_pins = ["P0_29", "P1_09", "P0_30", "P0_05"]
-col_pins = ["P1_00", "P0_24", "P0_22", "P0_13", "P0_20", "P0_17", "P0_15", "P0_07", "P0_12", "P0_04", "P0_08", "P0_26", "P0_02", "P1_13", "P0_28", "P0_03", "P0_06"]
+row_pins = ["PIN_10", "PIN_20", "PIN_18", "PIN_19"]
+col_pins = ["PIN_26", "PIN_25", "PIN_24", "PIN_23", "PIN_22", "PIN_21", "PIN_11", "PIN_9", "PIN_8", "PIN_7", "PIN_6", "PIN_4", "PIN_3", "PIN_2", "PIN_1", "PIN_0", "PIN_5"]
 # diodes: cathode towards the row (col2row, RMK default)
 
 [layout]
@@ -55,7 +47,7 @@ F10 F11 _ _ _ _ Home PageDown
 [[keymap.layer]]
 name = "system"
 keys = """
-_ _ _ _ Bootloader User0 User1 User2 User6 User5 _ _ _ _ _ _ Delete
+_ _ _ _ Bootloader _ _ _ _ _ _ _ _ _ _ _ Delete
 _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
 _ _ _ _ _ AudioMute AudioVolDown AudioVolUp MediaPlayPause MediaPrevTrack MediaNextTrack _ _ _ _ _
 _ _ _ _ _ _ _ _
@@ -68,23 +60,11 @@ THUMB = { permissive_hold = true, hold_on_other_press = false, hold_timeout = "2
 MODTAP = { permissive_hold = false, hold_on_other_press = true, hold_timeout = "200ms", gap_timeout = "200ms" }
 
 [light]
-# red LED on P1.04 (the bootloader's LED): Caps Lock
-capslock = { pin = "P1_04", low_active = false }
-
-[ble]
-enabled = true
-# battery through a 10M (VBAT side) + 10M (GND side) divider with 10 nF into P0.31 / AIN7 (sampled every 30 s)
-battery_adc_pin = "P0_31"
-adc_divider_measured = 10000
-adc_divider_total = 20000
+# the status LED (matrix.status_led of the pin map, lit when the pin is high): Caps Lock
+capslock = { pin = "PIN_27", low_active = false }
 
 [host]
 vial_enabled = true
 rynk_enabled = false
 # hold Esc + Return to unlock Vial's protected functions (matrix tester, bootloader...)
 unlock_keys = [[0, 4], [1, 16]]
-
-[event]
-# subscriber slots of the connection status: the audio switch (src/audio_gate.rs, sound card only in USB mode through
-# the load switch on P1.02) is its only listener in this build (RMK adds its own slots for a display, rynk or a split)
-connection_status_change.subs = 2

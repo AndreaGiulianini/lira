@@ -2,12 +2,16 @@
 
     python3 firmware/gen_firmware.py        (after `make pcb`, which writes <build>/pcb/interface.json)
     -> <build>/firmware/keyboard.toml + vial.json, copied into the RMK project firmware/rmk by `make firmware`
+    LIRA_INTERFACE=<file> python3 firmware/gen_firmware.py      takes the pin map from another file (tests)
 
+The board is wired: an RP2040 on USB, no Bluetooth, no battery. The pin map (interface.json: matrix.rows,
+matrix.cols, matrix.status_led) uses the RMK / embassy-rp pin names PIN_0 ... PIN_29.
 The [layout] section comes from rmkit (converted from build/kle-via.json), so the firmware, Vial and the PCB
 all use the same matrix positions. The default keymap below follows the Agar mini legends; everything can be
 changed live from Vial.
 """
 import json
+import os
 import re
 import subprocess
 import sys
@@ -21,7 +25,7 @@ import layout as L  # noqa: E402
 from paths import BUILD  # noqa: E402
 
 RMKIT = str(Path.home() / ".cargo/bin/rmkit")
-IFACE = json.loads((BUILD / "pcb/interface.json").read_text())
+IFACE = json.loads(Path(os.environ.get("LIRA_INTERFACE", BUILD / "pcb/interface.json")).read_text())
 OUT = BUILD / "firmware"
 
 _ = "_"  # transparent
@@ -50,14 +54,14 @@ NUMBERS = [
     _, _, _, _, _, _, _, _, _, "Slash", "PageUp", "End",
     _, _, _, _, "Home", "PageDown",
 ]
-# Layer 2 (hold fn): Bluetooth profiles (User0-2, hold 5 s to forget the paired host), USB/BLE switch (User6),
-# media keys, forward delete, and the bootloader (fn + Esc) to drag a new .uf2 onto the keyboard.
+# Layer 2 (hold fn): media keys, forward delete, and the bootloader (fn + Esc): the RP2040 restarts into its USB boot
+# ROM, a drive called RPI-RP2 to drag a new .uf2 onto.
 SYSTEM = [
     _, _, _, _,
     _, _, _, _,
     _, _, _, _,
     _, _,
-    "Bootloader", "User0", "User1", "User2", "User6", "User5", _, _, _, _, _, _, "Delete",
+    "Bootloader", _, _, _, _, _, _, _, _, _, _, _, "Delete",
     _, _, _, _, _, _, _, _, _, _, _, _,
     _, "AudioMute", "AudioVolDown", "AudioVolUp", "MediaPlayPause", "MediaPrevTrack", "MediaNextTrack", _, _, _,
     _, _,
@@ -89,6 +93,8 @@ def keyboard_toml():
     rows = [[(int(r), int(c)) for r, c in re.findall(r"\((\d+),(\d+)", line)]
             for line in lay.split('"""')[1].strip().splitlines()]
     m = IFACE["matrix"]
+    for pin in m["rows"] + m["cols"] + [m["status_led"]]:
+        assert re.fullmatch(r"PIN_([0-9]|[12][0-9])", pin), "not an RP2040 GPIO: %s" % pin
     esc, ret = find_key("esc"), find_key("return")
     q = lambda pins: "[" + ", ".join('"%s"' % p for p in pins) + "]"  # noqa: E731
     layers = "\n".join('''[[keymap.layer]]
@@ -104,16 +110,8 @@ product_name = "Lira"
 manufacturer = "Lira"
 vendor_id = 0x4c4b
 product_id = 0x0040
-chip = "nrf52840"
+chip = "rp2040"
 usb_enable = true
-
-[chip.nrf52840]
-# Normal-voltage mode (VDD = VDDH = 3.3 V from the AP2112K): REG0 is not used -> OFF.
-dcdc_reg0 = false
-# REG1 DC/DC left OFF for the first bring-up (safe whatever the module contains: Nordic says a DC/DC enabled
-# without its inductor blocks the chip). The Ebyte datasheet shows the REG1 inductor inside the module:
-# once the board works, dcdc_reg1 = true saves a few mA.
-dcdc_reg1 = false
 
 [matrix]
 row_pins = %s
@@ -133,28 +131,15 @@ THUMB = { permissive_hold = true, hold_on_other_press = false, hold_timeout = "2
 MODTAP = { permissive_hold = false, hold_on_other_press = true, hold_timeout = "200ms", gap_timeout = "200ms" }
 
 [light]
-# red LED on P1.04 (the bootloader's LED): Caps Lock
+# the status LED (matrix.status_led of the pin map, lit when the pin is high): Caps Lock
 capslock = { pin = "%s", low_active = false }
-
-[ble]
-enabled = true
-# battery through a 10M (VBAT side) + 10M (GND side) divider with 10 nF into P0.31 / AIN7 (sampled every 30 s)
-battery_adc_pin = "%s"
-adc_divider_measured = 10000
-adc_divider_total = 20000
 
 [host]
 vial_enabled = true
 rynk_enabled = false
 # hold Esc + Return to unlock Vial's protected functions (matrix tester, bootloader...)
 unlock_keys = [[%d, %d], [%d, %d]]
-
-[event]
-# subscriber slots of the connection status: the audio switch (src/audio_gate.rs, sound card only in USB mode through
-# the load switch on P1.02) is its only listener in this build (RMK adds its own slots for a display, rynk or a split)
-connection_status_change.subs = 2
-''' % (q(m["rows"]), q(m["cols"]), lay, layers, m["status_led"], m["battery_adc"],
-       esc.row, esc.col, ret.row, ret.col)
+''' % (q(m["rows"]), q(m["cols"]), lay, layers, m["status_led"], esc.row, esc.col, ret.row, ret.col)
 
 
 def main():
@@ -166,13 +151,6 @@ def main():
     data = json.loads(vial[vial.index("{"):])
     data["name"] = "Lira"
     data["vendorId"], data["productId"] = "0x4C4B", "0x0040"
-    data["customKeycodes"] = [{"name": "BT%d" % i, "title": "Bluetooth profile %d (hold 5 s: forget host)" % i,
-                               "shortName": "BT%d" % i} for i in range(3)] + [
-        {"name": "BT_NEXT", "title": "Next Bluetooth profile", "shortName": "BT>"},
-        {"name": "BT_PREV", "title": "Previous Bluetooth profile", "shortName": "BT<"},
-        {"name": "BT_CLR", "title": "Forget the host of this profile", "shortName": "BTclr"},
-        {"name": "USB_BLE", "title": "Switch output USB / Bluetooth", "shortName": "USB/BT"},
-    ]
     (OUT / "vial.json").write_text(json.dumps(data, indent=1))
     print("wrote %s/keyboard.toml and vial.json (rows %s, cols %s)" % (
         OUT.relative_to(ROOT), IFACE["matrix"]["rows"], IFACE["matrix"]["cols"]))

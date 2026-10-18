@@ -3,8 +3,8 @@
     $KPY pcb/gen_schematic.py     -> build/sch/lira.kicad_sch (+ .kicad_pro)
 
 Every pin carries a global label with its net name (no wires between parts), which is what the ERC, the netlist
-export and the checks need; symbols come from KiCad's own libraries (embedded) except the module, the charger and
-the reset button, drawn as plain boxes. The deviations from the reference design are printed on the sheet.
+export and the checks need; symbols come from KiCad's own libraries (embedded) except the RP2040, the hub, the codec,
+the amplifier, the load switch and the push buttons, drawn as plain boxes. The deviations from the reference design are printed on the sheet.
 """
 import datetime
 import json
@@ -64,20 +64,15 @@ def box_symbol(name, left, right, width=20.32, pin_len=3.81, ref="U"):
     return "\n".join(out), pins
 
 
-def e73_symbol():
-    fixed_left = [(27, "VBUS", "power_in"), (19, "VDD", "power_in"), (23, "VDDH", "power_in"), (25, "DCCH", "passive"),
-                  (5, "GND", "power_in"), (21, "GND", "passive"), (24, "GND", "passive"),
-                  (31, "D+", "bidirectional"), (29, "D-", "bidirectional"), (26, "P0.18/RESET", "input"),
-                  (37, "SWDIO", "bidirectional"), (39, "SWDCLK", "input"), (11, "P0.00/XL1", "passive"),
-                  (13, "P0.01/XL2", "passive"), (9, "P0.31/AIN7", "bidirectional"), (40, "P1.04", "bidirectional"),
-                  (41, "P0.09/NFC1", "bidirectional"), (43, "P0.10/NFC2", "bidirectional")]
-    gpio = [(p, circuit.E73_PINS[p], "bidirectional") for p in circuit.E73_GPIO]
-    return box_symbol("E73", fixed_left, gpio, width=33.02)
-
-
-def mcp73831_symbol():
-    return box_symbol("MCP73831", [(4, "VDD", "power_in"), (1, "STAT", "tri_state"), (2, "VSS", "power_in")],
-                      [(3, "VBAT", "power_out"), (5, "PROG", "passive")], width=15.24)
+def rp2040_symbol():
+    """Supplies, clock, reset, SWD, QSPI and USB on the left, the 30 GPIOs on the right (pin names: datasheet 1.4.1)."""
+    types = {"IOVDD": "power_in", "DVDD": "power_in", "ADC_AVDD": "power_in", "USB_VDD": "power_in",
+             "VREG_VIN": "power_in", "VREG_VOUT": "power_out", "GND": "power_in", "TESTEN": "input", "XIN": "input",
+             "XOUT": "output", "RUN": "input", "SWCLK": "input", "QSPI_SS": "bidirectional", "QSPI_SCLK": "output"}
+    order = (1, 10, 22, 33, 42, 49, 48, 43, 44, 45, 23, 50, 57, 19, 20, 21, 26, 24, 25, 56, 52, 53, 55, 54, 51, 47, 46)
+    left = [(p, circuit.RP_PINS[p], types.get(circuit.RP_PINS[p], "bidirectional")) for p in order]
+    right = [(p, circuit.RP_PINS[p], "bidirectional") for p in circuit.RP_GPIO]
+    return box_symbol("RP2040", left, right, width=33.02)
 
 
 def tps22919_symbol():
@@ -127,7 +122,7 @@ def cm108b_symbol():
     return box_symbol("CM108B", left, right, width=25.4)
 
 
-CUSTOM = {"lira:E73": e73_symbol, "lira:MCP73831": mcp73831_symbol, "lira:SW_PUSH_4": sw_push_4_symbol,
+CUSTOM = {"lira:RP2040": rp2040_symbol, "lira:SW_PUSH_4": sw_push_4_symbol,
           "lira:TPS22919": tps22919_symbol, "lira:TPA6132A2": tpa6132a2_symbol,
           "lira:CH334P": ch334p_symbol, "lira:CM108B": cm108b_symbol}
 
@@ -271,13 +266,18 @@ def build():
     iface = json.loads((BUILD / "pcb/interface.json").read_text())
     gpio = {int(k): v for k, v in iface["gpio"].items()}
     parts = {p.ref: p for p in circuit.electronics(gpio) + circuit.matrix(L.KEYS)}
-    sh = Sheet("Lira")
-    sh.text("Lira: nRF52840 (Ebyte E73-2G4M08S1C), USB-C + Li-Po, %d keys, built-in USB sound card" % len(L.SWITCHES),
-            20, 18, 2.54, True)
-    sh.text("Power / USB / programming copied from the BlueMicro840 (jpconstantineau/NRF52-Board), a board built with this "
-            "module, assembled by JLCPCB and sold. Differences from it:", 20, 23)
+    sh = Sheet("Lira (wired)")
+    sh.text("Lira, wired: Raspberry Pi RP2040, USB-C only (no battery), %d keys, built-in USB sound card"
+            % len(L.SWITCHES), 20, 18, 2.54, True)
+    sh.text("The wireless board (branch main: nRF52840 module, Li-Po) with the radio and the battery taken out; the RP2040 "
+            "follows Raspberry Pi's 'Hardware design with RP2040' (the Pico's circuit). Differences from the wireless "
+            "board:", 20, 23)
+    import textwrap
+    y = 27
     for i, d in enumerate(circuit.DEVIATIONS):
-        sh.text("%d. %s" % (i + 1, d), 22, 27 + 3.2 * i)
+        for line in textwrap.wrap("%d. %s" % (i + 1, d), 380, subsequent_indent="   "):
+            sh.text(line, 22, y)
+            y += 3.0
 
     def block(title, x, y):
         sh.text(title, x, y, 1.778, True)
@@ -287,62 +287,53 @@ def build():
     sh.place(parts["J1"], 45, 95)
     sh.place(parts["R108"], 82, 80)
     sh.place(parts["R109"], 97, 80)
-    sh.place(parts["R101"], 112, 80)
     sh.place(parts["U4"], 92, 108)
-    sh.place(parts["C107"], 112, 110)
-    sh.text("C107: VBUS bypass (deviation 10)", 100, 125)
-    sh.text("R101: VBUS bleeder (BlueMicro840 R3)", 100, 92)
-    # --- power path, charger, battery
-    block("Power path: USB through the Schottky, battery through the P-MOSFET (off while VBUS is present)", 130, 62)
-    sh.place(parts["D101"], 152, 72)
-    sh.place(parts["Q1"], 185, 72)
-    sh.place(parts["C102"], 212, 75)
-    sh.place(parts["C101"], 228, 75)
-    sh.place(parts["TP8"], 244, 72)
-    sh.place(parts["TP7"], 258, 72)
-    block("Charger MCP73831 (BlueMicro840 U4 is a TP4054, same pins): 100 mA, 200 mA with JP1 closed; white LED "
-          "on while charging", 130, 95)
-    sh.place(parts["U2"], 152, 110)
-    sh.place(parts["R103"], 180, 110)
-    sh.place(parts["JP1"], 197, 110)
-    sh.place(parts["R104"], 215, 110)
-    sh.place(parts["D102"], 238, 110)
-    sh.place(parts["R102"], 255, 110)
-    sh.place(parts["TP6"], 268, 107)
-    block("Battery: JST-PH, power switch (JP2 bypasses it), divider 10M / 10M + 10nF into P0.31 (BlueMicro840 R4 R6 C6: 806k / 2M + 1nF)", 130, 128)
-    sh.place(parts["J2"], 145, 140)
-    sh.place(parts["SW101"], 172, 140)
-    sh.place(parts["JP2"], 197, 140)
-    sh.place(parts["R105"], 220, 140)
-    sh.place(parts["R106"], 235, 140)
-    sh.place(parts["C104"], 250, 140)
-    # --- 3.3 V and crystal
-    block("3.3 V regulator (BlueMicro840 U3, EN tied to VIN) and 32.768 kHz crystal (BlueMicro840 Y2 C1 C2)", 130, 160)
-    sh.place(parts["U3"], 155, 175)
-    sh.place(parts["C108"], 182, 175)
-    sh.place(parts["TP3"], 196, 172)
-    sh.place(parts["Y1"], 222, 172)
-    sh.place(parts["C105"], 242, 175)
-    sh.place(parts["C106"], 257, 175)
-    # --- module, reset, LED, SWD
-    block("nRF52840 module, normal-voltage mode (VDD = VDDH = 3.3 V); reset button; status LED on P1.04 (bootloader LED); SWD pads", 280, 62)
-    sh.place(parts["U1"], 320, 120)
-    sh.place(parts["SW102"], 395, 80)
+    sh.place(parts["TP6"], 112, 107)
+    # --- 3.3 V regulator
+    block("3.3 V regulator AP2112K from VBUS (EN tied to VIN); 10 uF bulk at the RP2040", 130, 62)
+    sh.place(parts["U3"], 155, 80)
+    sh.place(parts["C102"], 182, 80)
+    sh.place(parts["C108"], 197, 80)
+    sh.place(parts["C103"], 212, 80)
+    sh.place(parts["TP3"], 228, 77)
+    # --- crystal and flash
+    block("12 MHz crystal ABM8-272-T3 (CL 10 pF): 2 x 15 pF, 1k on XOUT; QSPI flash W25Q128JV, /CS pulled up", 130, 95)
+    sh.place(parts["Y1"], 150, 112)
+    sh.place(parts["C13"], 172, 115)
+    sh.place(parts["C14"], 187, 115)
+    sh.place(parts["R1"], 202, 115)
+    sh.place(parts["U2"], 232, 120)
+    sh.place(parts["C15"], 262, 115)
+    sh.place(parts["R2"], 262, 135)
+    # --- BOOT, RESET
+    block("BOOT: QSPI_SS to GND through 1k (USB boot ROM); RESET: RUN to GND, 10k pull-up", 130, 142)
+    sh.place(parts["R3"], 145, 157)
+    sh.place(parts["SW101"], 170, 157)
+    sh.place(parts["R4"], 200, 157)
+    sh.place(parts["SW102"], 225, 157)
+    sh.place(parts["TP5"], 250, 154)
+    # --- the RP2040's decoupling
+    block("RP2040 decoupling: 100 nF at each IOVDD, USB_VDD, ADC_AVDD and DVDD pin; 1 uF at VREG_VIN and VREG_VOUT", 130, 172)
+    for i in range(12):
+        col, row = divmod(i, 2)
+        sh.place(parts["C%d" % (i + 1)], 140 + 22 * col, 182 + 16 * row)
+    # --- RP2040, USB resistors, LED, SWD
+    block("Raspberry Pi RP2040 (1.1 V core from its own regulator: VREG_VOUT -> DVDD); USB through 27 ohm to the hub's "
+          "port 3; status LED (Caps Lock) on a GPIO; SWD pads", 280, 62)
+    sh.place(parts["U1"], 320, 113)
+    sh.place(parts["R5"], 395, 80)
+    sh.place(parts["R6"], 410, 80)
     sh.place(parts["D103"], 395, 102)
     sh.place(parts["R107"], 415, 102)
-    for i, ref in enumerate(("TP1", "TP2", "TP5", "TP4")):
+    for i, ref in enumerate(("TP1", "TP2", "TP4")):
         sh.place(parts[ref], 390 + 14 * i, 125)
-    sh.place(parts["C103"], 395, 148)
-    sh.place(parts["C109"], 410, 148)
-    sh.text("C103, C109: at the module's VDD / VDDH pins", 388, 160)
     # --- power flags, so the ERC knows where the supplies come from
-    block("Supplies: VBUS from the receptacle, BAT+ from the cell, VIN from the power path, codec supplies from "
-          "VBUS through ferrite beads", 280, 160)
-    for i, net in enumerate(("GND", "VBUS", "BAT+", "VIN", "AUD_AVDD", "AUD_DVDD")):
+    block("Supplies: VBUS from the receptacle, codec supplies from VBUS through ferrite beads", 280, 160)
+    for i, net in enumerate(("GND", "VBUS", "AUD_AVDD", "AUD_DVDD")):
         sh.power_flag(net, 290 + 18 * i, 172)
-    # --- USB hub (left, under the USB block) and sound card (right of the module)
+    # --- USB hub (left, under the USB block) and sound card (right of the RP2040)
     block("USB hub CH334P (datasheet V2.91)", 20, 135)
-    sh.text("upstream from the receptacle, port 3 -> module, port 2 -> codec", 20, 139)
+    sh.text("upstream from the receptacle, port 3 -> RP2040, port 2 -> codec", 20, 139)
     sh.place(parts["U5"], 50, 172)
     sh.place(parts["Y2"], 100, 150)
     for i, ref in enumerate(("C110", "C111", "C112")):
@@ -360,10 +351,10 @@ def build():
         sh.place(parts[ref], 508 + 15 * col, 90 + 17 * row)
     # --- the sound card's supply switch, headphone amplifier and jack (under the key matrix)
     y1 = 300
-    block("Sound card supply: TPS22919 load switch, on only in USB mode (P1.02); headphone amplifier TPA6132A2 "
+    block("Sound card supply: TPS22919 load switch, turned on by VBUS (soft start); headphone amplifier TPA6132A2 "
           "(DirectPath, 0 dB; -6 dB with JP3 closed); headset jack, CTIA", 20, y1)
     sh.place(parts["U8"], 45, y1 + 30)
-    for i, ref in enumerate(("C130", "R117", "R118", "C113", "C114")):
+    for i, ref in enumerate(("C130", "R118", "C113", "C114")):
         sh.place(parts[ref], 75 + 15 * i, y1 + 30)
     sh.place(parts["U7"], 175, y1 + 40)
     amp = ("C123", "C126", "C133", "C134", "C135", "C136", "R112", "R113", "C137", "C124", "L103", "L104", "C125")

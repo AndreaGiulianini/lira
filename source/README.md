@@ -43,9 +43,9 @@ RENDER_SAMPLES=16` for a quick draft). A full set takes about 20 minutes on an M
 |---|---|
 | `layout.py` | **Single source of truth** for the key arrangement and the matrix |
 | `paths.py` | Where the files go: working files in `build/`, finished files in `../production/` |
-| `pcb/circuit.py` | **The circuit as data**: every component with its pins and the net of each pin. The PCB connections, the schematic and the netlist for the checks all come from here. Power circuit copied from the BlueMicro840, with the list of differences; the sound card (`audio()`: CH334P hub, CM108B codec, headset jack) after C-Media's demo board |
-| `pcb/gen_pcb.py` | Places switches, diodes, stabilizers, mounting holes and the outline |
-| `pcb/electronics.py` | Places the module, USB-C, hub, charger, power switch, reset button, test pads, sound card and jack; assigns the module pins to the matrix; draws the USB high-speed pair (receptacle → ESD array → hub) and the escapes the autorouter cannot find |
+| `pcb/circuit.py` | **The circuit as data**: every component with its pins and the net of each pin. The PCB connections, the schematic and the netlist for the checks all come from here. The RP2040 and its minimum circuit after Raspberry Pi's "Hardware design with RP2040", with the list of differences from the wireless board (branch `main`); the sound card (`audio()`: CH334P hub, CM108B codec, headset jack) after C-Media's demo board |
+| `pcb/gen_pcb.py` | Places switches, diodes, stabilizers, mounting holes and the outline; net classes (0.2 mm for the RP2040's 0.4 mm-pitch pads) |
+| `pcb/electronics.py` | Places the RP2040 with its flash, crystal and capacitors, USB-C, hub, regulator, BOOT / RESET buttons, test pads, sound card and jack; assigns the RP2040's GPIOs to the matrix and the LED; draws the USB high-speed pair (receptacle → ESD array → hub) and the ground connections the autorouter cannot find (RP2040 exposed pad, codec and amplifier ground pins) |
 | `pcb/gen_schematic.py`, `pcb/kicad_sym.py` | KiCad schematic generated from `circuit.py` (symbols taken from the KiCad libraries) |
 | `pcb/verify_netlist.py` | Pin-by-pin check: `circuit.py` == PCB == schematic; writes `netlist.json` |
 | `pcb/check_circuit.py` | Circuit tests against the datasheets, (the designer must not edit it) |
@@ -57,7 +57,7 @@ RENDER_SAMPLES=16` for a quick draft). A full set takes about 20 minutes on an M
 | `mount.py` | Top mount: the plate's ears and back tabs and where its screws go (used by the plate, the case and the fit check) |
 | `case/gen_case.py` | Parametric case (build123d), split into printable pieces; top mount: the plate is screwed to the top frame, the PCB hangs from the switches |
 | `case/gen_plate_print.py` | 3D-printable plate in two pieces (1.5 mm where the switches clip in, 4 mm ribs), same outline, ears and holes as the FR4 plate (`mount.py`) |
-| `case/check_fit.py` | Fit check: PCB, components, plate, keys, battery, screws and ports against the printed pieces, assembly paths, thicknesses, print overhangs (report in `build/case/check-fit.txt`) |
+| `case/check_fit.py` | Fit check: PCB, components, plate, keys, screws and ports against the printed pieces, assembly paths, thicknesses, print overhangs (report in `build/case/check-fit.txt`) |
 | `pcb/review_package.py` | Images for a human review (schematic on white, one copper layer per image, close-ups, straight-down 3D), copied with `reviews/review-request.md` (where and what to post) to `../production/review/` |
 | `pcb/export_parts.py` | Exports the component positions and outlines from KiCad, plus the plate cut-outs, for the fit check |
 | `case/render_parts.py` | Everything the renders need: PCB and plate as GLB from KiCad (placed by `kicad_origin` in `parts.json`), finer case meshes, Cherry-profile keycaps (KeyV2, per row and size), the MX switch split by material, the desk mat print, `scene.json` |
@@ -67,8 +67,7 @@ RENDER_SAMPLES=16` for a quick draft). A full set takes about 20 minutes on an M
 | `case/deskmat.py` | The desk mat's print: a technical drawing of the keyboard (dimensions, Cherry rows, MX cut-out, key matrix) |
 | `case/fetch_assets.py` | Downloads the desk's oak texture and the potted plant from Poly Haven (CC0) into `assets/`, once |
 | `firmware/gen_firmware.py` | RMK's `keyboard.toml` and `vial.json` (pins from the PCB, layout from `layout.py`, default keymap) |
-| `firmware/rmk/` | RMK project (created by rmkit) |
-| `firmware/bootloader/` | Adafruit nRF52 bootloader (`bluemicro_nrf52840` build: its USB drive is called BLUEMICRO) |
+| `firmware/rmk/` | RMK project for the RP2040 (no bootloader to add: the RP2040's boot ROM takes the `.uf2` over USB) |
 | `publish.py` | Copies the finished files into `../production/` and writes its README |
 | `sanitize.py` | Pins the build timestamps in `build/` and `../production/` to a fixed instant so a rebuild from the same sources is byte-identical (run by `make publish`) |
 | `lib/` | Footprints and 3D models: [kiswitch](https://github.com/kiswitch/kiswitch) (CC-BY-SA 4.0; the hotswap socket and stabilizer models in `lib/3dmodels/`, found through `KICAD6_3RD_PARTY`) and components from LCSC |
@@ -80,7 +79,7 @@ RENDER_SAMPLES=16` for a quick draft). A full set takes about 20 minutes on an M
 - KiCad 10 in `~/Applications/KiCad` (its Python runs the `pcb/` scripts)
 - Java (Homebrew `openjdk`) for Freerouting
 - `.venv` (Python 3.12 with build123d) for the case
-- Rust, rmkit, cargo-make, `arm-none-eabi-gcc` (Homebrew) for the firmware
+- Rust (target `thumbv6m-none-eabi`), rmkit, cargo-make, flip-link for the firmware
 - Google Chrome for the layout preview (`render.sh`)
 - Blender 5.1 or later in `/Applications/Blender.app` for the renders (`case/render.py`, run headless by
   `make renders`)

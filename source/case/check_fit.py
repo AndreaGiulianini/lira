@@ -10,8 +10,8 @@ heights (deck, plate, PCB), which are the design inputs. Part positions come fro
   C  collisions: each inside part (enlarged by a clearance) vs each printed piece, boolean intersection
   A  assembly: the volume swept by the PCB (with all its parts) and by the plate while they are lowered into the
      bottom body, and by the top frame while it is lowered over the keycaps, must be free
-  P  ports: USB-C and headset plug overmolds, power switch actuator, LEDs seen from behind, paperclip path to the
-     reset button
+  P  ports: USB-C and headset plug overmolds, the status LED seen from behind, paperclip path to the BOOT
+     button
   S  screws: head seat, tip vs end of the hole, thread engaged in the insert, plastic around the inserts; top mount:
      the plate lies on the top frame, the bolt bosses clamp its back tabs, the backstops under the PCB
   W  walls: local thickness of every piece (rays from the surface along the inward normal)
@@ -43,12 +43,11 @@ PARTS = json.loads((BUILD / "pcb/parts.json").read_text())
 # height of each bottom-side part below the PCB, by footprint name
 HEIGHT_BELOW = [
     ("SW_Hotswap_Kailh", 1.95),  # Kailh CPG151101S11 socket (C2803348): 1.85 +- 0.1
-    ("E73-2G4M08S1C", 3.0),  # Ebyte E73: 13 x 18 mm with shield can; thickness not in the datasheet, 3.0 assumed
+    ("QFN-56", 0.9),  # RP2040 QFN-56 7 x 7: 0.9 max (datasheet)
+    ("SOIC-8_5.3x5.3", 2.16),  # W25Q128JVSIQ SOIC-8 208 mil: 2.16 max (Winbond package outline)
     ("USB_C_Receptacle_HRO", 3.26),  # HRO TYPE-C-31-M-12 (C165948): 3.26
-    ("JST_PH_S2B-PH-SM4", 5.5),  # JST PH (C295747) SM4 side entry: 5.5 with the plug mated
-    ("JS102011SAQN", 3.5),  # C&K JS (C221660) p.4: 3.5
     ("SW-SMD_4P-L5.1-W5.1", 1.5),  # TS-1187A (C318884): 5.1 x 5.1 x 1.5
-    ("SOT-23", 1.45), ("SOD-123", 1.35), ("_0603_", 1.0), ("Crystal_SMD_3215", 1.0),
+    ("SOT-23", 1.45), ("SOD-123", 1.35), ("_0603_", 1.0),
     # sound card
     ("PJ-320D-4A", 5.0),  # Hroparts PJ-320D-4A (C95562): body 5.0 high (nose 5.0 diameter)
     ("LQFP-48", 1.6),  # CM108B LQFP-48 7 x 7: 1.6 max
@@ -66,9 +65,6 @@ USB_PLUG = (13.0, 7.5, 30.0)  # USB-C overmold width x height x length (common 1
 JACK_PLUG = (9.0, 30.0)  # 3.5 mm plug overmold, round: diameter (straight plugs 5-8 mm, bulky ones 9) x length
 JACK_AXIS = 2.5  # PJ-320D-4A plug axis below the PCB (5 mm body)
 USB_AXIS = 3.26 / 2  # receptacle axis below the PCB
-SWITCH_ACT = dict(width=1.5, travel=2.0, z=(1.85, 3.5))  # JS102011SAQN actuator: 1.5 wide, 2.0 travel, height span
-BATTERY = (52.0, 35.0, 6.5)  # 603450 with protection board, real-world maximum (nominal 50 x 34 x 6)
-JST_MATED = 9.6  # JST PH side entry, plug rear to header rear (C295747)
 M2 = dict(head=mount.SCREW["head"], length=mount.SCREW["length"])  # plate screws (top mount)
 M2_INSERT = 3.0  # M2 heat-set insert length
 M3_INSERT = 3.0  # short M3 heat-set insert length
@@ -246,7 +242,7 @@ def height_below(fp):
 
 def inside_parts(up=0.0, down=0.0):
     """(name, solid, margin used, group) of everything that goes in the case except screws. Groups: pcb (the PCB
-    and everything on it), plate, keycap, battery. With up / down the pcb, plate and keycap solids are
+    and everything on it), plate, keycap. With up / down the pcb, plate and keycap solids are
     extended along the slab normal: the volume they sweep while being lowered into place (up) or while the top
     frame is lowered over them (down)."""
     def mbox(x0, x1, y0, y1, z0, z1, m=0.0):
@@ -274,13 +270,6 @@ def inside_parts(up=0.0, down=0.0):
             body = fp["fab"] or fp["courtyard"]
             if h and body:
                 x0, y0, x1, y1 = body
-                if "JST_PH" in name:  # the mated plug runs from the header rear towards the front
-                    sig = [p["xy"][1] for p in fp["pads"] if p["num"] in ("1", "2")]
-                    mp = [p["xy"][1] for p in fp["pads"] if p["num"] == "MP"]
-                    if np.mean(sig) > np.mean(mp):  # plug enters from the front (small y)
-                        y0 = y1 - JST_MATED
-                    else:
-                        y1 = y0 + JST_MATED
                 out.append((ref, mbox(x0, x1, y0, y1, bot - h, bot, CLEAR), CLEAR, "pcb"))
         elif "SW_Hotswap_Kailh" in name:
             # the socket is two lobes (solder tab + contact post each) joined between the posts
@@ -314,19 +303,6 @@ def inside_parts(up=0.0, down=0.0):
         for state, z in (("rest", KEYCAP_REST), ("pressed", KEYCAP_REST - TRAVEL)):
             out.append(("keycap %s (%s)" % (k.label, state),
                         mbox(x0, x1, y0, y1, G.PLATE_TOP + z, G.PLATE_TOP + z + 12.0, CLEAR), CLEAR, "keycap"))
-    # battery in its pocket (pushed to the left end: the lead leaves from the right end), lead to the JST plug
-    bx, by = G.POCKET_AT
-    bl, bw, bh = BATTERY
-    floor = G.FLOOR_TOP - G.POCKET[2]
-    out.append(("battery %gx%gx%g" % BATTERY, box(bx + 0.25, bx + 0.25 + bl, by + 0.25, by + 0.25 + bw, floor + 0.25,
-                                                  floor + 0.25 + bh, 0.25), 0.25, "battery"))
-    j2 = [fp for fp in PARTS["footprints"] if fp["ref"] == "J2"][0]
-    jx = (j2["fab"][0] + j2["fab"][2]) / 2
-    plug_rear = j2["fab"][3] - JST_MATED
-    lead_x = bx + 0.25 + bl + 0.25
-    out.append(("battery lead", box(min(lead_x, jx - 1.5), max(lead_x + 2.0, jx + 1.5), by + bw - 6.0, plug_rear,
-                                    bot - 4.0, bot - 1.5), 0.0, "battery"))
-    out.append(("battery lead", box(lead_x, lead_x + 2.0, by + 0.25 + bw / 2, by + bw, floor + 1.0, bot - 1.5), 0.0, "battery"))
     return out
 
 
@@ -411,41 +387,25 @@ def check_ports(pieces):
         else:
             report("PASS", "P", "headset plug overmold %g mm clears the window; jack mouth %.2f mm %s the back face"
                    % (d, abs(face - mouth), "inside" if face > mouth else "past"))
-    # power switch: actuator travel plus a fingertip around it
-    s = fps["SW101"]
-    x = (s["fab"][0] + s["fab"][2]) / 2
-    tip = s["fab"][3]
-    a = SWITCH_ACT
-    span = a["travel"] / 2 + a["width"] / 2
-    v = pieces.collide(box(x - span - 1.0, x + span + 1.0, tip - 2.0, tip + 5.0, bot - a["z"][1] - 0.5,
-                           bot - a["z"][0] + 0.5))
-    face = back_face_y(pieces, x - 12, bot - sum(a["z"]) / 2)
-    if v:
-        report("FAIL", "P", "power switch actuator: no room for its travel / a fingertip (%s)" % v)
-    else:
-        status = "PASS" if tip - face >= -1.0 else "WARN"
-        where = "past" if tip >= face else "inside"
-        report(status, "P", "power switch actuator tip %.2f mm %s the back face, travel and fingertip room clear"
-               % (abs(tip - face), where))
-    # LEDs: seen from behind, horizontally or from above at 30 / 45 degrees
-    for ref in ("D102", "D103"):
+    # status LED: seen from behind, horizontally or from above at 30 / 45 degrees
+    for ref in ("D103",):
         d = fps[ref]
         x, y = d["xy"]
         seen = [ang for ang in (0, 30, 45)
                 if not ray(pieces, (x, y, bot - 1.0), (0, math.cos(math.radians(ang)), -math.sin(math.radians(ang))),
                            ("bottom",))]
         report("PASS" if seen else "FAIL", "P", "LED %s visible from behind at %s deg below the slab" % (ref, seen))
-    # reset: a paperclip from the underside straight up to the button
-    r = fps["SW102"]
+    # BOOT: a paperclip from the underside straight up to the button (held while the cable goes in)
+    r = fps["SW101"]
     x, y = r["xy"]
     z0 = bot - 1.5 - 0.05
     seg = ray(pieces, (x, y, z0), (0, 0, -1), ("bottom",))
     if seg:
-        report("FAIL", "P", "reset: the paperclip path is blocked %.1f mm below the button" % seg[0][0])
+        report("FAIL", "P", "BOOT: the paperclip path is blocked %.1f mm below the button" % seg[0][0])
     else:
         top = slab_to_world((x, y, z0))
         down = slab_dir((0, 0, -1))
-        report("PASS", "P", "reset: clear path, %.1f mm from the desk to the button" % (top[2] / -down[2]))
+        report("PASS", "P", "BOOT: clear path, %.1f mm from the desk to the button" % (top[2] / -down[2]))
 
 
 def check_screws(pieces):

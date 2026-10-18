@@ -2,11 +2,22 @@
 
 A 40% keyboard in the [KBDfans Agar Mini](https://kbdfans.com/products/agar-mini) layout, with a numpad on the
 left and a split 3u + 3u spacebar.
-Bluetooth + USB-C, hot-swap MX switches, RMK firmware with Vial, and a built-in USB sound card (3.5 mm headset jack
-at the back: headphones and microphone, with a headphone amplifier; on only in USB mode). It also works without a
-battery, from the cable alone. 3D-printed case inspired by the Apple
+USB-C, hot-swap MX switches, RMK firmware with Vial, and a built-in USB sound card (3.5 mm headset jack
+at the back: headphones and microphone, with a headphone amplifier). 3D-printed case inspired by the Apple
 M0110 (1984), top mount: the plate is screwed to the top frame and the PCB hangs from the switches, so no printed
 part has to hold the PCB flat.
+
+**Two versions of the same keyboard**, one per git branch, with the same layout, case, plate, sound card and keymap:
+
+| Branch | Version | Microcontroller | Power |
+|---|---|---|---|
+| [`main`](../../tree/main) | wireless: Bluetooth + USB-C | Ebyte E73 module (nRF52840) | LiPo battery, or the cable alone |
+| **`rp2040`** (this one) | **wired: USB-C only** | **Raspberry Pi RP2040** + 16 MB QSPI flash | **the cable, no battery** |
+
+The sound card only ever works over the cable (there is no audio over Bluetooth here), so if the headset jack is
+the point, the radio, the cell, the charger and the power switch are things you pay for and never use: this
+version drops them. It is also simpler to build: the RP2040 programs itself over USB (no SWD probe, no bootloader
+to flash), and there is no battery to buy and wire.
 
 ![keyboard](production/images/desk.jpg)
 
@@ -22,9 +33,10 @@ always wanted and could not buy — a headset jack on a keyboard.
   **ILWrites**. Lira is not a copy: it uses the Agar Mini body, a top-mount case and a completely different PCB.
 - **The 3.5 mm headset jack** — laptop headphones + microphone built into the keyboard itself. The sound card follows
   C-Media's own CM108B reference design behind a CH334P USB hub (see
-  `production/5-schematic-and-checks/differences-from-bluemicro840.txt`).
-- **Power, USB and programming** — the BlueMicro840 ([jpconstantineau/NRF52-Board](https://github.com/jpconstantineau/NRF52-Board)),
-  a board built with the same Ebyte E73 module; the differences are listed in the same file.
+  `production/5-schematic-and-checks/differences-from-wireless.txt`).
+- **Microcontroller** — Raspberry Pi's own minimum circuit for the RP2040 ("Hardware design with RP2040", the
+  Pico's): crystal, flash, decoupling, BOOT and RESET. The wireless version's power, USB and programming follow the
+  BlueMicro840 ([jpconstantineau/NRF52-Board](https://github.com/jpconstantineau/NRF52-Board)).
 - **Case** — the shape and colour follow the Apple M0110 (1984).
 
 Thanks to all of them.
@@ -58,13 +70,13 @@ production/
 
 Everything below is checked on paper and in software, **not a tested board** (see the warning at the top).
 
-The circuit, PCB, case and firmware are generated and checked automatically on every build:
+The RP2040 circuit is Raspberry Pi's minimal design (the Pico's), with the crystal Raspberry Pi qualified for it;
+everything else is the wireless board's (USB-C, ESD, hub, sound card, matrix). The differences are listed in
+`5-schematic-and-checks/differences-from-wireless.txt`. The circuit, PCB, case and firmware are checked
+automatically on every build:
 
-- the power / USB / programming circuit follows the BlueMicro840 and the sound card follows C-Media's
-  CM108B/CM119B demo board; the differences from both are listed in
-  `production/5-schematic-and-checks/differences-from-bluemicro840.txt`;
-- KiCad's ERC, a pin-by-pin check between circuit, PCB and schematic, and datasheet tests written independently
-  of the design (`erc-kicad.txt`, `consistency-check.txt`, `datasheet-checks.txt`);
+- KiCad's ERC, a pin-by-pin check between circuit, PCB and schematic, and datasheet tests written independently of
+  the design (`erc-kicad.txt`, `consistency-check.txt`, `datasheet-checks.txt`);
 - a mechanical fit check of the case against the finished PCB (`fit-check.txt`).
 
 These checks reduce the risk; they do not replace a prototype. The guide, §8, lists what to verify on the first
@@ -81,7 +93,6 @@ board.
 | M3 × 20 mm screws | 3 (back: through the PCB's holes and the plate's tabs) |
 | Ø 3 × 14 mm alignment pins (steel rod or 3 mm filament) | 4 |
 | Ø 12 mm rubber feet | 4 |
-| 1 mm foam (under the battery) | one 55 × 37 mm piece |
 | Long 2.5 mm hex key (some M3 screw holes are 21 mm deep) and a 1.5 mm hex key (M2) | 1 + 1 |
 
 ## Printing the case

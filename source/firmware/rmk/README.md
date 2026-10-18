@@ -2,9 +2,15 @@
 
 RMK is a feature-rich and easy-to-use keyboard firmware.
 
+This project builds it for the wired Lira: an RP2040 with a 16 MB W25Q128JV flash and a 12 MHz crystal, USB only (set
+up as RMK 0.9's `examples/use_config/rp2040`). `keyboard.toml` and `vial.json` are written by `../gen_firmware.py`
+and copied here by `make firmware` in `source/`.
+
 ## uf2 support
 
-If you’re using the Adafruit_nRF52_Bootloader (pre-installed on the nice!nano), you’re in luck! This bootloader supports the .uf2 firmware format, which eliminates the need for a debugging probe to flash your firmware. RMK uses the `cargo-make` tool to generate .uf2 firmware, with the generation process defined in the `Makefile.toml`.
+The RP2040 has its UF2 bootloader in ROM: in boot mode it shows up as a USB drive called RPI-RP2, so no debugging probe
+is needed to flash the firmware. RMK uses the `cargo-make` tool to generate .uf2 firmware, with the generation process
+defined in the `Makefile.toml` (UF2 family `rp2040`, loaded at 0x10000000 with the flash's boot2 in front).
 
 Follow these steps to generate and flash the .uf2 firmware with RMK:
 
@@ -18,26 +24,16 @@ Follow these steps to generate and flash the .uf2 firmware with RMK:
    ```
 3. Flash
 
-   - Put your board into bootloader mode. A USB drive will appear on your computer.
-   - Drag and drop the generated .uf2 firmware file onto the USB drive. The RMK firmware will be automatically flashed onto your microcontroller.
+   - Put your board into boot mode. The RPI-RP2 drive will appear on your computer:
+     - first time: a board with a blank flash starts in boot mode by itself, just plug the cable in;
+     - with the firmware running: fn + Esc (`Bootloader`, on release; Vial's "reboot to bootloader" does the same);
+     - always: hold BOOT while plugging the cable in (or hold BOOT and press RESET).
+   - Drag and drop `lira.uf2` onto the drive. The RP2040 writes it and restarts into the keyboard.
 
-   For additional details on entering bootloader mode and flashing firmware, refer to the [nice!nano documentation](https://nicekeyboards.com/docs/nice-nano/getting-started#flashing-firmware-and-bootloaders)
+`cargo run --release` flashes through an SWD probe instead (probe-rs, `.cargo/config.toml`).
 
-### Tips for nRF52840
+### Storage
 
-Most nice!nano compatible boards have bootloader with SoftDevice pre-flashed. Since v0.7.x, RMK will remove old SoftDevice Bluetooth stack and replace it with its own. So if you want to rollback to v0.6.x, or switch to firmwares that use SoftDevice stack(for example, zmk), you will need to [re-flash the bootloader](https://nicekeyboards.com/docs/nice-nano/troubleshooting#my-nicenano-seems-to-be-acting-up-and-i-want-to-re-flash-the-bootloader).
-
-### Additional notes
-
-RMK defaults to USB-priority mode if a USB cable is connected. After flashing, remember to disconnect the USB cable, or [switch to BLE-priority mode](https://rmk.rs/docs/features/wireless.html#multiple-profile-support) by pressing User6 (Switch Output: fn + R on Lira).
-
-### Lira: the sound card follows the output
-
-`src/audio_gate.rs` listens to RMK's connection status and drives P1.02, the enable pin of the load switch on the
-sound card's 5 V: high (sound card on) only when the chosen output is USB and a USB host has set the keyboard up (or is
-asleep); low in Bluetooth mode (also while the keyboard types over the cable because no Bluetooth host is
-connected: fn + R selects USB), on a charger, and in the bootloader (a pull-down keeps the switch off). keyboard.toml
-sets the subscriber slots of the connection status (`[event]`, written by `../gen_firmware.py`): the audio switch is
-its only listener in this build (RMK adds its own slots when a display, rynk or a split is enabled). P1.02 sinks with
-high drive (`src/main.rs`): switching off, it pulls the amplifier's EN down before the sound card's 5 V has fallen,
-so the amplifier is off before its source (no pop).
+RMK keeps the keymap changed from Vial in the flash from 1 MB on (RMK's rp2040 default, `[storage] start_addr =
+0x100000`); `memory.x` makes the link fail if the program ever grows into it. A new build of RMK starts again from the
+keymap of `keyboard.toml` (RMK resets its storage when the build hash changes).

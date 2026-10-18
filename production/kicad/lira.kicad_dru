@@ -2,9 +2,9 @@
 (rule "signal tracks may neck down"
   (condition "A.Type == 'Track'")
   (constraint track_width (min 0.15mm)))
-(rule "fine-pitch pads (QFN, module)"
+(rule "fine-pitch pads (QFN)"
   (condition "A.Type == 'Pad' && B.Type == 'Pad'")
   (constraint clearance (min 0.15mm)))
-(rule "edge-mounted parts (USB-C, power switch)"
-  (condition "A.Parent.Reference == 'J1' || A.Parent.Reference == 'SW101'")
+(rule "edge-mounted parts (USB-C)"
+  (condition "A.Parent.Reference == 'J1'")
   (constraint edge_clearance (min 0mm)))

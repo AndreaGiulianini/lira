@@ -1,158 +1,178 @@
 ====================================================================================================
-check_circuit.py - build/netlist.json (design=Lira variant=?)
+check_circuit.py - build/netlist.json (design=Lira (wired, RP2040) variant=?)
 ====================================================================================================
 [PASS] N00  netlist self-consistency (parts vs nets tables)
        source: netlist structure (no datasheet needed)
-       - 211 parts, 142 nets
-[PASS] M01  E73 ground pads 5/21/24 all on the single ground net
+       - 211 parts, 144 nets
+[SKIP] M01  E73 ground pads
        source: E73-2G4M08S1C_C356849.pdf p.7 (ch.3 pin table, nRF52840 ball per pin)
-       - pin 5 -> GND
-       - pin 21 -> GND
-       - pin 24 -> GND
-[PASS] M02  E73 VDD and VDDH tied together on the 3.3 V rail (normal voltage mode)
+       - no E73-2G4M08S1C module found
+[SKIP] M02  E73 VDD/VDDH supply
        source: nrf52840_ps_a.pdf 5.3.1 p.61 (normal voltage mode = VDD shorted to VDDH), 5.3.8 p.80 (VDD 1.7-3.6 V), 9 p.612 Table 173 (VDD abs max 3.9 V)
-       - VDD (pin 19) -> 3V3[=VDD] ; VDDH (pin 23) -> 3V3[=VDD]
-       - same net -> normal voltage mode (allowed: PS 5.3.1 'pin VDD shorted to pin VDDH'); VDD operating range 1.7-3.6 V, abs max 3.9 V
-       - rail from U3 (AP2112K-3.3): 3.30 V +-1.5 % -> max 3.349 V (<= 3.6 V operating, < 3.9 V abs max)
-       - E73 datasheet: >= 3.3 V supply guarantees the rated output power (p.5)
-       - capacitance VDD-GND on the board: 11.1uF (C103, C109, C108)
-[WARN] M03  E73 VBUS pin on the USB-C VBUS (5 V) net
+[SKIP] M03  E73 VBUS pin
        source: nrf52840_ps_a.pdf 5.3.2 p.66 (5 V on VBUS for USB), 8 p.611 (VBUS 4.35-5.5 V), 9 p.612 (VBUS abs max 5.8 V), 7.1 p.577 (AD2 VBUS, AD4 D-, AD6 D+), 7.3 p.583 (series resistor on VBUS recommended for new designs)
-       - VBUS (pin 27) -> VBUS
-       - USB-C VBUS pads ['A4', 'A9', 'B4', 'B9'] on the same net; USB 5 V is within 4.35-5.5 V operating, 5.8 V abs max
-       - note: the nRF52840 reference circuits (bare chip) put an optional 4R7 series resistor between the USB supply and the VBUS pin, 'recommended for new designs' against connection transients; none here (the BlueMicro840 has none either) - low risk with the module's internal decoupling
-[PASS] M04  E73 D+/D- on one USB-hub downstream port (DPn/DMn, not swapped), wired straight, nothing else
-       source: nrf52840_ps_a.pdf 5.3.2 p.66 (5 V on VBUS for USB), 8 p.611 (VBUS 4.35-5.5 V), 9 p.612 (VBUS abs max 5.8 V), 7.1 p.577 (AD2 VBUS, AD4 D-, AD6 D+), 7.3 p.583 (series resistor on VBUS recommended for new designs); CH334_C5373042.pdf p.1 (USB 2.0 hub: upstream HS/FS with a built-in 1.5 kOhm pull-up, downstream ports with built-in host pull-downs), p.4 Table 1-3 (DPU/DMU upstream D+/D-, DPn/DMn downstream port n), p.19 4.1 (USB pins -0.4..VDD33+0.4 V), p.29 6.5 (ESD protection advised on every USB signal); nrf52840_ps_a.pdf 7.3 p.585 Fig.210 (D+/D- wired straight to the USB connector, no series parts); CM108B_appnotes_v1.50.pdf p.9 3.5 (series resistors for PHY impedance matching, 39 Ohm in the figure) and C-Media demo board v1.33 sheet 4 (R4/R66 22 Ohm, C1/C2 100 pF)
-       - D+ (pin 31) -> MCU_DP ; D- (pin 29) -> MCU_DN
-       - hub U5 downstream port 3: DP3 (pin 6) = module D+, DM3 (pin 5) = module D-
-       - the module is a full-speed device on a hub port: no series resistor, no external pull-up or ESD array on this side (the ESD array sits at the receptacle, U02)
-[PASS] M05  SWDIO/SWDCLK reach a test point or header, nothing else on them
+[SKIP] M04  E73 D+/D- USB data lines
+       source: nrf52840_ps_a.pdf 5.3.2 p.66 (5 V on VBUS for USB), 8 p.611 (VBUS 4.35-5.5 V), 9 p.612 (VBUS abs max 5.8 V), 7.1 p.577 (AD2 VBUS, AD4 D-, AD6 D+), 7.3 p.583 (series resistor on VBUS recommended for new designs)
+[SKIP] M05  SWDIO/SWDCLK
        source: nrf52840_ps_a.pdf 4.8.1 p.51 (SWDIO internal pull-up, SWDCLK internal pull-down), p.53 (Rpull 13 kOhm), 7.1 p.577 (AA24 SWDCLK, AC24 SWDIO)
-       - SWDIO (pin 37) -> SWDIO : [('TP1', '1')]
-       - SWDCLK (pin 39) -> SWCLK : [('TP2', '1')]
-       - no external pull resistors needed: SWDIO has an internal pull-up, SWDCLK an internal pull-down (13 kOhm)
-[PASS] M06  RESET pin: only button-to-GND / test point / header, never tied to a rail
+[SKIP] M06  RESET pin
        source: nrf52840_ps_a.pdf 5.3.6.2 p.69 (pin reset), 7.1 p.577 (AC13 P0.18 configurable as nRESET), p.81 (tPINR vs capacitance on the reset pin); bluemicro_nrf52840_board.h (BUTTON_DFU = P0.18, BUTTON_PULL = PULLUP)
-       - P0.18/RESET (pin 26) -> RESET
-       - other connections: [('SW102', '1'), ('TP5', '1')]
-       - SW102: push button between RESET and GND (active-low reset, DFU by double tap)
-       - the bootloader maps BUTTON_DFU to P0.18 with pull-up: no external resistor required
-[PASS] M07  32.768 kHz crystal on XL1/XL2 with matched load capacitors (2*CL - Cpin)
+[SKIP] M07  32.768 kHz crystal and load capacitors
        source: nrf52840_ps_a.pdf 5.4.2.4 p.86-87 (Fig.23: C1/C2 from XL1/XL2 to GND, equal values, CL per crystal datasheet), 5.4.4.3 p.97 (CL 12.5 pF, C0 <=2 pF, ESR <=100 kOhm, drive 0.5 uW, Cpin 4 pF); C32346.pdf p.1 (Epson FC-135 Q13FC13500004: CL 12.5 pF, ESR 70 kOhm max, C0 1 pF, drive level 0.5 uW max)
-       - XL1 (pin 11) -> XL1 ; XL2 (pin 13) -> XL2
-       - Y1 (32.768kHz) between XL1 and XL2
-       - crystal FC-135: CL 12.5 pF (= PS CL_LFXO 12.5 pF), ESR 70k <= 100k, C0 1 pF <= 2 pF, drive 0.5 uW <= 0.5 uW -> all within the nRF52840 LFXO limits
-       - XL1 load capacitor C105 = 18pF
-       - XL2 load capacitor C106 = 18pF
-[PASS] M08  NFC1/NFC2 (P0.09/P0.10) free, or used as GPIO with NFCPINS disabled
+[SKIP] M08  NFC pins
        source: nrf52840_ps_a.pdf 6.14.3 p.209 (NFC1/NFC2 shared with P0.09/P0.10, UICR NFCPINS selects GPIO use), 7.1 p.576 (L24 P0.09/NFC1, J24 P0.10/NFC2)
-       - pin 41 P0.09/NFC1 unconnected (fine)
-       - pin 43 P0.10/NFC2 unconnected (fine)
-[PASS] M09  DCCH open (no DC/DC inductor) or inductor to VDD only
+[SKIP] M09  DCCH pin
        source: nrf52840_ps_a.pdf 5.3.1.1 p.61-62 (LC filter needed only when a DC/DC regulator is enabled; Fig.13 normal voltage mode, LDO only), 7.3 p.583-590 (reference circuits)
-       - DCCH (pin 25) -> <unconnected>
-       - unconnected: correct when the internal DC/DC converter is not used (LDO only, PS Fig.13)
-[PASS] M10  no GPIO tied to a power rail, no two module pins shorted together
+[PASS] M10  no GPIO / signal pin tied to a power rail, no two RP2040 pins shorted together
+       source: rp2040-datasheet.pdf 1.4.2 Table 1 p.11-12 (pin functions; GND 'single external ground connection' = the central pad; TESTEN 'Factory test mode pin. Tie to GND'), 5.5.2 Tables 614-621 p.612-614 (QFN-56 numbers 1-56, 57 = GND pad; QSPI_SS = QSPI_CSn, SWDIO = 'SWD'; reset state: pull-down on GPIO, TESTEN, QSPI_SCLK; pull-up on QSPI_CSn, SWCLK, SWDIO, RUN), 5.1 p.607 (ePad smaller than usual), 5.1.2 Fig.167 p.608 (recommended footprint: 3.20 mm ePad)
+       - 22 of 30 GPIOs connected: ['GPIO0', 'GPIO1', 'GPIO2', 'GPIO3', 'GPIO4', 'GPIO5', 'GPIO6', 'GPIO7', 'GPIO8', 'GPIO9', 'GPIO10', 'GPIO11', 'GPIO18', 'GPIO19', 'GPIO20', 'GPIO21', 'GPIO22', 'GPIO23', 'GPIO24', 'GPIO25', 'GPIO26', 'GPIO27']
+       - XIN/XOUT, SWD, RUN, USB and the six QSPI pins each on a net of their own
+[PASS] M11  no pull-up above IOVDD into an RP2040 pin (divider / LED analysis vs VIH max IOVDD + 0.3 V, abs max IOVDD + 0.5 V)
+       source: rp2040-datasheet.pdf 5.5.2.1 Table 614 p.612 (GPIO0-25 Digital IO (FT), GPIO26-29 Digital IO / Analogue, not FT; drive 2/4/8/12 mA, default 4 mA), 5.5.3.1 Table 622 p.614 (VPIN abs max IOVDD + 0.5 V), 5.5.3.4 Table 625 p.615-616 (VIH max IOVDD + 0.3 V; VOH >= 2.62 V at the selected drive current, 3.3 V; RPU / RPD 50-80 kOhm; IIOVDD_MAX = IIOVSS_MAX = 50 mA for all GPIO and QSPI pins together), 5.5.3.5 p.617
+       - no resistor / LED / jumper from a GPIO, QSPI, RUN or SWD net to VBUS, VIN, VBAT or the switched 5 V (VAUD)
+       - RP2040 I/O level = IOVDD = 3.3 V: VIH max IOVDD + 0.3 V, abs max IOVDD + 0.5 V (Tables 622 / 625); GPIO0-25, RUN and SWD are fault tolerant, GPIO26-29 (ADC) are not (Table 614)
+[SKIP] M12  module symbol pin names
        source: E73-2G4M08S1C_C356849.pdf p.7 (ch.3 pin table, nRF52840 ball per pin)
-       - 27 GPIO-capable pins connected (incl. XL1/XL2, RESET, AIN): ['P0.03', 'P0.28', 'P1.13', 'P0.02', 'P0.29', 'P0.31', 'P0.30', 'P0.00', 'P0.26', 'P0.01', 'P0.06', 'P0.05', 'P0.08', 'P1.09', 'P0.04', 'P0.12', 'P0.07', 'P0.18', 'P0.15', 'P0.17', 'P0.20', 'P0.13', 'P0.22', 'P0.24', 'P1.00', 'P1.02', 'P1.04']
-[PASS] M11  no pull-up above VDD into a GPIO (divider/LED analysis vs VI/O max VDD+0.3 V)
-       source: nrf52840_ps_a.pdf 6.9.3.1 p.156 (IOH/IOL standard drive 1-4 mA, high drive 6-15 mA), 9 p.612 (VI/O max VDD+0.3 V)
-       - pin 9 P0.31/AIN7: divider 10M / 10M from VBAT -> 2.10 V max (limit VDD+0.3 = 3.6 V)
-       - E73 I/O level is 3.3 V; 5 V signals would need 1k-5.1k series resistors (E73 p.9) - none present
-[PASS] M12  E73 symbol pin numbers/names agree with the datasheet pin table
-       source: E73-2G4M08S1C_C356849.pdf p.7 (ch.3 pin table, nRF52840 ball per pin)
-       - 43 of 43 pins carry a name in the netlist; all compared names match the datasheet
-[PASS] C01  MCP73831: pinout, VDD on VBUS (3.75-6 V, abs max 7 V), VSS on GND, VBAT on the battery net, 4.20 V option
+[PASS] Q01  RP2040 symbol pad numbers / names agree with the datasheet QFN-56 table (57 = the ground pad)
+       source: rp2040-datasheet.pdf 1.4.2 Table 1 p.11-12 (pin functions; GND 'single external ground connection' = the central pad; TESTEN 'Factory test mode pin. Tie to GND'), 5.5.2 Tables 614-621 p.612-614 (QFN-56 numbers 1-56, 57 = GND pad; QSPI_SS = QSPI_CSn, SWDIO = 'SWD'; reset state: pull-down on GPIO, TESTEN, QSPI_SCLK; pull-up on QSPI_CSn, SWCLK, SWDIO, RUN), 5.1 p.607 (ePad smaller than usual), 5.1.2 Fig.167 p.608 (recommended footprint: 3.20 mm ePad)
+       - U1 (RP2040): footprint Package_DFN_QFN:QFN-56-1EP_7x7mm_P0.4mm_EP3.2x3.2mm, LCSC C2040
+       - 57 of 57 pads carry a name; all agree with Tables 615-621
+       - footprint ePad 3.2 x 3.2 mm = the recommended footprint (Fig.167 p.608)
+[PASS] Q02  RP2040 ground pad (57, the only ground connection) on GND, TESTEN (19) tied to GND
+       source: rp2040-datasheet.pdf 1.4.2 Table 1 p.11-12 (pin functions; GND 'single external ground connection' = the central pad; TESTEN 'Factory test mode pin. Tie to GND'), 5.5.2 Tables 614-621 p.612-614 (QFN-56 numbers 1-56, 57 = GND pad; QSPI_SS = QSPI_CSn, SWDIO = 'SWD'; reset state: pull-down on GPIO, TESTEN, QSPI_SCLK; pull-up on QSPI_CSn, SWCLK, SWDIO, RUN), 5.1 p.607 (ePad smaller than usual), 5.1.2 Fig.167 p.608 (recommended footprint: 3.20 mm ePad)
+       - GND pad (57) -> GND ; TESTEN (19) -> GND
+       - ground pad on GND; it carries all of the chip's ground current (solder paste and vias under it)
+       - TESTEN on GND as required (factory test mode off)
+[PASS] Q03  RP2040 supplies: IOVDD x6, VREG_VIN, USB_VDD, ADC_AVDD on the 3.3 V rail (single 3.3 V scheme), each inside its Table 634 range
+       source: rp2040-datasheet.pdf 2.9 p.150-152 (single 3.3 V supply, Fig.16: IOVDD, USB_VDD, ADC_AVDD and VREG_VIN on one 3.3 V rail; 'USB_VDD should not be left unconnected'; ADC compromised below 2.97 V), 5.6 Table 634 p.622 (IOVDD / VREG_VIN / ADC_AVDD 1.62-3.63 V, USB_VDD 3.135-3.63 V, DVDD 1.05-1.16 V), 5.5.3.1 Table 622 p.614 (IOVDD abs max 3.63 V); C51118.pdf (AP2112) p.8 (3.3 V +-1.5 %)
+       - IOVDD pins [1, 10, 22, 33, 42, 49] -> ['3V3[=VDD]']
+       - rail 3V3[=VDD] from U3 (AP2112K-3.3): 3.3 V +-1.5 % = 3.250-3.349 V (C51118.pdf p.8)
+       - IOVDD (1) on the rail: 3.25-3.35 V inside 1.62-3.63 V (Table 634)
+       - VREG_VIN (44) on the rail: 3.25-3.35 V inside 1.62-3.63 V (Table 634)
+       - USB_VDD (48) on the rail: 3.25-3.35 V inside 3.135-3.63 V (Table 634)
+       - ADC_AVDD (43) on the rail: 3.25-3.35 V inside 1.62-3.63 V (Table 634)
+       - IOVDD max 3.349 V < abs max 3.63 V (Table 622); USB_VDD >= 3.135 V for the USB PHY; ADC_AVDD >= 2.97 V for full ADC performance (2.9.5); one 3.3 V source for all four = the scheme of 2.9.7.1 / Fig.16, any power-up order is allowed (2.9.6)
+[PASS] Q04  RP2040 decoupling: 100 nF per IOVDD / USB_VDD / ADC_AVDD / DVDD pin, 1 uF at VREG_VIN and at VREG_VOUT
+       source: rp2040-datasheet.pdf 2.9.1-2.9.5 p.151-152 (100 nF close to each IOVDD pin, each DVDD pin, USB_VDD and ADC_AVDD; 1 uF close to VREG_VIN), 2.10.1 p.156 ('the regulator must have 1 uF capacitors placed close to its input (VREG_VIN) and output (VREG_VOUT) pins'); hardware-design-with-rp2040.pdf 2.1.2 p.7-8 (100 nF per power pin; pins 48 and 49 share one on the minimal design), 2.1.3 p.8 (1 uF at VREG_VIN and VREG_VOUT; small ceramic chip capacitors meet the ESR limits)
+       - 3V3[=VDD]: 8 RP2040 supply pin(s) [1, 10, 22, 33, 42, 49, 48, 43] + the flash VCC (['U2'], design guide C5); 100 nF-class capacitors 9 ['C1', 'C2', 'C3', 'C4', 'C5', 'C6', 'C7', 'C8', 'C15']
+       - 1V1: 2 RP2040 supply pin(s) [23, 50]; 100 nF-class capacitors 2 ['C9', 'C10']
+       - VREG_VIN (44) on 3V3[=VDD]: >= 1 uF present [('C11', '1uF'), ('C108', '1uF'), ('C103', '10uF')] (2.10.1; the Pico uses 2.2 uF)
+       - VREG_VOUT (45) on 1V1: >= 1 uF present [('C12', '1uF')] (2.10.1; the Pico uses 2.2 uF)
+       - the netlist cannot show placement: each 100 nF next to its pin, the 1 uF parts next to pins 44 and 45 (small ceramics meet the regulator's ESR limits, design guide 2.1.3)
+[PASS] Q05  RP2040 core supply: VREG_VOUT (45) feeds both DVDD pins (23, 50) on a net of their own (1.1 V, <= 100 mA)
+       source: rp2040-datasheet.pdf 2.9.2 p.151 (VREG_VOUT to DVDD is made off-chip), 2.9.7.1-2.9.7.2 p.152-153 (single 3.3 V supply; with an external core supply VREG_VOUT stays unconnected, VREG_VIN still powered), 1.4.2 p.12 / 2.10 p.155 (1.1 V at power-on, 100 mA max), 5.6 Table 634 p.622 (DVDD 1.05-1.16 V)
+       - VREG_VOUT (45) -> 1V1 ; DVDD (23) -> 1V1 ; DVDD (50) -> 1V1
+       - VREG_VOUT -> DVDD 23 + 50, nothing but capacitors on the net: the single 3.3 V scheme (2.9.7.1, Fig.16); the regulator starts at 1.1 V (2.10), inside 1.05-1.16 V (Table 634), and its only load is the core (100 mA max)
+[PASS] Q06  RP2040 12 MHz crystal on XIN / XOUT: load capacitors from CL and stray, damping resistor on XOUT, ESR and drive level (Hardware design with RP2040 2.3)
+       source: rp2040-datasheet.pdf 1.4.2 p.11 (the USB bootloader needs a 12 MHz crystal or clock), 2.16.1 p.216-217 (1-15 MHz crystals; ABM8-272-T3 recommended, Table 257; crystal and damping resistor tuned for 3.3 V; other crystals must be tested over temperature), 2.15 p.181 (margin for up to 1000 ppm XOSC error); hardware-design-with-rp2040.pdf 2.3 p.9-10 (C2 = C3 = 15 pF: 7.5 pF in series + 3 pF parasitic = 10.5 pF for CL 10 pF; ESR <= 50 Ohm and the 1 kOhm series resistor R5 on XOUT keep the crystal from being over-driven at 3.3 V), 2.3.1 Table 1 p.10; ABM8-272-T3.pdf (Abracon drawing 456603 rev B, 2024-09-16) page 2 of 9 (12.000 MHz fundamental, +-30 ppm, +-30 ppm, ESR 50 Ohm max, C0 3 pF max, CL 10 pF, drive 10 uW typ / 200 uW max), page 4 of 9 (pads 1 and 3 crystal, 2 and 4 GND); pico-datasheet.pdf Appendix B Fig.19 p.25 (R14 1K, C16/C17 15p, R15 not fitted)
+       - XIN (20) -> XIN ; XOUT (21) -> XOUT
+       - Y1 (12MHz) between XIN and XOUT_X (behind R1 1k from XOUT)
+       - Abracon ABM8-272-T3 (LCSC C20625731): the crystal recommended in 2.16.1.1 and used on the Pico - CL 10 pF, ESR <= 50 Ohm, C0 <= 3 pF, drive <= 200 uW
+       - load: C13 15pF and C14 15pF in series = 7.5pF + 3pF stray (PCB + XIN/XOUT, design guide 2.3) = 10.5pF for CL 10pF; C = 2 x (CL - stray) = 14pF
+       - +0.5 pF from CL: the design guide's own 10.5 pF for 10 pF is 'close enough' (2.3 p.9)
+       - damping resistor R1 1 kOhm on XOUT, as R5 in the minimal design and R14 on the Pico
+       - drive level, upper bound with the full IOVDD swing across the crystal: ESR x (pi f (C0 + CL) Vpp)^2 / 2 = 67 uW <= 200 uW max (the 1 kOhm keeps the real swing lower)
+       - frequency error <= +-65 ppm (tolerance + stability + 1st-year aging, page 2 of 9): inside the 1000 ppm the RP2040 clocks are designed for (2.15 p.181)
+       - layout: crystal and capacitors close to pins 20/21, short tracks (stray capacitance is part of the load)
+[PASS] Q07  QSPI flash: each RP2040 QSPI pin on its W25Q128JV pin (/CS, CLK, IO0-IO3), VCC on the 3.3 V rail with decoupling, nothing else on the bus
+       source: W25Q128JV.pdf 3.1 / 3.3 p.5 (SOIC-8 208-mil: 1 /CS, 2 DO(IO1), 3 /WP(IO2), 4 GND, 5 DI(IO0), 6 CLK, 7 /HOLD(IO3), 8 VCC), 9.1 p.60 (VCC abs max 4.6 V), 9.2 p.60 (VCC 3.0-3.6 V for 133 MHz, 2.7-3.0 V up to 104 MHz), 9.4 p.62 (ICC <= 25 mA; VIL <= 0.3 VCC, VIH >= 0.7 VCC); rp2040-datasheet.pdf 5.5.2 Table 616 p.613 (QSPI pins 51-56); hardware-design-with-rp2040.pdf 2.2 p.9 (W25Q128JVS, 16 MB = the largest the RP2040 supports; QSPI pins wired directly, short), Fig.11 p.13 (SD0 -> DI_IO0, SD1 -> DO_IO1, SD2 -> /WP_IO2, SD3 -> /HOLD_IO3, C5 100 nF at VCC), 2.6 p.13-14 (03h, 02h, 05h, 06h, 20h)
+       - U2 (W25Q128JVS), LCSC C97521
+       - QSPI_SS (56) -> flash 1 /CS
+       - QSPI_SD1 (55) -> flash 2 DO(IO1)
+       - QSPI_SD2 (54) -> flash 3 /WP(IO2)
+       - QSPI_SD0 (53) -> flash 5 DI(IO0)
+       - QSPI_SCLK (52) -> flash 6 CLK
+       - QSPI_SD3 (51) -> flash 7 /HOLD(IO3)
+       - VCC on 3V3[=VDD]: 3.25-3.35 V inside 3.0-3.6 V (133 MHz) / 2.7-3.6 V (9.2 p.60), abs max 4.6 V
+       - 16 MB (128 Mbit) <= the 16 MB the RP2040 supports (design guide 2.2); the W25Q answers 03h / 02h / 05h / 06h / 20h and the boot ROM's XIP exit sequence (design guide 2.6)
+       - layout: short direct QSPI tracks next to the RP2040 (design guide 2.2), 100 nF next to pin 8
+[PASS] Q08  RP2040 BOOTSEL strap: QSPI_SS pulled up to the flash VCC (or by the chip alone); BOOT to GND through a resistor that reads low at boot yet lets QSPI_SS over-drive it
+       source: rp2040-datasheet.pdf 2.8.1 p.129-130 ('Check if SPI CS pin is tied low (bootrom button), and skip flash boot if so'; no valid image after 0.5 s -> USB boot), Table 616 p.613 (QSPI_CSn pull-up), 5.5.3.4 Table 625 p.615-616 (VIL <= 0.8 V at IOVDD 3.3 V; VOH >= 2.62 V at the selected drive current; RPU 50-80 kOhm), Table 614 p.612 (default drive 4 mA); hardware-design-with-rp2040.pdf 2.2 p.9 (R2 10k pull-up: the flash's /CS must be at its VCC at power-up, DNF on the minimal design; R1 1k to the USB_BOOT jumper 'allows the QSPI_SS pin to safely over-drive the applied pull-down'); W25Q128JV.pdf 4.1 p.9, 6.5 p.12 (/CS must track VCC at power-up and power-down; a pull-up can be used); pico-datasheet.pdf Fig.19 p.25 (BOOTSEL: SW1 - R11 1K - QSPI_SS, R4 pull-up not fitted)
+       - QSPI_SS (56) -> QSPI_SS
+       - pull-up R2 10k to 3V3[=VDD] (the flash VCC): /CS follows VCC from the first moment of power-up (W25Q 4.1, 6.5); the minimal design has this 10k as an option (design guide 2.2)
+       - BOOT ['SW101']: QSPI_SS -> R3 1k -> BOOT -> GND; pressed: 3.35 V x 1k / (1k + 8.333k) = 0.36 V (pull-ups ['10k'] || internal >= 50k) <= VIL 0.8 V (Table 625): the boot ROM sees CS tied low and enters USB boot (2.8.1)
+       -   held while QSPI_SS is driven high: R3 takes 2.6 mA at VOH 2.62 V, within the default 4 mA drive (Tables 614 / 625), so /CS stays >= 2.62 V > the flash's VIH 0.7 VCC = 2.34 V (W25Q 9.4): the 'over-drive' the design guide asks R1 for (2.2)
+       -   while held the flash /CS sits at 0.36 V (selected) but sees no clock: harmless, as on the Pico (R11 1K)
+[PASS] Q09  RP2040 RUN (26): high to run (internal / external pull-up or IOVDD), only a reset button, capacitor or test point to GND
+       source: rp2040-datasheet.pdf 1.4.2 p.11 (RUN: reset when low; 'if no external reset is required, this pin can be tied directly to IOVDD'), 2.7 p.128 (RUN low holds the chip in reset), Table 619 p.613 (RUN Digital In (FT), pull-up); pico-datasheet.pdf 2.1 p.8 (RUN internal pull-up ~50 kOhm; short low to reset)
+       - RUN (26) -> RESET
+       - R4 10k pull-up to IOVDD (on top of the internal one): 0.33 mA while the button is held
+       - SW102: push button RUN -> GND = reset (pad pairing in R01)
+       - TP5: test point / header (an external reset or probe can pull RUN low)
+       - RUN is a fault-tolerant input (Table 619): a reset line from a probe is safe even with the board off
+[PASS] Q10  RP2040 SWCLK (24) / SWDIO (25): test points or a header only (internal pull-ups), GND and 3.3 V for the probe
+       source: rp2040-datasheet.pdf 1.4.2 p.11 (SWCLK / SWDIO: debug access, can download code), Table 618 p.613 (SWCLK 24, SWDIO 'SWD' 25, both pull-up), 2.8.1 p.130 (code is normally loaded over USB by the boot ROM); pico-datasheet.pdf 4.8 p.23 (internal pull-ups on SWDIO and SWCLK, nominally 60 kOhm)
+       - SWCLK (24) -> SWCLK : [('TP2', '1')]
+       - SWDIO (25) -> SWDIO : [('TP1', '1')]
+       - internal pull-ups on both (Table 618; nominally 60 kOhm, Pico 4.8): no external resistors needed
+[PASS] Q11  RP2040 USB_DP (47) / USB_DM (46): one 27 Ohm series resistor each to one USB port (hub DPn/DMn or the receptacle), not swapped, no external pull-up / pull-down
+       source: rp2040-datasheet.pdf 1.4.2 p.11 ('A 27 Ohm series termination resistor is required on each pin, but bus pull-ups and pull-downs are provided internally'), Tables 614 / 620 p.612 / p.614 (USB_DP 47, USB_DM 46, power domain USB_VDD), Table 626 p.616-617 (USB IO levels), 4.1.2.10 p.394 (VBUS detect / enable / overcurrent GPIOs optional: 'VBUS detect can be forced in USB_PWR'); hardware-design-with-rp2040.pdf 2.4.1 p.11 (27 Ohm placed close to the chip; 90 Ohm differential over ground); pico-datasheet.pdf 4.7 p.23, Fig.19 p.25 (R12/R13 27R)
+       - USB_DP (47) -> RP_DP ; USB_DM (46) -> RP_DN
+       - USB_DP -> R5 27 Ohm -> MCU_DP
+       - USB_DM -> R6 27 Ohm -> MCU_DN
+       - hub U5 port 3: DP3 = USB_DP, DM3 = USB_DM (full-speed device behind the hub, U03)
+       - a VBUS-detect GPIO is optional: without one, firmware forces VBUS detect in USB_PWR (4.1.2.10 p.394)
+       - layout: the 27 Ohm parts close to the RP2040, the pair routed as 90 Ohm differential over unbroken ground (design guide 2.4.1); USB_VDD 3.3 V checked in Q03
+[PASS] Q12  3.3 V rail budget: RP2040 + flash + resistive loads (datasheet maxima) vs the AP2112K-3.3 (600 mA) and its SOT25 dissipation
+       source: rp2040-datasheet.pdf 2.10 p.155 (core regulator up to 100 mA), Table 625 p.616 (IIOVDD_MAX 50 mA), 5.7.2 Table 637 p.623 (USB_VDD <= 2.0 mA max, BOOTSEL with USB activity); W25Q128JV.pdf 9.4 p.62 (ICC <= 25 mA program / erase); AP2112 datasheet Diodes DS39724 rev 2-2 (June 2017) p.3 (SOT25 theta-JA 184 C/W, VIN 2.5-6.0 V, TJ <= +150 C, TA -40..+85 C), p.8 (AP2112-3.3: IOUT(MAX) >= 600 mA, dropout 250 mV typ / 400 mV max at 600 mA)
+       - loads on 3V3[=VDD] (upper bounds, never all at once):
+       -   100.0 mA  RP2040 core regulator, rated maximum (2.10)
+       -    50.0 mA  RP2040 IOVDD: every GPIO + QSPI pin sourcing together, IIOVDD_MAX (Table 625)
+       -     2.0 mA  RP2040 USB_VDD, maximum average (Table 637)
+       -    25.0 mA  U2 ICC program / erase max (W25Q 9.4)
+       -     0.3 mA  R2 10k to QSPI_SS, other end grounded
+       -     0.3 mA  R4 10k to RESET, other end grounded
+       - total <= 178 mA vs U3 IOUT(MAX) >= 600 mA (p.8): OK
+       - headroom: VBUS 4.75 V (USB 2.0 low end) - 3.35 V = 1.40 V >> dropout 400 mV max at 600 mA (p.8)
+       - dissipation at this bound: (5.5 V - 3.3 V) x 178 mA = 0.39 W x 184 C/W = +72 C; TJ <= +150 C (p.3) for ambient up to 78 C
+[SKIP] C01  MCP73831: pinout, VDD on VBUS (3.75-6 V, abs max 7 V), VSS on GND, VBAT on the battery net, 4.20 V option
        source: MCP73831_C424093.pdf p.1 (Package Types, SOT-23-5: 1 STAT, 2 VSS, 3 VBAT, 4 VDD, 5 PROG), p.11 Table 3-1 (pin functions), p.3 (abs max VDD 7.0 V, all other pins -0.3..VDD+0.3 V; VDD 3.75-6 V; VREG 4.168/4.20/4.232 V for MCP7383X-2), p.11 3.1 ([VREG+0.3 V] to 6 V recommended), p.26 (product ID: -2ACI = 4.20 V, option AC: IPREG 10 %, VPTH 66.5 %, ITERM 7.5 %, VRTH 96.5 %)
-       - U2 (MCP73831): STAT(1) STAT | VSS(2) GND | VBAT(3) VBAT | VDD(4) VBUS | PROG(5) PROG
-       - VDD on VBUS: USB 4.75-5.5 V inside 3.75-6 V (p.3) and above VREG + 0.3 V = 4.5 V (recommended, p.11 3.1); abs max 7.0 V
-       - VBAT -> power switch / bypass jumper -> battery connector J2 (battery JST-PH)
-       - MCP73831T-2ACI/OT: VREG 4.20 V +-0.75 % (4.168-4.232 V, p.3); option AC: precondition 10 %, VPTH 66.5 %, termination 7.5 %, recharge at 96.5 % (p.26)
-[PASS] C02  MCP73831 VDD: bypass >= 4.7 uF and a transient clamp on the hot-pluggable USB input
+       - no MCP73831 charger in this netlist
+[SKIP] C02  MCP73831 VDD: bypass >= 4.7 uF and a transient clamp on the hot-pluggable USB input
        source: MCP73831_C424093.pdf p.11 3.1 (VDD: bypass to VSS with a minimum of 4.7 uF), p.18 6.1.1.2 (input overvoltage protection must be used with hot-pluggable sources, USB cables included: a transzorb from V+ to 0 V), p.17 Fig.6-1 (SMAJ5.0A); usblc6.pdf p.2 (VBUS-GND breakdown >= 6 V at 1 mA)
-       - capacitors VBUS-GND: [('C107', '4.7uF'), ('C110', '1uF'), ('C130', '1uF')] = 6.7uF
-       - >= 4.7 uF (p.11 3.1); nominal values: 0603 X5R parts lose capacitance under 5 V bias, keep the largest one next to pin 4 (layout)
-       - transient clamp: U4 pin 5 clamps VBUS to GND (VBR >= 6 V at 1 mA, usblc6.pdf p.2) = the 'transzorb from V+ to 0 V' of p.18; an ESD-class clamp, smaller than the SMAJ5.0A of Fig.6-1
-[PASS] C03  MCP73831 PROG: RPROG to GND within 2-67 kOhm -> charge current, jumper options, switch rating, heat
+       - no MCP73831 charger in this netlist
+[SKIP] C03  MCP73831 PROG: RPROG to GND within 2-67 kOhm -> charge current, jumper options, switch rating, heat
        source: MCP73831_C424093.pdf p.15 5.1.2 (IREG [mA] = 1000 V / RPROG [kOhm]), p.4 (RPROG charge range 2-67 kOhm, shutdown impedance 70-200 kOhm), p.3 (IREG 90-110 mA at 10k, 450-550 mA at 2k), p.13 4.3 / p.15 5.2.2 (PROG open = charger disabled), p.18 6.1.1.3 (P = (VDDMAX - VPTHMIN) * IREGMAX), p.5 (SOT-23-5 theta-JA 230 C/W), p.14 Fig.4-2 (thermal regulation); C221660.pdf p.1 (slide switch 0.3 A)
-       - PROG(5) -> PROG
-       - fitted: RPROG = 10k (R103) -> IREG = 1000 V / 10.00 kOhm = 100 mA (+-10 %: p.3 gives 90-110 mA at 10k, 450-550 mA at 2k)
-       - jumper JP1 closed: RPROG = 5k (R103||R104) -> IREG = 1000 V / 5.00 kOhm = 200 mA (+-10 %: p.3 gives 90-110 mA at 10k, 450-550 mA at 2k)
-       - charge current flows through power switch SW101 rated 0.3 A (C221660.pdf p.1): max 200 mA x 1.1 = 220 mA OK
-       - fitted: worst-case dissipation (VDD 5.5 V, VBAT at VPTH min 2.69 V, IREG +10 %) = 0.31 W -> +71 C on a minimum-copper SOT-23-5 (230 C/W, p.5; 130 C/W with large copper)
-       - jumper JP1 closed: worst-case dissipation (VDD 5.5 V, VBAT at VPTH min 2.69 V, IREG +10 %) = 0.62 W -> +142 C on a minimum-copper SOT-23-5 (230 C/W, p.5; 130 C/W with large copper)
-       - above ~80 C die temperature the charger trims its current itself (thermal regulation, p.14 Fig.4-2; p.18 6.1.1.3) - expected behaviour at the higher setting, not a fault
-[PASS] C04  MCP73831 STAT tri-state output: LED wiring and current in the L / H / Hi-Z states, no 5 V into a GPIO
+       - no MCP73831 charger in this netlist
+[SKIP] C04  MCP73831 STAT tri-state output: LED wiring and current in the L / H / Hi-Z states, no 5 V into a GPIO
        source: MCP73831_C424093.pdf p.15 5.2.1 Table 5-1 (STAT: shutdown Hi-Z, no battery Hi-Z, preconditioning / fast charge / constant voltage L, charge complete H on the MCP73831), p.4 (STAT sink <= 25 mA, VOL 0.4 V typ / 1 V max at 4 mA; source <= 35 mA, VOH VDD-0.4 V typ / VDD-1 V min at 4 mA; Hi-Z leakage <= 1 uA), p.11 3.3 (LED or pull-up to a host MCU), p.13 Fig.4-1
-       - STAT(1) -> STAT ; output type tri-state (Table 5-1, p.15)
-       - LED D102 (LED white): VBUS -> LED -> R102 1k -> STAT: charging (STAT L, VOL 0.4 V typ) -> 1.75 mA (STAT sinks <= 25 mA, LED IF max 30 mA)
-       -   charge complete (STAT H = VDD - 0.4 V typ, >= VDD - 1 V): at most 1 V across LED + resistor < VF min 2.6 V -> off
-       - shutdown (USB absent / VDD < UVLO / PROG open) and no battery: STAT Hi-Z (leakage <= 1 uA) -> LED off; the no-battery state needs the battery detection to work, see C06
-[PASS] C05  MCP73831 VBAT capacitor >= 4.7 uF (loop stability with the battery disconnected)
+       - no MCP73831 charger in this netlist
+[SKIP] C05  MCP73831 VBAT capacitor >= 4.7 uF (loop stability with the battery disconnected)
        source: MCP73831_C424093.pdf p.11 3.2 (VBAT: bypass to VSS with a minimum of 4.7 uF to ensure loop stability when the battery is disconnected), p.18 6.1.1.4 (stable with or without battery; 4.7 uF at the output usually sufficient up to 500 mA, any ESR)
-       - capacitors on VBAT: [('C101', '10uF')]
-       - 10uF >= 4.7 uF; any capacitor type / ESR is fine (p.18 6.1.1.4) - no series resistor needed (unlike the TP4054)
-[PASS] C06  MCP73831 battery detection: > 7 MOhm on VBAT with the cell disconnected (STAT Hi-Z, LED off)
+       - no MCP73831 charger in this netlist
+[SKIP] C06  MCP73831 battery detection: > 7 MOhm on VBAT with the cell disconnected (STAT Hi-Z, LED off)
        source: MCP73831_C424093.pdf p.13 4.2 (battery detection: 6 uA typ sourced by VBAT; VBAT >= VREG + 100 mV -> no battery; 'in order to correctly detect a battery insertion, the impedance seen by the VBAT pin before the battery is connected must be greater than 7 MOhm due to the minimum battery detection current of 0.6 uA'), p.4 (IBAT_DET 0.6 uA min / 6 uA typ; ZNO_BAT 7 MOhm min; charge-complete output current -5.5 uA typ), p.5 (tTERM 0.4-3.2 ms), p.15 Table 5-1 (no battery: STAT Hi-Z), p.26 (option AC: recharge at 96.5 % of VREG)
-       - cell disconnected (connector empty, or power switch open while on USB): VBAT = VBAT
-       - Q1 drain on VBAT: off while USB is present; its body diode (VBAT -> VIN) stays reverse biased as long as VIN (VBUS - Schottky, ~4.6 V) is above the 4.3 V no-battery level
-       - resistive load on VBAT: 20M through ['R105', 'R106']
-       - >= 7 MOhm: even the minimum detection current (0.6 uA) lifts VBAT above VREG + 100 mV -> no battery detected, STAT Hi-Z (p.13 4.2)
+       - no MCP73831 charger in this netlist
 [PASS] L01  AP2112K-3.3: VIN/GND/EN/NC/VOUT wiring, EN level
        source: C51118.pdf (AP2112) p.2 (SOT25 pins: 1 VIN, 2 GND, 3 EN, 4 NC, 5 VOUT; typical application CIN = COUT = 1 uF), p.1 (stable with 1.0 uF ceramic)
-       - U3 (AP2112K-3.3): VIN(1) VIN | GND(2) GND | EN(3) VIN | NC(4) <unconnected> | VOUT(5) 3V3[=VDD]
+       - U3 (AP2112K-3.3): VIN(1) VBUS | GND(2) GND | EN(3) VBUS | NC(4) <unconnected> | VOUT(5) 3V3[=VDD]
        - U3 EN tied to VIN: always on (VIH >= 1.5 V satisfied for VIN >= 2.5 V)
 [PASS] L02  AP2112K-3.3: input and output capacitors >= 1 uF
        source: C51118.pdf (AP2112) p.2 (SOT25 pins: 1 VIN, 2 GND, 3 EN, 4 NC, 5 VOUT; typical application CIN = COUT = 1 uF), p.1 (stable with 1.0 uF ceramic)
-       - U3: CIN ['C102'] = 1uF ; COUT ['C103', 'C109', 'C108'] = 11.1uF
-[PASS] L03  AP2112K-3.3: input voltage within 2.5-6.0 V, output feeds the module
+       - U3: CIN ['C102', 'C110', 'C130'] = 3uF ; COUT ['C1', 'C2', 'C3', 'C4', 'C5', 'C6', 'C7', 'C8', 'C11', 'C15', 'C108', 'C103'] = 12.9uF
+[PASS] L03  AP2112K-3.3: input voltage within 2.5-6.0 V, output feeds the RP2040
        source: C51118.pdf (AP2112) p.3 (abs max VCC 6.5 V, recommended VIN 2.5-6.0 V), p.8 (AP2112-3.3: VOUT 3.3 V +-1.5 %, dropout 250 mV typ at 600 mA, VEN high >= 1.5 V, low <= 0.4 V, EN pull-down 3 MOhm)
-       - U3: VIN max ~5.2 V (USB 5.5 V minus Schottky) <= 6.0 V recommended / 6.5 V abs max; min from battery ~3.0 V >= 2.5 V (at VBAT < 3.55 V the 3.3 V output drops out gracefully)
-[PASS] P01  B5819W Schottky: anode on VBUS, cathode on VIN (USB feeds VIN, no back-feed into VBUS)
+       - U3: VIN = VBUS, max 5.5 V (USB-C tolerance) <= 6.0 V recommended / 6.5 V abs max; min 4.75 V (USB 2.0) leaves 1.45 V of headroom over 3.3 V >> the dropout (250 mV typ at 600 mA, p.8); no battery
+[SKIP] P01  B5819W Schottky: power-path diode VBUS -> VIN when there is a power path, otherwise judged by its role
        source: C8598.pdf (B5819W) p.1 (marking bar = cathode; IO 1 A, VRRM 40 V, VF 0.6 V at 1 A)
-       - D101 (B5819W): anode(2) -> VBUS ; cathode(1) -> VIN
-       - correct: USB feeds VIN through the diode; the battery (on VIN when on battery) cannot push current back into VBUS (VRRM 40 V >> 4.2 V); IO 1 A >> board current
-       - D104 (B5819W): anode(2) -> AMP_EN ; cathode(1) -> AUD_EN
-       - signal use: neither pin on a power rail (not in the power path; see A14)
-[PASS] P02  SI2301 P-MOSFET: gate on VBUS, source on VIN, drain on VBAT, gate pull-down
+       - no power path in this netlist (no VIN node behind a diode, no battery): the VBUS -> VIN rule does not apply
+       - D104 (B5819W): anode(2) -> AMP_EN ; cathode(1) -> VBUS - the amplifier-EN discharge diode, judged in A14
+[SKIP] P02  P-MOSFET battery switch
        source: C10487.pdf (Si2301CDS) p.1 (SOT-23: 1 G, 2 S, 3 D; VDS -20 V, VGS +-8 V), p.2 (VGS(th) -0.4..-1 V, body diode VSD -0.8 V), p.7 (AN807: pin 1 gate, pin 2 source, pin 3 drain)
-       - Q1 (SI2301CDS): G(1) -> VBUS ; S(2) -> VIN ; D(3) -> VBAT
-       - correct: USB present -> VGS = VBUS - VIN ~ +0.4 V -> channel off, body diode (D->S) reverse biased since VIN (~4.6 V) > VBAT (<= 4.2 V): USB cannot reach the battery except through the charger
-       - USB absent -> gate pulled to 0 V, VGS = -VBAT (-3.0..-4.2 V, |VGS| <= 8 V) -> channel on, RDS(on) 0.11-0.14 Ohm; body diode D->S also conducts battery -> VIN at start-up
-       - gate pull-down: [('R101', '100k')]
+       - no SI2301 found
 [PASS] P03  power rails GND/VBUS/VIN/VBAT/VDD are distinct nets, no hard bridge between them
        source: netlist structure (no datasheet needed)
        - GND = GND
        - VBUS = VBUS
        - VDD = 3V3
-       - VIN = VIN
-       - VBAT = VBAT
-       - BAT+ = BAT+
        - VAUD = AUD_5V
-       - R101 100k between GND and VBUS (bleeder / divider, fine)
-       - solder jumper JP2 between VBAT and BAT+ (open by default)
-[PASS] P04  power path: USB cannot back-feed the battery, battery cannot back-feed VBUS
+[SKIP] P04  back-feed paths
        source: C10487.pdf (Si2301CDS) p.1 (SOT-23: 1 G, 2 S, 3 D; VDS -20 V, VGS +-8 V), p.2 (VGS(th) -0.4..-1 V, body diode VSD -0.8 V), p.7 (AN807: pin 1 gate, pin 2 source, pin 3 drain)
-       - USB present: no conduction path VBUS -> VBAT except the MCP73831 (VDD->BAT, regulated)
-       - battery only: no conduction path VBAT -> VBUS (Schottky blocks, MCP73831 reverse-blocking, < 2 uA from VBAT in UVLO (MCP73831_C424093.pdf p.13 4.1, p.18 6.1.1.5))
-       - battery only: no conduction path BAT+ -> VBUS (Schottky blocks, MCP73831 reverse-blocking, < 2 uA from VBAT in UVLO (MCP73831_C424093.pdf p.13 4.1, p.18 6.1.1.5))
-[PASS] P05  battery connector polarity, power switch uses its common terminal, bypass jumper
-       source: C221660.pdf (C&K JS series) p.1 (contact rating 6 VDC at 0.3 A), p.4 (JS102011SAQN SPDT circuit diagram: C = common = centre terminal 2)
-       - battery connector J2 (battery JST-PH): + -> BAT+ ; - -> GND
-       - positive on pin 1 ('Circuit No.1' on the JST footprint); the lead order of the cell itself must still be checked with a meter before plugging it in
-       - mounting pads ['MP'] -> ['<unconnected>'] (mechanical only)
-       - SW101 (JS102011SAQN): 1 -> BAT+ ; 2(common) -> VBAT ; 3 -> <unconnected>
-       - contacts rated 6 VDC / 0.3 A: battery discharge current (tens of mA) and charge current flow through it
-       - JP2 (switch bypass) bypasses the switch (open by default)
-[PASS] P06  battery voltage divider: ratio, AIN pin, input <= VDD, source impedance, cap
+[SKIP] P05  battery connector / power switch
+       source: C295747.pdf (JST PH) p.1 (2 A rating; 'Circuit No.1' marking on the SM4 footprint)
+       - no 2-pin battery connector found
+[SKIP] P06  battery voltage divider
        source: nrf52840_ps_a.pdf 6.23 p.376 (inputs AIN0-AIN7), 6.23.1.1 p.377-378 Fig.147 (the SAADC connects a sample capacitor to the input for TACQ) and Table 95 (max source resistance per TACQ, 800 kOhm at 40 us, for a resistive source), 6.23.2 p.379 (gain 1/6 + 0.6 V reference = 3.6 V range, AIN <= VDD), 6.23.10 p.397 (CSAMPLE 2.5 pF at maximum gain = the largest, RINPUT > 1 MOhm, tACQ table), p.398 (RLADDER 160 kOhm); Nordic DevZone blog 'Measuring Lithium battery voltage with nRF52' (O. Bauck, 2016-05-23: reservoir Cext = Csample x 2^12 ~ 10 nF, R1 4M / R2 10M, TACQ 3 us, SAADC input seen as 1/(fsample Csample))
-       - module pin 9 P0.31/AIN7 <- BAT_SENSE
-       - Rtop 10M (['R105']), Rbottom 10M (['R106']): ratio 0.5000 (firmware: VBAT = Vadc * 2.0000), at 4.2 V -> 2.100 V
-       - <= VDD 3.3 V and <= 3.6 V full scale with gain 1/6 and the 0.6 V internal reference
-       - source resistance 5M > 800 kOhm, above Table 95 (resistive source), but the 10nF reservoir at the pin supplies the sample charge (PS Fig.147 sample network, CSAMPLE <= 2.5 pF p.397): one sample pulls the pin by at most 0.52 mV = 0.60 LSB12 at 2.10 V (1 LSB = 0.879 mV in the 3.6 V range; needs >= 6.0 nF; Nordic's note sizes it CSAMPLE x 2^12 = 10.24 nF for a full-scale input)
-       - firmware conditions (not visible in the netlist): sample this pin no faster than every ~10 x tau = 10 x 5M x 10nF = 0.50 s so the reservoir recharges (the averaged input resistance 1/(f CSAMPLE) then stays >> 5M; the PS 'RINPUT > 1 MOhm' is that figure at 200 ksps); keep RESP/RESN at Bypass (160 kOhm ladder, p.398); any TACQ works; first reading valid ~5 tau = 0.25 s after the cell is switched on
-       - DC accuracy: the PS gives no leakage figure for an analog pin; at 5M every 10 nA of pin/PCB leakage shifts the reading by 50 mV at the pin (100 mV on VBAT) - compare with a meter on the first board and keep the node free of flux residue
-       - divider drain from the cell: 0.2 uA
 [PASS] U01  USB-C receptacle: VBUS/GND/D+/D- pads, 5.1k on CC1 and CC2, SBU open, shield
        source: C165948.pdf (HRO TYPE-C-31-M-12) p.1 pin table (A1/B1/A12/B12 GND, A4/A9/B4/B9 VBUS, A5 CC1, B5 CC2, A6/B6 DP, A7/B7 DN, A8/B8 SBU; 5 A / 20 V rating); USB Type-C specification (sink: Rd = 5.1 kOhm +-10 % on each CC) - not in the datasheet set
        - J1 (USB-C)
@@ -168,22 +188,22 @@ check_circuit.py - build/netlist.json (design=Lira variant=?)
        - pin 5 on VBUS: rail-to-rail clamp referenced to 5 V (VBR 6 V min, leakage 150 nA at 5.25 V)
        - layout: place next to the receptacle with short tracks (p.5-6); 100 nF on VBUS suggested (p.9)
 [PASS] U03  USB through the hub: receptacle -> ESD -> hub upstream DPU/DMU; each used downstream port a D+/D- pair to one device; only datasheet-allowed series parts
-       source: CH334_C5373042.pdf p.1 (USB 2.0 hub: upstream HS/FS with a built-in 1.5 kOhm pull-up, downstream ports with built-in host pull-downs), p.4 Table 1-3 (DPU/DMU upstream D+/D-, DPn/DMn downstream port n), p.19 4.1 (USB pins -0.4..VDD33+0.4 V), p.29 6.5 (ESD protection advised on every USB signal); nrf52840_ps_a.pdf 7.3 p.585 Fig.210 (D+/D- wired straight to the USB connector, no series parts); CM108B_appnotes_v1.50.pdf p.9 3.5 (series resistors for PHY impedance matching, 39 Ohm in the figure) and C-Media demo board v1.33 sheet 4 (R4/R66 22 Ohm, C1/C2 100 pF)
+       source: CH334_C5373042.pdf p.1 (USB 2.0 hub: upstream HS/FS with a built-in 1.5 kOhm pull-up, downstream ports with built-in host pull-downs), p.4 Table 1-3 (DPU/DMU upstream D+/D-, DPn/DMn downstream port n), p.19 4.1 (USB pins -0.4..VDD33+0.4 V), p.29 6.5 (ESD protection advised on every USB signal); nrf52840_ps_a.pdf 7.3 p.585 Fig.210 (D+/D- wired straight to the USB connector, no series parts); CM108B_appnotes_v1.50.pdf p.9 3.5 (series resistors for PHY impedance matching, 39 Ohm in the figure) and C-Media demo board v1.33 sheet 4 (R4/R66 22 Ohm, C1/C2 100 pF); rp2040-datasheet.pdf 1.4.2 p.11 ('A 27 Ohm series termination resistor is required on each pin, but bus pull-ups and pull-downs are provided internally'), Tables 614 / 620 p.612 / p.614 (USB_DP 47, USB_DM 46, power domain USB_VDD), Table 626 p.616-617 (USB IO levels), 4.1.2.10 p.394 (VBUS detect / enable / overcurrent GPIOs optional: 'VBUS detect can be forced in USB_PWR'); hardware-design-with-rp2040.pdf 2.4.1 p.11 (27 Ohm placed close to the chip; 90 Ohm differential over ground); pico-datasheet.pdf 4.7 p.23, Fig.19 p.25 (R12/R13 27R)
        - U5 (CH334P) upstream: DPU(12) -> USB_DP ; DMU(11) -> USB_DN
        - receptacle A6/B6 -> DPU, A7/B7 -> DMU; 1.5 kOhm upstream pull-up inside the hub (CH334 p.1)
        - port 1 (DP1 pin 10 / DM1 pin 9): unused, left open (host pull-downs inside, CH334 p.1)
        - port 2 -> codec U6 (CM108B): D+ <- DP2, D- <- DM2 ; DP2 via R110 22 Ohm; DM2 via R111 22 Ohm (C-Media demo board R4/R66 22 Ohm, app note 3.5 39 Ohm)
-       - port 3 -> module U1 (E73-2G4M08S1C): D+ <- DP3, D- <- DM3 (straight, as PS 7.3 Fig.210)
+       - port 3 -> rp2040 U1 (RP2040): D+ <- DP3, D- <- DM3 ; DP3 via R5 27 Ohm; DM3 via R6 27 Ohm (27 Ohm series termination, RP2040 datasheet 1.4.2 / Table 620)
        - port 4 (DP4 pin 4 / DM4 pin 3): unused, left open (host pull-downs inside, CH334 p.1)
 [PASS] H01  CH334P: pinout, GND pad, V5 on VBUS (4.5-5.25 V, abs max 5.5 V) with >= 1 uF, VDD33 0.1 uF + 10 uF (or >= 1 uF), no load on the internal LDO
        source: CH334_C5373042.pdf p.4 Table 1-3 (V5: 5 V or 3.3 V input, 1 uF or more; VDD33: LDO output and 3.3 V input, 0.1 uF + 10 uF or 1 uF; GND pad), p.19 4.1 (abs max V5 5.5 V, VDD33 4.0 V), p.19 4.2 (V5 4.5-5.0-5.25 V with the internal LDO, 3.15-3.5 V without; LDO external load <= 20 mA), p.26 6.1 (bus-powered application: V5 from the upstream VBUS, C1 1 uF, C2 0.1 uF + C8 10 uF on VDD33), p.28 6.4 (embedded hub: V5 = VDD33 = on-board 3.3 V suggested)
        - U5 exposed pad ['17'] -> GND (the CH334P's only ground pin)
        - U5 (CH334P): V5(15) -> VBUS ; VDD33(16) -> HUB_3V3
        - internal LDO in use: V5 from VBUS (USB 2.0 VBUS 4.75-5.25 V inside 4.5-5.25 V, p.19 4.2; a USB-C source may give up to 5.5 V = the V5 absolute maximum of 5.5 V, p.19 4.1)
-       - V5 capacitance 6.7uF (['C107', 'C110', 'C130'])
+       - V5 capacitance 3uF (['C102', 'C110', 'C130'])
        - VDD33 capacitors [('C111', '10uF'), ('C112', '100nF')] = 10.1uF
        - 0.1 uF + 10 uF as in p.4 / p.26 6.1 (10 uF or more also helps against hot-plug dips, p.26)
-       - V5 straight from VBUS (as p.26 6.1); p.28 6.4 suggests the on-board 3.3 V for embedded hubs, but here that rail is battery-backed and the hub would then draw its 0.12-0.4 mA sleep current from the cell: the VBUS supply is the better choice
+       - V5 straight from VBUS (as p.26 6.1); p.28 6.4's embedded-hub option (V5 = VDD33 = the on-board 3.3 V) would put the hub on the 3.3 V regulator instead - either is allowed
 [PASS] H02  CH334P clock: 12 MHz crystal between XI and XO, no external load capacitors (~16 pF inside), case to GND
        source: CH334_C5373042.pdf p.1 (crystal oscillator with built-in capacitors), p.4 Table 1-3 (XI/XO: 12 MHz crystal, 24 MHz only on the CH334X), p.26 6.1 (XI and XO have ~16 pF built in: no external load capacitors), p.27 6.2 (crystal-free option only on parts ordered with it: XO open and XI to GND)
        - U5 (CH334P): XI(2) -> HUB_XI ; XO(1) -> HUB_XO
@@ -253,29 +273,28 @@ check_circuit.py - build/netlist.json (design=Lira variant=?)
        - INR- <- C126 1uF <- LOR ; corner 1/(2 pi RIN C): ['-6 dB: RIN 26.4k -> 6.0 Hz', '0 dB: RIN 19.8k -> 8.0 Hz']
        - input capacitors also keep the turn-on pop inaudible (p.12 7.3.2)
 [WARN] A14  TPA6132A2 EN/G0/G1: defined levels (VIH >= 1.3 V, VIL <= 0.6 V, <= VDD + 0.3 V), gain per jumper state, EN delayed after the audio supply and dropped before it
-       source: TPA6132A2_C69901.pdf p.4 (EN/G0/G1: VIH >= 1.3 V, VIL <= 0.6 V, abs max -0.3..VDD+0.3 V), p.5 (EN/G0/G1 input current <= 1 uA; gain -0.5/-1.0/-1.41/-2.0 V/V), p.13 7.4.1 (G0/G1 <= 0.5 V or >= 1.3 V: -6 / 0 / 3 / 6 dB), p.12 7.3.2 (activate after the audio sources have settled, deactivate before the sources; tON 5 ms); C8598.pdf (B5819W) p.1; nrf52840_ps_a.pdf p.156 (IOL >= 1 mA standard / >= 6 mA high drive at 0.4 V); CM108B_datasheet_v1.41.pdf p.20 (37.25 mA); TPS22919_C2149796.pdf p.5 (tON, tOFF, RPD,QOD), p.13 8.3.3
+       source: TPA6132A2_C69901.pdf p.4 (EN/G0/G1: VIH >= 1.3 V, VIL <= 0.6 V, abs max -0.3..VDD+0.3 V), p.5 (EN/G0/G1 input current <= 1 uA; gain -0.5/-1.0/-1.41/-2.0 V/V), p.13 7.4.1 (G0/G1 <= 0.5 V or >= 1.3 V: -6 / 0 / 3 / 6 dB), p.12 7.3.2 (activate after the audio sources have settled, deactivate before the sources; tON 5 ms); C8598.pdf (B5819W) p.1; nrf52840_ps_a.pdf p.156 (IOL >= 1 mA standard / >= 6 mA high drive at 0.4 V); CM108B_datasheet_v1.41.pdf p.20 (37.25 mA); TPS22919_C2149796.pdf p.5 (tON, tOFF, RPD,QOD), p.13 8.3.3; TPA6132A2_C69901.pdf p.12 7.3.2 ('activate the TPA6132A2 after all audio sources have been activated and their output voltages have settled. On power-down, deactivate the TPA6132A2 before deactivating the audio input source'; EN <= 0.6 V off, >= 1.3 V on), p.4 (EN abs max VDD + 0.3 V; VDD 2.3-5.5 V; no undervoltage lockout listed), p.5 (EN input current <= 1 uA); CM108B_datasheet_v1.41.pdf p.20 (supply 4.5 V minimum, 37.25 mA); TPS22919_C2149796.pdf p.5 (tON); C8598.pdf (B5819W) p.1 (VF 0.6 V at 1 A only); rp2040-datasheet.pdf 4.1.2.8.4 p.391 (without VBUS detection a disconnect looks like a suspend)
        - default (jumpers open): G0=1 G1=0 -> gain 0 dB (p.13 7.4.1) [G0 pulled up to VAUD by R112 100k: >= 4.90 V with the 1 uA input current (VIH 1.3 V); G1 on GND]
        - JP3 closed: G0=0 G1=0 -> gain -6 dB (p.13 7.4.1) [JP3 closed: G0 shorted to GND; G1 on GND]
-       - EN <- R113 1M <- AUD_EN (module pin ['38'], also the ['U8'] ON pin); [('C137', '470nF')] to GND = 470nF
-       - steady EN level >= 2.30 V with the 1 uA input current: above VIH 1.3 V (p.4)
-       - turn-on: tau = 1M x 470nF = 470 ms -> EN passes the 0.6-1.3 V threshold 94-391 ms after the control rises; the load switch output is up after ~2 ms (TPS22919 p.5): the source gets >= 94 ms to settle (p.12; the CM108B output settling time is not specified - check for a turn-on pop)
-       - turn-off: D104 (anode EN, cathode AUD_EN) dumps the EN capacitor into the GPIO when it goes low
-       - power-down order: ~6 us after the control falls the switch is open (TPS22919 p.5); the 17.2uF on the rail then feeds ['U6'] (37 mA typ, CM108B p.20) + ['U7'] (2.1 mA, TPA p.5) + QOD (1.024k: 4.9 mA), so it drops below the CM108B's 4.5 V minimum in ~0.19 ms (QOD alone, without the loads: 1.86 ms); EN falls below VIL 0.6 V after ~0.38 ms with a standard-drive GPIO (IOL >= 1 mA at 0.4 V, PS p.156) or ~0.06 ms with high drive (>= 6 mA)
-       -   with standard drive the amplifier is disabled AFTER its source (the CM108B) has lost power: p.12 asks for the opposite order. Here the codec's own current, not the QOD resistor, sets the rail's fall; configure the GPIO as high drive (H0H1) - EN then falls in ~0.06 ms, before the rail - or drive EN from its own GPIO. Bench-check for a switch-off pop
-       - EN high (up to 3.3 V from the GPIO) while the amplifier VDD (VAUD) is off - USB unplugged with the sound card on, or during the rail's fall - exceeds VDD + 0.3 V (abs max p.4); R113 limits the steady current to 3.3 uA but 470nF dumps its charge into the EN clamp: firmware must drop AUD_EN as soon as VBUS goes away
+       - EN <- R113 1M <- VBUS (the supply rail itself, no firmware, also the ['U8'] ON pin); [('C137', '470nF')] to GND = 470nF
+       - steady EN >= 3.75 V with the rail at its 4.75 V minimum and the 1 uA input current: above VIH 1.3 V (p.4-5)
+       - turn-on: tau = 1M x 470nF = 470 ms -> EN passes 0.6-1.3 V 60-200 ms after the cable is plugged; the switched rail is up after ~2 ms (TPS22919 p.5): the amplifier starts after its supply and the codec (p.12 order kept; the CM108B output settling time is not specified - listen for a plug-in pop)
+       - turn-off: D104 (anode EN, cathode VBUS) drags EN down with the rail, one diode drop above it, and empties 470nF at every unplug: the delay starts from 0 V again at the next plug-in; reverse voltage <= ~1 V << VRRM 40 V (C8598.pdf p.1)
+       - EN vs VDD + 0.3 V (abs max p.4): VDD AUD_5V[=VAUD] is the same rail through ['U8'] (ON = VBUS, so it stays closed while the rail falls); steady EN <= the rail, at power-up EN lags far behind VDD, at power-down EN sits one Schottky drop above the falling rail (B5819W: only VF 0.6 V at 1 A is specified, p.1; at the milliamps that discharge 470nF it is a few tenths of a volt) - at the 0.3 V edge for a moment, with at most 0.4 uJ left in 470nF once EN is below VIH
+       - power-down order NOT kept (p.12: 'deactivate the TPA6132A2 before deactivating the audio input source'): on unplug EN stays above VIH 1.3 V until the rail is down to ~1 V, while ['U6'] drops below its 4.5 V minimum (CM108B p.20) as soon as the rail does. From 4.5 V to the amplifier's own 2.3 V minimum (p.4) the amplifier is enabled and powered while its source browns out - ~1.1 ms with 20.2uF on the rail and only the codec + amplifier draining it (less with the hub and the 3.3 V regulator also loading VBUS). The TPA6132A2 lists no undervoltage lockout. Firmware cannot help: EN is not under its control and nothing senses VBUS (without VBUS detection the RP2040 cannot tell an unplug from a suspend, RP2040 datasheet 4.1.2.8.4). A fix needs EN to fall while VBUS is still above 4.5 V (e.g. a ~4.6 V VBUS supervisor driving EN); otherwise bench-check for a pop when the cable is pulled with headphones in
 [PASS] S01  TPS22919: pinout, IN on VBUS (1.6-5.5 V), GND, NC open, 1 uF input capacitor, load and inrush
        source: TPS22919_C2149796.pdf p.3 (DCK SC-70-6: 1 IN, 2 GND, 3 ON 'do not leave floating', 4 NC 'leave floating', 5 QOD, 6 VOUT), p.4 (abs max VIN/VOUT/VON/VQOD 6 V; VIN 1.6-5.5 V; IMAX 1.5 A), p.5 (RON 89 mOhm at 5 V; tON 1.95 ms and 3.2 mV/us at 5 V), p.17 10 (CIN 1 uF usually sufficient)
-       - U8 (TPS22919): IN(1) VBUS | GND(2) GND | ON(3) AUD_EN | NC(4) <unconnected> | QOD(5) AUD_QOD | VOUT(6) AUD_5V[=VAUD]
+       - U8 (TPS22919): IN(1) VBUS | GND(2) GND | ON(3) VBUS | NC(4) <unconnected> | QOD(5) AUD_QOD | VOUT(6) AUD_5V[=VAUD]
        - IN on VBUS (<= 5.5 V): inside 1.6-5.5 V, abs max 6 V (p.4)
-       - input capacitance 6.7uF >= 1 uF (p.17 10)
+       - input capacitance 3uF >= 1 uF (p.17 10)
        - load capacitance 17.2uF (incl. behind beads); turn-on slew 3.2 mV/us at 5 V (p.5) -> inrush ~55 mA; loads ['U6', 'U7'] (CM108B 37 mA typ, TPA6132A2 2.2 mA + headphone current) << 1.5 A (p.4)
-[PASS] S02  TPS22919 ON (sound-card enable): module GPIO with a pull-down to GND, never floating
-       source: TPS22919_C2149796.pdf p.3 (ON: active high, do not leave floating), p.4 (ON VIH >= 1 V, VIL <= 0.35 V, abs max 6 V), p.5 (ON leakage <= 100 nA; smart pull-down 530 kOhm while ON <= VIL), p.13 8.3.1 (the smart pull-down exists only once VIN is applied); nrf52840_ps_a.pdf 6.9.3.1 p.156 (GPIO drive) and 9 p.612 (VI/O max VDD + 0.3 V); reference/bluemicro_nrf52840_board.h (pins the bootloader drives)
-       - U8 ON(3) -> AUD_EN
-       - driven by module pin 38 P1.02: 3.3 V high >= VIH 1 V, abs max 6 V (p.4)
-       - pull-down R117 100k: ON = 10 mV with 100 nA leakage (VIL 0.35 V, p.4); 33 uA from the GPIO when high
-       - the enable also feeds ['D104', 'R113'] (amplifier EN network, A14)
-       - if the GPIO goes high-Z while on (MCU reset), ['D104'] back-feeds ON from the EN capacitor 470nF: the switch opens only ~47 ms later (100k x 470nF)
+[PASS] S02  TPS22919 ON (sound-card enable): a GPIO with a pull-down, or tied to its own IN (always on: soft start only); never floating
+       source: TPS22919_C2149796.pdf p.3 (ON: active high, 'do not leave floating'), p.4 (VIN 1.6-5.5 V; ON VIH 1-5.5 V, VIL <= 0.35 V; abs max VON 6 V), p.5 (tON 1.95 ms, 3.2 mV/us at 5 V), p.12-14 8.1 / 8.3 / 8.4 Table 2 (no reverse-current blocking specified; QOD acts only with ON low), p.13 8.3.1 (smart pull-down only until ON is driven high)
+       - U8 ON(3) -> VBUS
+       - ON tied to its own IN (VBUS): on whenever VBUS is present; 5.5 V max <= VIH range 1-5.5 V and abs max 6 V (p.4), never floating (p.3); the smart pull-down plays no part (p.13 8.3.1), so no pull-down resistor is needed
+       - role: soft start only - 17.2uF on AUD_5V[=VAUD] charged at 3.2 mV/us (~55 mA, tON ~2 ms at 5 V, p.5) after the cable has made contact, instead of being hard-wired to VBUS (3uF directly on it)
+       - on unplug the switch stays closed until VBUS falls below VIH (~1 V): with no reverse-current blocking specified (p.12-14) the 17.2uF back-feed VBUS and everything discharges together - harmless; the QOD path (S03) only acts once ON < VIL 0.35 V, i.e. at the very end
+       - the same rail also drives ['R113'] (amplifier EN network, judged in A14: the unplug order is the real risk there, not the switch)
 [PASS] S03  TPS22919 QOD: tied to VOUT (24 Ohm discharge), through a resistor to VOUT, or open
        source: TPS22919_C2149796.pdf p.3 (QOD: resistor to VOUT, tied to VOUT, or floating = no discharge), p.13-14 8.3.3 + Table 2 (ON low: VOUT to GND through RPD,QOD (24 Ohm) + RQOD; tFALL = 2.2 * (RDIS || RL) * CL), p.5 (RPD,QOD 24 Ohm), p.6 (tFALL 0.4 ms with 10 uF)
        - U8 QOD through R118 1k to VOUT: RDIS = 1.024k (p.13 eq.1)
@@ -289,19 +308,19 @@ check_circuit.py - build/netlist.json (design=Lira variant=?)
        - sleeve -> ['R116', 'C129'] -> CM108B MICIN (bias and coupling checked in A06)
        - rating 0.5 A / 30 V DC (drawing): far above headphone currents
 [PASS] D01  LEDs: polarity, series resistor, current within LED / driver limits
-       source: C2286.pdf (KT-0603R) p.3 (IF max 25 mA, VF 1.8-2.4 V at 20 mA, VR 5 V), p.4 (VF bins 1.9-2.0 V)
-       - D102 (LED white): anode(2) VBUS -> [supply] ; cathode(1) LED_CHG_K -> [stat via 1k]
-       -   I ~ 1.8 mA (5.0 V - Vf 2.85 V - 0.4 V MCP73831 STAT low) / 1k ; LED IF max 30 mA
-       -   charge indicator on the MCP73831 status pin (MCP73831_C424093.pdf p.15 5.2.1 Table 5-1; see C04)
+       source: C2286.pdf (KT-0603R) p.3 (IF max 25 mA, VF 1.8-2.4 V at 20 mA, VR 5 V), p.4 (VF bins 1.9-2.0 V); rp2040-datasheet.pdf 5.5.2.1 Table 614 p.612 (GPIO0-25 Digital IO (FT), GPIO26-29 Digital IO / Analogue, not FT; drive 2/4/8/12 mA, default 4 mA), 5.5.3.1 Table 622 p.614 (VPIN abs max IOVDD + 0.5 V), 5.5.3.4 Table 625 p.615-616 (VIH max IOVDD + 0.3 V; VOH >= 2.62 V at the selected drive current, 3.3 V; RPU / RPD 50-80 kOhm; IIOVDD_MAX = IIOVSS_MAX = 50 mA for all GPIO and QSPI pins together), 5.5.3.5 p.617
        - D103 (LED red): anode(2) LED_RED -> [gpio] ; cathode(1) LED_RED_K -> [gnd via 1k]
        -   I ~ 1.3 mA (3.3 V - Vf 2.00 V) / 1k ; LED IF max 25 mA
-       -   above the guaranteed standard-drive minimum (1 mA): the LED may be slightly dimmer than computed unless the pin is configured high-drive (H0H1)
-       -   active-high LED on module pin 40 P1.04
-[WARN] R01  reset push button between RESET and GND, unused pads open
+       -   within the default 4 mA drive (VOH >= 2.62 V at 4 mA, Table 625); counts toward the 50 mA all-pin limit (IIOVDD_MAX)
+       -   active-high LED on RP2040 pin 39 GPIO27/ADC1
+       - matrix.status_led PIN_27 = pad 39 GPIO27/ADC1: drives ['D103']
+[WARN] R01  RESET (RUN) and BOOT (QSPI_SS strap) push buttons between their signal and GND, unused pads open
        source: C318884.pdf (TS-1187A) p.1 (circuit diagram: A-B and C-D joined internally, contact between the two pairs; 50 mA 12 VDC)
-       - SW102 (reset): {'1': 'RESET', '2': '<unconnected>', '3': '<unconnected>', '4': 'GND'}
-       - datasheet: pads A-B and C-D are joined internally; it only shows letters, so the footprint's 1-4 numbering cannot be verified here - on the bare board measure that pad 1 to pad 4 is OPEN when not pressed (if they are an internal pair the MCU is held in reset)
-       - contact rating 50 mA / 12 V: fine for a logic input; no debouncing needed (reset)
+       - SW101 (BOOT) (BOOT: QSPI_SS through R3 1k): {'1': 'BOOT', '2': '<unconnected>', '3': '<unconnected>', '4': 'GND'}
+       - datasheet: pads A-B and C-D are joined internally; it only shows letters, so the footprint's 1-4 numbering cannot be verified here - on the bare board measure that pad 1 to pad 4 is OPEN when not pressed (if they are an internal pair the switch is always closed)
+       - SW102 (RESET) (RESET: RUN): {'1': 'RESET', '2': '<unconnected>', '3': '<unconnected>', '4': 'GND'}
+       - datasheet: pads A-B and C-D are joined internally; it only shows letters, so the footprint's 1-4 numbering cannot be verified here - on the bare board measure that pad 1 to pad 4 is OPEN when not pressed (if they are an internal pair the switch is always closed)
+       - contact rating 50 mA / 12 V: fine for logic-level straps; no debouncing needed (reset / boot strap)
 [PASS] T01  test points sit on real nets
        source: netlist structure (no datasheet needed)
        - TP1 (SWDIO) -> SWDIO
@@ -310,23 +329,23 @@ check_circuit.py - build/netlist.json (design=Lira variant=?)
        - TP4 (GND) -> GND
        - TP5 (RESET) -> RESET
        - TP6 (VBUS) -> VBUS
-       - TP7 (VBAT) -> VBAT
-       - TP8 (VIN) -> VIN
 [PASS] N01  no floating passive / IC pin; single-pin nets only on NC or spare pins; no self-shorted part
        source: netlist structure (no datasheet needed)
-       - U1.1 (module P1.11) unconnected - allowed
-       - U1.2 (module P1.10) unconnected - allowed
-       - U1.25 (module DCCH) unconnected - allowed
-       - U1.41 (module P0.09/NFC1) unconnected - allowed
-       - U1.42 (module P1.06) unconnected - allowed
-       - U1.43 (module P0.10/NFC2) unconnected - allowed
-       - J1.A8 (usbc SBU1) unconnected - allowed
-       - J1.B8 (usbc SBU2) unconnected - allowed
-       - J2.MP (conn MP) unconnected - allowed
-       - SW101.3 (slide C) unconnected - allowed
-       - U3.4 (ldo NC) unconnected - allowed
+       - U1.15 (rp2040 GPIO12) unconnected - allowed
+       - U1.16 (rp2040 GPIO13) unconnected - allowed
+       - U1.17 (rp2040 GPIO14) unconnected - allowed
+       - U1.18 (rp2040 GPIO15) unconnected - allowed
+       - U1.27 (rp2040 GPIO16) unconnected - allowed
+       - U1.28 (rp2040 GPIO17) unconnected - allowed
+       - U1.40 (rp2040 GPIO28/ADC2) unconnected - allowed
+       - U1.41 (rp2040 GPIO29/ADC3) unconnected - allowed
+       - SW101.2 (tact 2) unconnected - allowed
+       - SW101.3 (tact 3) unconnected - allowed
        - SW102.2 (tact 2) unconnected - allowed
        - SW102.3 (tact 3) unconnected - allowed
+       - J1.A8 (usbc SBU1) unconnected - allowed
+       - J1.B8 (usbc SBU2) unconnected - allowed
+       - U3.4 (ldo NC) unconnected - allowed
        - U5.3 (hub DM4) unconnected - allowed
        - U5.4 (hub DP4) unconnected - allowed
        - U5.9 (hub DM1) unconnected - allowed
@@ -363,23 +382,20 @@ check_circuit.py - build/netlist.json (design=Lira variant=?)
        source: C81598.pdf (1N4148W) p.1 (PINNING: 1 cathode, 2 anode; VR 75 V, IF(AV) 150 mA, VF <= 0.715 V at 1 mA)
        - 57 switch cells analysed (57 keys, 0 encoder pushes): col -> switch -> 1N4148W anode, cathode -> row
        - every cell well formed; diode reverse rating 75 V / 150 mA far above matrix levels
-[PASS] K02  row/column nets pure (one module pin each), no duplicate cell, metadata agrees
+[PASS] K02  row/column nets pure (one RP2040 pin each), no duplicate cell, metadata agrees
        source: C81598.pdf (1N4148W) p.1 (PINNING: 1 cathode, 2 anode; VR 75 V, IF(AV) 150 mA, VF <= 0.715 V at 1 mA)
-       - 4 rows x 17 columns, 57 cells occupied, rows ['P0.29', 'P1.09', 'P0.30', 'P0.05'], cols ['P1.00', 'P0.24', 'P0.22', 'P0.13', 'P0.20', 'P0.17', 'P0.15', 'P0.07', 'P0.12', 'P0.04', 'P0.08', 'P0.26', 'P0.02', 'P1.13', 'P0.28', 'P0.03', 'P0.06']
-       - gpio metadata (21 entries) agrees with the netlist
+       - 4 rows x 17 columns, 57 cells occupied, rows ['GPIO10', 'GPIO20', 'GPIO18', 'GPIO19'], cols ['GPIO26', 'GPIO25', 'GPIO24', 'GPIO23', 'GPIO22', 'GPIO21', 'GPIO11', 'GPIO9', 'GPIO8', 'GPIO7', 'GPIO6', 'GPIO4', 'GPIO3', 'GPIO2', 'GPIO1', 'GPIO0', 'GPIO5']
+       - gpio metadata (22 entries) agrees with the netlist
 [SKIP] K03  rotary encoders
        source: C470754.pdf (Alps EC11) p.1 (rating 10 mA 5 V DC; A/B two-phase output), p.3 (terminals A C B, C common; separate push-switch terminals)
        - no encoders in this netlist
-[PASS] B01  bluemicro_nrf52840 bootloader pin usage (LEDs, DFU button)
+[SKIP] B01  bootloader pin usage
        source: reference/bluemicro_nrf52840_board.h (LED_PRIMARY_PIN P1.04, LED_SECONDARY_PIN P1.10, LED_STATE_ON 1, BUTTON_DFU P0.18 = RESET, BUTTON_DFU_OTA P1.01 not on the module)
-       - LED_PRIMARY_PIN P1.04 (pin 40): D103 anode on it -> active-high, matches LED_STATE_ON 1
-       - BUTTON_DFU = P0.18 = RESET: DFU entered by double reset through the button
-       - BUTTON_DFU_OTA P1.01 is not bonded out on the E73 - nothing to wire
+       - no E73: the RP2040 boots from its USB boot ROM (BOOTSEL strap checked in Q08)
 ----------------------------------------------------------------------------------------------------
-SUMMARY: 51 PASS, 0 FAIL, 4 WARN, 1 SKIP
+SUMMARY: 42 PASS, 0 FAIL, 3 WARN, 23 SKIP
 WARN:
-  M03 E73 VBUS pin on the USB-C VBUS (5 V) net
   A06 CM108B microphone: MICIN AC-coupled from the mic contact, VBIAS through resistors, bias current
   A14 TPA6132A2 EN/G0/G1: defined levels (VIH >= 1.3 V, VIL <= 0.6 V, <= VDD + 0.3 V), gain per jumper state, EN delayed after the audio supply and dropped before it
-  R01 reset push button between RESET and GND, unused pads open
+  R01 RESET (RUN) and BOOT (QSPI_SS strap) push buttons between their signal and GND, unused pads open
 

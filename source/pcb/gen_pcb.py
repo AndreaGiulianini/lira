@@ -297,11 +297,16 @@ def write_interface(path, holes, ports):
     path.write_text(json.dumps(data, indent=1))
 
 
-POWER_NETS = ("GND", "VBUS", "VIN", "VBAT", "BAT+", "3V3", "AUD_5V")  # USB 5 V, system, battery, 3.3 V, sound card 5 V
+POWER_NETS = ("GND", "VBUS", "AUD_5V")  # USB 5 V, sound card 5 V
+# Every net on the RP2040's 0.4 mm-pitch pads (0.2 mm wide, 0.2 mm apart): 0.2 mm tracks, the widest that leave such a
+# pad with the routing clearance to its neighbours. The matrix lines start there too; the 3.3 V rail feeds only the
+# RP2040, its flash and the LED (tens of mA). Patterns: KiCad wildcards.
+FINE_NETS = ("3V3", "1V1", "XIN", "XOUT", "SWCLK", "SWDIO", "RESET", "RP_DP", "RP_DN", "QSPI_*", "ROW*", "COL*",
+             "LED_RED")
 
 
 def setup_netclasses(B):
-    """Power nets get 0.4 mm tracks (the charger moves up to ~0.5 A)."""
+    """Power nets get 0.4 mm tracks (the sound card and the hub draw ~0.15 A from VBUS); the RP2040's nets 0.2 mm."""
     ns = B.b.GetDesignSettings().m_NetSettings
     nc = pcbnew.NETCLASS("Power")
     nc.SetTrackWidth(mm(0.4))
@@ -309,8 +314,16 @@ def setup_netclasses(B):
     nc.SetViaDiameter(mm(0.7))
     nc.SetViaDrill(mm(0.35))
     ns.SetNetclass("Power", nc)
+    fine = pcbnew.NETCLASS("Fine")
+    fine.SetTrackWidth(mm(0.2))
+    fine.SetClearance(mm(0.18))
+    fine.SetViaDiameter(mm(0.6))
+    fine.SetViaDrill(mm(0.3))
+    ns.SetNetclass("Fine", fine)
     for n in POWER_NETS:
         ns.SetNetclassPatternAssignment(n, "Power")
+    for n in FINE_NETS:
+        ns.SetNetclassPatternAssignment(n, "Fine")
     B.b.SynchronizeNetsAndNetClasses(True)
 
 
@@ -319,11 +332,11 @@ DRC_RULES = """(version 1)
 (rule "signal tracks may neck down"
   (condition "A.Type == 'Track'")
   (constraint track_width (min 0.15mm)))
-(rule "fine-pitch pads (QFN, module)"
+(rule "fine-pitch pads (QFN)"
   (condition "A.Type == 'Pad' && B.Type == 'Pad'")
   (constraint clearance (min 0.15mm)))
-(rule "edge-mounted parts (USB-C, power switch)"
-  (condition "A.Parent.Reference == 'J1' || A.Parent.Reference == 'SW101'")
+(rule "edge-mounted parts (USB-C)"
+  (condition "A.Parent.Reference == 'J1'")
   (constraint edge_clearance (min 0mm)))
 """
 
@@ -338,8 +351,10 @@ def patch_project(pro):
     # DRC limit 0.15 mm (fine-pitch QFN pads are 0.175 apart); signals are routed at 0.3 mm
     default = dict(ns["classes"][0], track_width=0.3, clearance=0.15, via_diameter=0.6, via_drill=0.3)
     power = dict(default, name="Power", track_width=0.4, clearance=0.15, via_diameter=0.7, via_drill=0.35, priority=0)
-    ns["classes"] = [default, power]
-    ns["netclass_patterns"] = [{"netclass": "Power", "pattern": n} for n in POWER_NETS]
+    fine = dict(default, name="Fine", track_width=0.2, clearance=0.15, via_diameter=0.6, via_drill=0.3, priority=1)
+    ns["classes"] = [default, power, fine]
+    ns["netclass_patterns"] = [{"netclass": "Power", "pattern": n} for n in POWER_NETS] + \
+        [{"netclass": "Fine", "pattern": n} for n in FINE_NETS]
     pro.write_text(json.dumps(d, indent=2))
 
 
@@ -347,6 +362,8 @@ def build(out_dir):
     out_dir.mkdir(parents=True, exist_ok=True)
     pcb = out_dir / "lira.kicad_pcb"
     (out_dir / "lira.kicad_dru").write_text(DRC_RULES)
+    for ext in (".kicad_pro", ".kicad_prl"):  # NewBoard would load the previous run's project (and its rules): the
+        pcb.with_suffix(ext).unlink(missing_ok=True)  # same sources must give the same board whatever is in build/
     B = Board(pcb)
     setup_rules(B)
     add_outline(B)

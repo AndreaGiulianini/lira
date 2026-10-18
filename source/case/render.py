@@ -97,7 +97,6 @@ def make_materials():
         "stem": principled("Switch stem", ACCENT, 0.4),
         "gold": principled("Gold contacts", "#d8b36a", 0.25, metal=1.0),
         "plate": principled("FR4 plate, black mask", "#141414", 0.3, coat=0.3, bevel=0.2),
-        "battery": principled("LiPo pouch", "#c8cacc", 0.3, metal=1.0, bevel=0.8),
         "steel": principled("Steel shell", "#c9cccf", 0.28, metal=1.0),
         "nylon": principled("Nylon housing", "#ece6d6", 0.5),
     })
@@ -241,7 +240,7 @@ SWITCH_LOOK = {"housing-bottom": "housing", "housing-top": "housing", "stem": "s
 
 
 def build():
-    groups = {g: collection(g) for g in ("bottom", "battery", "pcb", "plate", "top", "caps")}
+    groups = {g: collection(g) for g in ("bottom", "pcb", "plate", "top", "caps")}
     for name in S["case"]:
         obj = import_stl(SRC / (name + ".stl"), name)
         obj.data.materials.append(MAT["case"])
@@ -274,9 +273,6 @@ def build():
             sw = link(bpy.data.objects.new("switch " + part, meshes["switch-" + part]), groups["plate"])
             sw.matrix_world = slab(k["x"], k["y"], S["pcb_bot"] + S["pcb_t"])
         add_keycap(k, slab(k["x"], k["y"], S["cap_z"]), groups["caps"])
-    b = S["battery"]
-    bat = link(block("battery 603450", b["size"], MAT["battery"], 1.2), groups["battery"])
-    bat.matrix_world = slab(*[a + s / 2 for a, s in zip(b["at"], b["size"])])
     return groups
 
 
@@ -453,7 +449,7 @@ VIEWS = {
     "pcb-top": ((-0.2, -0.75, 1.0), 85, (2560, 1200), 16.0, "pcb"),
     "pcb-bottom": ((-0.2, -0.75, 1.0), 85, (2560, 1200), 16.0, "pcb-flipped"),
 }
-EXPLODE = {"bottom": 0, "battery": 28, "pcb": 52, "plate": 82, "top": 112, "caps": 150}  # mm along the deck normal
+EXPLODE = {"bottom": 0, "pcb": 52, "plate": 82, "top": 112, "caps": 150}  # mm along the deck normal
 
 
 def turn_over(objs, roots):

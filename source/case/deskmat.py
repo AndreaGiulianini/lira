@@ -118,7 +118,7 @@ def svg(render_dir, case_size, iface):
     tx, ty = VISIBLE[0] + 18, 32
     o.append(text(tx, ty, 'LIR<tspan fill="%s">A</tspan>' % ACCENT, 13.0, font=SANS, weight=700, spacing=-0.3))
     for i, line in enumerate(("40%% + NUMPAD · %d KEYS · %d×%d MATRIX" % (len(L.SWITCHES), L.ROWS, L.COLS),
-                              "NRF52840 · BLUETOOTH + USB-C · RMK / VIAL",
+                              "RP2040 · USB-C · RMK / VIAL",
                               "CASE %.1f × %.1f MM · TILT 8°" % (cw, cd))):
         o.append(text(tx + 0.4, ty + 9 + i * 5.2, line, 3.1, opacity=0.85))
     # Cherry row profiles, side views at 2.5:1 (from the keycap meshes)

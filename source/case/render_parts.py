@@ -7,7 +7,7 @@
   * keycap-*.stl       - Cherry-profile keycaps (sculpted rows, cylindrical dish) made with KeyV2 (tools/KeyV2, run
                          by OpenSCAD), one per row and size
   * switch-*.stl       - a Cherry MX switch (kiswitch STEP model in lib/3dmodels), one mesh per material
-  * scene.json         - slab transform, heights, and where every key and the battery go
+  * scene.json         - slab transform, heights, and where every key goes
   * deskmat.svg/.png   - the desk mat's print for case/render_desk.py (case/deskmat.py)
 """
 import json
@@ -39,8 +39,7 @@ CHERRY_ROW = {0: 2, 1: 3, 2: 4, 3: 4}  # layout row -> Cherry row (a 40%: Q row 
 CAP_Z = 6.8  # keycap rim above the plate top at rest (MX top housing 6.2 mm above the plate)
 # bottom-side parts whose 3D model KiCad 10 does not ship: footprint name -> height below the PCB (mm, datasheet
 # values as in case/check_fit.py), look; render.py draws them as rounded blocks on their Fab outline
-STAND_INS = {"USB_C_Receptacle_HRO": (3.26, "steel"), "JST_PH_S2B-PH-SM4": (5.5, "nylon"),
-             "JS102011SAQN": (3.5, "steel"), "SW-SMD_4P-L5.1-W5.1": (1.5, "steel")}
+STAND_INS = {"USB_C_Receptacle_HRO": (3.26, "steel"), "SW-SMD_4P-L5.1-W5.1": (1.5, "steel")}
 MODIFIERS = {"esc", "tab", "shift", "return", "enter", "delete", "fn", "option", "⌘", "space"}
 ACCENTS = {"esc", "return", "enter"}  # accent-coloured keycaps
 HOMING = {"F", "J", "5"}  # keycaps with a homing bump
@@ -120,13 +119,10 @@ def main():
         for key, (h, look) in STAND_INS.items():
             if key in fp["fp"] and fp["side"] == "B":
                 stand_ins.append({"ref": fp["ref"], "box": fp["fab"] or fp["courtyard"], "h": h, "look": look})
-    bx, by = C.POCKET_AT
     scene = {
         "tilt": C.TILT, "ty": C.TY, "tz": C.TZ, "plate_top": C.PLATE_TOP, "pcb_bot": C.PCB_BOT,
         "pcb_t": C.PCB_T, "floor_top": C.FLOOR_TOP, "cap_z": C.PLATE_TOP + CAP_Z, "switch": switch,
         "key_area": [C.KW, C.KD], "case": case_parts, "keys": keys,
-        # a 603450 cell lying in its pocket under the numpad (slab frame: corner, size)
-        "battery": {"at": [bx + 1.5, by + 1.0, C.FLOOR_TOP - C.POCKET[2] + 0.3], "size": [52.0, 34.5, 6.2]},
         "extent": {"x": [C.X_L, C.X_R], "y": [C.Y_F, C.Y_B]}, "stand_ins": stand_ins,
     }
     (OUT / "scene.json").write_text(json.dumps(scene, indent=1, ensure_ascii=False))

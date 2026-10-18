@@ -98,8 +98,8 @@ def main():
         errors += compare("schematic", expected, sch)
     else:
         errors.append("schematic netlist %s not found" % net_file)
-    data = circuit.to_json(parts, {"design": "Lira", "matrix": iface["matrix"], "gpio": iface["gpio"],
-                                   "deviations_from_bluemicro840": circuit.DEVIATIONS})
+    data = circuit.to_json(parts, {"design": "Lira (wired, RP2040)", "matrix": iface["matrix"], "gpio": iface["gpio"],
+                                   "deviations_from_wireless": circuit.DEVIATIONS})
     (BUILD / "netlist.json").write_text(json.dumps(data, indent=1))
     for e in errors:
         print(e)

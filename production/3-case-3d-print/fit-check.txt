@@ -63,10 +63,8 @@ PASS O  top-right: bridge 3.8 mm, 13 mm2 at slab x 263.0..267.0 y 85.2..89.2 z -
 PASS O  top-right: bridge 3.8 mm, 13 mm2 at slab x 173.0..177.0 y 85.2..89.2 z -2.0..-2.0
 PASS P  USB-C overmold 13x7.5 mm clears the window; receptacle mouth 2.37 mm inside the back face
 PASS P  headset plug overmold 9 mm clears the window; jack mouth 0.85 mm inside the back face
-PASS P  power switch actuator tip 0.63 mm inside the back face, travel and fingertip room clear
-PASS P  LED D102 visible from behind at [0, 30, 45] deg below the slab
 PASS P  LED D103 visible from behind at [0, 30, 45] deg below the slab
-PASS P  reset: clear path, 21.1 mm from the desk to the button
+PASS P  BOOT: clear path, 22.0 mm from the desk to the button
 PASS S  M3 x 12 at 30.0,-7.0: head seat -14.50 (8.1 mm deep from the desk), tip -2.50, hole ends -2.00 (margin 0.50), 3.00 mm in the insert, insert wall 4.51
 PASS S  M3 x 12 at 130.0,-7.0: head seat -14.50 (8.1 mm deep from the desk), tip -2.50, hole ends -2.00 (margin 0.50), 3.00 mm in the insert, insert wall 4.51
 PASS S  M3 x 12 at 210.0,-7.0: head seat -14.50 (8.1 mm deep from the desk), tip -2.50, hole ends -2.00 (margin 0.50), 3.00 mm in the insert, insert wall 4.51
@@ -87,7 +85,7 @@ PASS S  M2 x 5 at 337.9,50.0: plate top -6.50 on the frame at -6.50, tip -3.10, 
 PASS S  bolt at 30.0,87.2: plate tab -8.10..-6.50 clamped between boss top -8.10 and frame -6.50; backstop 0.50 mm under the PCB
 PASS S  bolt at 175.0,87.2: plate tab -8.10..-6.50 clamped between boss top -8.10 and frame -6.50; backstop 0.50 mm under the PCB
 PASS S  bolt at 265.0,87.2: plate tab -8.10..-6.50 clamped between boss top -8.10 and frame -6.50; backstop 0.50 mm under the PCB
-PASS W  bottom-left: no wall thinner than 1.2 mm (162507 samples)
+PASS W  bottom-left: no wall thinner than 1.2 mm (161389 samples)
 PASS W  top-left: no wall thinner than 1.2 mm (61966 samples)
 PASS W  top-right: no wall thinner than 1.2 mm (61460 samples)
-0 FAIL, 3 WARN, 89 PASS
+0 FAIL, 3 WARN, 87 PASS

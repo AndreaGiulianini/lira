@@ -589,42 +589,5 @@
  },
  "name": "Lira",
  "productId": "0x0040",
- "vendorId": "0x4C4B",
- "customKeycodes": [
-  {
-   "name": "BT0",
-   "title": "Bluetooth profile 0 (hold 5 s: forget host)",
-   "shortName": "BT0"
-  },
-  {
-   "name": "BT1",
-   "title": "Bluetooth profile 1 (hold 5 s: forget host)",
-   "shortName": "BT1"
-  },
-  {
-   "name": "BT2",
-   "title": "Bluetooth profile 2 (hold 5 s: forget host)",
-   "shortName": "BT2"
-  },
-  {
-   "name": "BT_NEXT",
-   "title": "Next Bluetooth profile",
-   "shortName": "BT>"
-  },
-  {
-   "name": "BT_PREV",
-   "title": "Previous Bluetooth profile",
-   "shortName": "BT<"
-  },
-  {
-   "name": "BT_CLR",
-   "title": "Forget the host of this profile",
-   "shortName": "BTclr"
-  },
-  {
-   "name": "USB_BLE",
-   "title": "Switch output USB / Bluetooth",
-   "shortName": "USB/BT"
-  }
- ]
+ "vendorId": "0x4C4B"
 }

@@ -11,7 +11,7 @@ import pcbnew
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from gen_pcb import patch_project  # noqa: E402
-from repair import drc, repair  # noqa: E402
+from repair import CORRIDOR, drc, remove, repair, seg_dist, segs_dist  # noqa: E402
 
 
 def mm(v):
@@ -105,35 +105,39 @@ def stitch_ground(b, pitch=5.0, via_d=0.6, drill=0.3, clearance=0.35, split=None
 def prune_single_layer_vias(b):
     """Remove non-GND vias that connect only one layer. The autorouter leaves a few when repair deletes the track
     that used to leave the via on the other layer. Safe test: the via has track ends on exactly one layer, and no
-    track or pad of its net touches it on the other layer. The DRC at the end confirms nothing was disconnected."""
+    track or pad touches it on the other layer (plain geometry: segment distances and pad bounding boxes, which only
+    errs towards keeping a via; KiCad's shape objects, created by the thousand here, upset its Python bindings). The
+    DRC at the end confirms nothing was disconnected."""
     ends = {}
+    segs = {pcbnew.F_Cu: [], pcbnew.B_Cu: []}
     for t in b.GetTracks():
         if t.GetClass() != "PCB_TRACK":
             continue
-        for p in (t.GetStart(), t.GetEnd()):
+        s, e = t.GetStart(), t.GetEnd()
+        for p in (s, e):
             ends.setdefault((p.x, p.y), set()).add(t.GetLayer())
-    shapes = {pcbnew.F_Cu: [], pcbnew.B_Cu: []}
-    for t in b.GetTracks():
-        if t.GetClass() != "PCB_TRACK":
+        if t.GetLayer() in segs:
+            segs[t.GetLayer()].append((s.x, s.y, e.x, e.y, t.GetWidth() / 2))
+    pads = {pcbnew.F_Cu: [], pcbnew.B_Cu: []}
+    for p in b.GetPads():
+        if p.GetNetCode() <= 0:
             continue
-        for layer in (pcbnew.F_Cu, pcbnew.B_Cu):
-            if t.IsOnLayer(layer):
-                shapes[layer].append(t.GetEffectiveShape(layer))
-    for fp in b.GetFootprints():
-        for p in fp.Pads():
-            if p.GetNetCode() <= 0:
-                continue
-            for layer in (pcbnew.F_Cu, pcbnew.B_Cu):
-                if p.IsOnLayer(layer):
-                    shapes[layer].append(p.GetEffectiveShape(layer))
+        bb = p.GetBoundingBox()
+        for layer in pads:
+            if p.IsOnLayer(layer):
+                pads[layer].append((bb.GetLeft(), bb.GetTop(), bb.GetRight(), bb.GetBottom()))
     removed = 0
     for v in [t for t in b.GetTracks() if t.GetClass() == "PCB_VIA" and t.GetNetname() != "GND"]:
-        layers = ends.get((v.GetPosition().x, v.GetPosition().y), set())
+        c = v.GetPosition()
+        layers = ends.get((c.x, c.y), set())
         if len(layers) != 1:
             continue
         other = pcbnew.B_Cu if pcbnew.F_Cu in layers else pcbnew.F_Cu
-        if not any(s.Collide(v.GetEffectiveShape(other), 0) for s in shapes[other]):
-            b.Remove(v)
+        r = v.GetWidth(pcbnew.F_Cu) / 2
+        touched = any(seg_dist(c.x, c.y, x0, y0, x1, y1) <= r + h for x0, y0, x1, y1, h in segs[other]) or \
+            any(x0 - r <= c.x <= x1 + r and y0 - r <= c.y <= y1 + r for x0, y0, x1, y1 in pads[other])
+        if not touched:
+            remove(b, [v])  # (kept alive: see repair.remove)
             removed += 1
     return removed
 
@@ -158,7 +162,7 @@ def prune_dangling_vias(b, vias):
     kept = [v for v in vias if covered(v)]
     for v in vias:
         if v not in kept:
-            b.Remove(v)
+            remove(b, [v])  # (kept alive: see repair.remove)
     if kept:
         b.BuildConnectivity()
     return kept, len(vias) - len(kept)
@@ -250,6 +254,108 @@ def add_teardrops(b):
     return made
 
 
+# The matrix lines and the LED line start at the RP2040's 0.4 mm-pitch pads, so they are routed at 0.2 mm (the Fine
+# net class, gen_pcb.py); out in the board they are widened back to the 0.3 mm of every other signal wherever they
+# keep 0.2 mm from other copper (a keyboard PCB flexes, and hot-swapping pulls on the socket pads).
+WIDEN = dict(prefixes=("ROW", "COL", "LED_RED"), width=0.3, clearance=0.2, hole=0.25, edge=0.35)
+
+
+def widen_lines(b):
+    """Widen the matrix lines' segments to WIDEN["width"] where the wider segment keeps WIDEN["clearance"] from
+    every other net, WIDEN["hole"] from holes, WIDEN["edge"] from the board edge and stays out of the rule areas.
+    Plain geometry on bounding boxes (pads, board edge, rule areas: conservative), segments and circles; the DRC
+    checks the result. Returns (widened, candidates)."""
+    to = mm(WIDEN["width"])
+    cand = [t for t in b.GetTracks() if t.GetClass() == "PCB_TRACK" and t.GetNetname().startswith(WIDEN["prefixes"])
+            and t.GetWidth() < to]
+    cell = mm(4.0)
+    index = {}
+
+    def put(entry, box):
+        x0, y0, x1, y1 = box
+        for cx in range(int(x0 // cell), int(x1 // cell) + 1):
+            for cy in range(int(y0 // cell), int(y1 // cell) + 1):
+                index.setdefault((cx, cy), []).append(entry)
+
+    def rect(item):
+        bb = item.GetBoundingBox()
+        return bb.GetLeft(), bb.GetTop(), bb.GetRight(), bb.GetBottom()
+
+    tracks = {}  # uuid -> [layer, net, ax, ay, bx, by, half width] (updated as tracks widen)
+    for t in b.GetTracks():
+        if t.GetClass() == "PCB_VIA":
+            p, r = t.GetPosition(), t.GetWidth(pcbnew.F_Cu) / 2
+            put(("circle", None, t.GetNetCode(), p.x, p.y, r, mm(WIDEN["clearance"])), (p.x - r, p.y - r, p.x + r, p.y + r))
+        elif t.GetClass() == "PCB_TRACK":
+            s, e = t.GetStart(), t.GetEnd()
+            rec = [t.GetLayer(), t.GetNetCode(), s.x, s.y, e.x, e.y, t.GetWidth() / 2]
+            tracks[t.m_Uuid.AsString()] = rec
+            put(("seg", rec), rect(t))
+    for p in b.GetPads():
+        net = p.GetNetCode() if p.GetAttribute() != pcbnew.PAD_ATTRIB_NPTH else -1
+        layers = tuple(layer for layer in (pcbnew.F_Cu, pcbnew.B_Cu) if p.IsOnLayer(layer))
+        if layers and p.GetAttribute() != pcbnew.PAD_ATTRIB_NPTH:
+            put(("rect", layers, net, rect(p), mm(WIDEN["clearance"])), rect(p))
+        if p.HasHole():
+            c, r = p.GetPosition(), max(p.GetDrillSize().x, p.GetDrillSize().y) / 2
+            put(("circle", None, -2, c.x, c.y, r, mm(WIDEN["hole"])), (c.x - r, c.y - r, c.x + r, c.y + r))
+    edges = b.GetBoardEdgesBoundingBox()
+    bx0, by0, bx1, by1 = edges.GetLeft(), edges.GetTop(), edges.GetRight(), edges.GetBottom()
+    areas = []
+    for z in b.Zones():
+        if z.GetIsRuleArea() and (z.GetDoNotAllowTracks() or z.GetZoneName() == CORRIDOR):
+            layers = (pcbnew.B_Cu,) if z.GetZoneName() == CORRIDOR else \
+                tuple(layer for layer in (pcbnew.F_Cu, pcbnew.B_Cu) if z.IsOnLayer(layer))
+            areas.append((layers, rect(z)))
+
+    def seg_rect(a, c, r):
+        x0, y0, x1, y1 = r
+        if x0 <= a[0] <= x1 and y0 <= a[1] <= y1 or x0 <= c[0] <= x1 and y0 <= c[1] <= y1:
+            return 0.0
+        corners = ((x0, y0), (x1, y0), (x1, y1), (x0, y1))
+        return min(segs_dist(a, c, corners[i], corners[(i + 1) % 4]) for i in range(4))
+
+    done = 0
+    for t in cand:
+        rec = tracks[t.m_Uuid.AsString()]
+        layer, net, ax, ay, ex, ey, _ = rec
+        h = to / 2
+        a, c = (ax, ay), (ex, ey)
+        ok = min(ax, ex) - h >= bx0 + mm(WIDEN["edge"]) and max(ax, ex) + h <= bx1 - mm(WIDEN["edge"]) and \
+            min(ay, ey) - h >= by0 + mm(WIDEN["edge"]) and max(ay, ey) + h <= by1 - mm(WIDEN["edge"])
+        near = {}
+        if ok:
+            for cx in range(int((min(ax, ex) - to) // cell), int((max(ax, ex) + to) // cell) + 1):
+                for cy in range(int((min(ay, ey) - to) // cell), int((max(ay, ey) + to) // cell) + 1):
+                    for entry in index.get((cx, cy), ()):
+                        near[id(entry)] = entry
+        for entry in near.values():
+            if entry[0] == "seg":
+                l2, n2, x0, y0, x1, y1, h2 = entry[1]
+                if entry[1] is rec or n2 == net or l2 != layer:
+                    continue
+                ok = segs_dist(a, c, (x0, y0), (x1, y1)) - h - h2 >= mm(WIDEN["clearance"])
+            elif entry[0] == "circle":
+                _, _, n2, x, y, r, cl = entry
+                if n2 == net:
+                    continue
+                ok = seg_dist(x, y, ax, ay, ex, ey) - h - r >= cl
+            else:
+                _, layers, n2, r, cl = entry
+                if n2 == net or layer not in layers:
+                    continue
+                ok = seg_rect(a, c, r) - h >= cl
+            if not ok:
+                break
+        if ok:
+            ok = not any(layer in layers and seg_rect(a, c, r) - h < 0 for layers, r in areas)
+        if ok:
+            t.SetWidth(to)
+            rec[6] = h
+            done += 1
+    return done, len(cand)
+
+
 def coplanar_ground(b, name="usb-hs-corridor", clearance=0.2):
     """Bottom-layer ground 0.2 mm beside the USB high-speed pair (instead of the pour's 0.3 mm): a higher-priority
     ground zone over the corridor (a rule area of pcb/electronics.py that keeps footprints out of it)."""
@@ -272,6 +378,8 @@ def coplanar_ground(b, name="usb-hs-corridor", clearance=0.2):
 def finish(routed_file, final):
     """Pour ground, stitch, add teardrops, fill and save the final board from a routed (pour-less) board."""
     b = pcbnew.LoadBoard(str(routed_file))
+    widened, lines = widen_lines(b)
+    print("matrix lines: %d of %d segments widened to %.1f mm" % (widened, lines, WIDEN["width"]))
     single = prune_single_layer_vias(b)
     if single:
         print("pruned %d single-layer via(s)" % single)

@@ -19,7 +19,8 @@ from paths import BUILD, PUBLISH, ROOT
 
 # pictures in build/img/, in the order the README lists them
 IMAGES = ("desk", "case-front", "case-back", "case-side", "case-top", "case-bottom", "case-exploded", "pcb-top", "pcb-bottom")
-DESCRIPTION = "57 keys: numpad on the left + Agar mini 40% with a split 3u + 3u spacebar, built-in USB sound card."
+DESCRIPTION = ("57 keys: numpad on the left + Agar mini 40% with a split 3u + 3u spacebar, built-in USB sound card. "
+               "Wired version: USB-C only, no battery, Raspberry Pi RP2040.")
 STAGE = PUBLISH.with_name(PUBLISH.name + ".new")  # built here, then renamed to PUBLISH
 
 
@@ -71,8 +72,6 @@ def main():
     copy(fw / "lira.uf2", "4-firmware/lira.uf2")
     copy(fw / "vial.json", "4-firmware/vial.json")
     copy(fw / "keyboard.toml", "4-firmware/keyboard.toml")
-    bootloader = sorted((ROOT / "firmware/bootloader").glob("*.hex"))[-1]
-    copy(bootloader, "4-firmware/" + bootloader.name)
     kicad_board(BUILD / "pcb/lira.kicad_pcb", "kicad/lira.kicad_pcb")
     for f in ("lira.kicad_pro", "lira.kicad_dru"):
         copy(BUILD / "pcb" / f, "kicad/" + f)
@@ -91,9 +90,9 @@ def main():
         if (BUILD / src).exists():
             copy(BUILD / src, "5-schematic-and-checks/" + dst)
     copy(BUILD / "case/check-fit.txt", "3-case-3d-print/fit-check.txt")
-    (STAGE / "5-schematic-and-checks/differences-from-bluemicro840.txt").write_text(
-        "Power / USB / programming circuit copied from the BlueMicro840 (jpconstantineau/NRF52-Board).\n"
-        "Differences:\n" + "".join("%d. %s\n" % (i + 1, d) for i, d in enumerate(DEVIATIONS)) +
+    (STAGE / "5-schematic-and-checks/differences-from-wireless.txt").write_text(
+        "The wired version of Lira: the wireless board (branch main) with the radio and the battery taken out.\n"
+        "Differences from it:\n" + "".join("%d. %s\n" % (i + 1, d) for i, d in enumerate(DEVIATIONS)) +
         "\nSound card after C-Media's CM108B/CM119B demo board v1.33 (sheet 4). Differences:\n" +
         "".join("%d. %s\n" % (i + 1, d) for i, d in enumerate(AUDIO_DEVIATIONS)))
     copy(BUILD / "layout.png", "images/layout.png")
@@ -109,14 +108,14 @@ def main():
             copy(posts, "review/POSTS.md")
     elif review.is_dir():
         print("review package older than the board: not published (make review)")
-    write_readme(pieces, bootloader.name)
+    write_readme(pieces)
     if PUBLISH.exists():
         shutil.rmtree(PUBLISH)
     STAGE.rename(PUBLISH)
     print("published %s" % PUBLISH)
 
 
-def write_readme(pieces, bootloader):
+def write_readme(pieces):
     lines, parts = bom_summary()
     n_keys = len(L.SWITCHES)
     stl = ", ".join("`%s.stl`" % p for p in pieces)
@@ -139,12 +138,11 @@ def write_readme(pieces, bootloader):
 | | `laser-cut/plate.dxf` | laser cut in metal or plastic (1.5 mm aluminium or steel, POM…), e.g. JLCCNC sheet metal |
 | | `3d-print/plate-left.stl`, `plate-right.stl` | 3D printed (PLA/PETG) in two pieces, top face on the bed, no supports; 4 mm ribbed, 1.5 mm where the switches clip in |
 | `3-case-3d-print/` | {stl} | Case to print **without supports**: the top frames with their flat face on the bed, the bottom halves the way they sit on the desk. The same pieces for CAD are in `step/` |
-| | `fit-check.txt` | Result of the automatic fit check: PCB, parts, plate, keys, battery, screws and ports against the printed pieces (see guide, §7) |
-| `4-firmware/` | `{bootloader}` | Bootloader: flashed **only once** with an SWD probe, for example a Raspberry Pi Pico (see guide §4) |
-| | `lira.uf2` | Firmware: double-click the reset button, then drag the file onto the BLUEMICRO drive |
+| | `fit-check.txt` | Result of the automatic fit check: PCB, parts, plate, keys, screws and ports against the printed pieces (see guide, §7) |
+| `4-firmware/` | `lira.uf2` | Firmware: a new board shows up as the **RPI-RP2** drive as soon as it is plugged in: drag the file onto it. To update it later: fn + Esc, or hold BOOT (paperclip, underside) while plugging the cable in (see guide §4) |
 | | `vial.json`, `keyboard.toml` | Configuration (Vial reads it from the keyboard by itself; these are for reference only) |
 | `5-schematic-and-checks/` | `schematic.pdf` | Circuit diagram, for anyone who wants to review the circuit (also `schematic.svg`) |
-| | `differences-from-bluemicro840.txt` | The power circuit is copied from a board on the market, the sound card from the chip maker's reference design; these are the differences from both |
+| | `differences-from-wireless.txt` | What changes from the wireless board (RP2040 after Raspberry Pi's own design, no battery), and the sound card's differences from the chip maker's reference design |
 | | `erc-kicad.txt`, `consistency-check.txt`, `datasheet-checks.txt` | Results of the three automatic checks (see guide, §6) |
 | | `netlist.json` | Every connection, pin by pin, in readable form |
 | `kicad/` | `lira.kicad_pcb`, `plate.kicad_pcb`, `schematic/` | To open the PCB, plate and schematic in KiCad |
@@ -152,11 +150,11 @@ def write_readme(pieces, bootloader):
 
 ## Summary
 
-- {n_keys} hot-swap MX switches, Bluetooth + USB-C (Ebyte E73 nRF52840 module), LiPo battery, RMK firmware with Vial.
+- {n_keys} hot-swap MX switches, USB-C, Raspberry Pi RP2040, RMK firmware with Vial. Wired: no battery, no Bluetooth (the
+  wireless version, with an nRF52840 and a LiPo cell, is on the git branch `main`).
 - Built-in USB sound card: a 3.5 mm headset jack at the back (headphones + microphone, CTIA plugs) with a headphone
-  amplifier, behind a USB hub; over the USB cable the computer sees a keyboard and a USB headset (no drivers). The
-  firmware powers the sound card only in USB mode: in Bluetooth mode there is none, even with the cable plugged in.
-- Works without a battery too, from the USB cable alone.
+  amplifier, behind a USB hub; over the USB cable the computer sees a keyboard and a USB headset (no drivers). It is on
+  whenever the cable is plugged in.
 - Case in {n_pieces} pieces to print (256 mm bed), inspired by the Apple M0110; top mount (plate screwed to the top frame).
 
 ## Buy separately
@@ -165,12 +163,10 @@ def write_readme(pieces, bootloader):
 |---|---|
 | {n_keys} MX switches + keycaps (Agar mini set + numpad kit) | you need a 2u vertical Enter, a 2u 0, + and − |
 | Screw-in PCB stabilizers: 2 × 2u + 2 for the 3u bars | 3u wire with 38.1 mm spacing |
-| LiPo battery 603450 (~1200 mAh) with protection and a JST-PH 2.0 plug | at most 52 × 35 × 6.5 mm; check the polarity with a multimeter |
 | Screws, heat-set inserts, pins, feet | list in `../README.md` |
-| SWD probe (once, for the bootloader) | Raspberry Pi Pico or any RP2040 board with *debugprobe* (alternatives in the guide, §4) |
 
 Every step in detail: [`../guide/build-guide.md`](../guide/build-guide.md).
-""".format(description=DESCRIPTION, parts=parts, lines=lines, stl=stl, bootloader=bootloader,
+""".format(description=DESCRIPTION, parts=parts, lines=lines, stl=stl,
            n_keys=n_keys, n_pieces=len(pieces))
     (STAGE / "README.md").write_text(text)
 
