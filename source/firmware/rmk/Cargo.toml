@@ -9,7 +9,9 @@ license = "MIT"
 
 # RP2040 (USB only), set up as RMK 0.9's examples/use_config/rp2040
 [dependencies]
-rmk = { version = "0.9", features = ["rp2040"] }
+# async_matrix: with no key held, the matrix waits for a key on the rows' interrupts instead of scanning, and the
+# RP2040 sleeps between events (lower current, in USB suspend too)
+rmk = { version = "0.9", features = ["rp2040", "async_matrix"] }
 embassy-time = { version = "0.5", features = ["defmt"] }
 # boot2-w25q080: the second-stage bootloader for the Winbond W25Q flash family (here a W25Q128JV), as on the Pico
 embassy-rp = { version = "0.10", features = [

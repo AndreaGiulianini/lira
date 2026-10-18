@@ -123,7 +123,7 @@
   (symbol "CH334P_0_1" (rectangle (start -11.43 13.97) (end 11.43 -13.97) (stroke (width 0.254) (type default)) (fill (type background))))
   (symbol "CH334P_1_1"
     (pin power_in line (at -15.24 11.43 0) (length 3.81) (name "V5" (effects (font (size 1.27 1.27)))) (number "15" (effects (font (size 1.27 1.27)))))
-    (pin power_out line (at -15.24 8.89 0) (length 3.81) (name "VDD33" (effects (font (size 1.27 1.27)))) (number "16" (effects (font (size 1.27 1.27)))))
+    (pin power_in line (at -15.24 8.89 0) (length 3.81) (name "VDD33" (effects (font (size 1.27 1.27)))) (number "16" (effects (font (size 1.27 1.27)))))
     (pin input line (at -15.24 6.35 0) (length 3.81) (name "XI" (effects (font (size 1.27 1.27)))) (number "2" (effects (font (size 1.27 1.27)))))
     (pin output line (at -15.24 3.81 0) (length 3.81) (name "XO" (effects (font (size 1.27 1.27)))) (number "1" (effects (font (size 1.27 1.27)))))
     (pin input line (at -15.24 1.27 0) (length 3.81) (name "RESET#/CDP" (effects (font (size 1.27 1.27)))) (number "13" (effects (font (size 1.27 1.27)))))

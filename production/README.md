@@ -19,7 +19,7 @@
 
 | Folder | Files | What to do with them |
 |---|---|---|
-| `1-pcb-jlcpcb/` | `gerber-pcb.zip`, `bom.csv`, `cpl.csv` | PCB order at JLCPCB: 2 layers, 1.6 mm, assembly of the **bottom side** (204 parts, 37 different part numbers). |
+| `1-pcb-jlcpcb/` | `gerber-pcb.zip`, `bom.csv`, `cpl.csv` | PCB order at JLCPCB: 2 layers, 1.6 mm, assembly of the **bottom side** (206 parts, 44 different part numbers). |
 | `2-plate/` | | The plate carries the keyboard (6 ears and 3 back tabs screw it to the top frame). Three ways to make it, all interchangeable (guide, §2): |
 | | `jlcpcb/gerber-plate.zip` | cut by JLCPCB: 1.6 mm FR4, ordered like a PCB with no copper and no assembly (black or white) |
 | | `laser-cut/plate.dxf` | laser cut in metal or plastic (1.5 mm aluminium or steel, POM…), e.g. JLCCNC sheet metal |
@@ -40,8 +40,9 @@
 - 57 hot-swap MX switches, USB-C, Raspberry Pi RP2040, RMK firmware with Vial. Wired: no battery, no Bluetooth (the
   wireless version, with an nRF52840 and a LiPo cell, is on the git branch `main`).
 - Built-in USB sound card: a 3.5 mm headset jack at the back (headphones + microphone, CTIA plugs) with a headphone
-  amplifier, behind a USB hub; over the USB cable the computer sees a keyboard and a USB headset (no drivers). It is on
-  whenever the cable is plugged in.
+  amplifier, behind a USB hub; over the USB cable the computer sees a keyboard and a USB headset (no drivers). The
+  firmware turns it on once the computer has set the keyboard up, and the amplifier off while the computer sleeps and
+  as soon as the cable starts to be pulled out (no click).
 - Case in 4 pieces to print (256 mm bed), inspired by the Apple M0110; top mount (plate screwed to the top frame).
 
 ## Buy separately

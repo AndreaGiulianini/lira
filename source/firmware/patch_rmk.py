@@ -10,6 +10,9 @@
    the next column. (On the nRF52840 the timer tick is 30.5 us and the pull-down 13 kOhm, so there it cannot happen.)
 2. USB: ask for 100 mA instead of RMK's fixed 450 mA. The RP2040 with its flash and LED draws about 40 mA; the rest of
    the board (hub, sound card) declares its own power.
+3. Matrix (async_matrix, see rmk/Cargo.toml): after waking on a key, the same wait before the first column is driven.
+   While waiting, every column is driven high; they are all pulled low again on a key, and without the wait the first
+   column's read could still see a row held up through another column's key.
 
 The crate comes from Cargo's cache, or from crates.io; either way its SHA-256 must be the one in Cargo.lock's history
 (the published 0.9.0), and every change must apply exactly once, or nothing is built.
@@ -28,7 +31,7 @@ CRATE = "rmk-0.9.0"
 SHA256 = "b6e673c9d3f508dfed96a3eba93de67b7b5ad3de8b48068fdeb73334b4de06ec"
 URL = "https://static.crates.io/crates/rmk/%s.crate" % CRATE
 STAMP = OUT / ".lira-patch"
-VERSION = "1"  # bump when the changes below change
+VERSION = "2"  # bump when the changes below change
 
 CHANGES = [
     ("src/matrix.rs",
@@ -50,6 +53,26 @@ CHANGES = [
                     Timer::after_micros(1).await;
                 }
             }
+"""),
+    ("src/matrix.rs",
+     """        // Set all output pins back to low
+        for out in self.get_output_pins_mut().iter_mut() {
+            out.set_low().ok();
+        }
+    }
+""",
+     """        // Set all output pins back to low
+        for out in self.get_output_pins_mut().iter_mut() {
+            out.set_low().ok();
+        }
+        // Lira: let the rows fall (weak pull-downs, long rows) before the first column is driven
+        for _ in 0..50 {
+            if !self.get_input_pins_mut().iter_mut().any(|p| p.is_high().ok().unwrap_or_default()) {
+                break;
+            }
+            Timer::after_micros(1).await;
+        }
+    }
 """),
     ("src/usb/mod.rs",
      "    usb_config.max_power = 450;\n",

@@ -161,8 +161,9 @@ def write_readme(pieces):
 - {n_keys} hot-swap MX switches, USB-C, Raspberry Pi RP2040, RMK firmware with Vial. Wired: no battery, no Bluetooth (the
   wireless version, with an nRF52840 and a LiPo cell, is on the git branch `main`).
 - Built-in USB sound card: a 3.5 mm headset jack at the back (headphones + microphone, CTIA plugs) with a headphone
-  amplifier, behind a USB hub; over the USB cable the computer sees a keyboard and a USB headset (no drivers). It is on
-  whenever the cable is plugged in.
+  amplifier, behind a USB hub; over the USB cable the computer sees a keyboard and a USB headset (no drivers). The
+  firmware turns it on once the computer has set the keyboard up, and the amplifier off while the computer sleeps and
+  as soon as the cable starts to be pulled out (no click).
 - Case in {n_pieces} pieces to print (256 mm bed), inspired by the Apple M0110; top mount (plate screwed to the top frame).
 
 ## Buy separately

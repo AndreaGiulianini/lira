@@ -16,8 +16,9 @@ from the wireless board is listed in DEVIATIONS and printed on the schematic.
 
 The built-in sound card (audio()) is the wireless board's, part for part: the USB-C receptacle feeds a WCH CH334P
 hub, whose ports go to the RP2040 and to a C-Media CM108B USB audio codec (headphones + microphone on a 3.5 mm jack).
-The codec section follows C-Media's CM108B/CM119B demo board v1.33 (sheet 4) and application notes v1.50. Its supply
-switch is turned on by VBUS itself instead of a GPIO: the board is always in USB mode.
+The codec section follows C-Media's CM108B/CM119B demo board v1.33 (sheet 4) and application notes v1.50. As on the
+wireless board, the RP2040 switches its supply (and here also the headphone amplifier, separately), and it watches VBUS
+so that the amplifier is off before the supplies fall when the cable is pulled.
 """
 
 # --------------------------------------------------------------------------------------------- Raspberry Pi RP2040
@@ -33,12 +34,14 @@ RP_PINS = {
     55: "QSPI_SD1", 56: "QSPI_SS", 57: "GND",
 }
 # Pads with a fixed role (net name). The 1.1 V core supply: the internal regulator's output (VREG_VOUT) feeds both
-# DVDD pins. TESTEN is grounded (datasheet: "connect to ground"). USB through 27 ohm to the hub's port 3.
+# DVDD pins. TESTEN is grounded (datasheet: "connect to ground"). USB through 27 ohm to the hub's port 3. The sound
+# card is switched by two GPIOs in front (GPIO12: its 5 V, GPIO13: the headphone amplifier) and the firmware watches
+# VBUS on GPIO29 (ADC3, next to the 3.3 V corner), through a divider.
 RP_FIXED = {
     1: "3V3", 10: "3V3", 22: "3V3", 33: "3V3", 42: "3V3", 49: "3V3", 43: "3V3", 44: "3V3", 48: "3V3",
     23: "1V1", 45: "1V1", 50: "1V1", 19: "GND", 57: "GND", 20: "XIN", 21: "XOUT", 24: "SWCLK", 25: "SWDIO",
     26: "RESET", 46: "RP_DN", 47: "RP_DP", 51: "QSPI_SD3", 52: "QSPI_SCLK", 53: "QSPI_SD0", 54: "QSPI_SD2",
-    55: "QSPI_SD1", 56: "QSPI_SS",
+    55: "QSPI_SD1", 56: "QSPI_SS", 15: "AUD_EN", 16: "AMP_ON", 41: "VBUS_SENSE",
 }
 # The 30 GPIO pads; pcb/electronics.py gives the key matrix and the status LED the ones on the package's two sides
 # that face along the strip (the matrix lines leave sideways), so that the fan-out does not cross itself.
@@ -78,6 +81,14 @@ def c0603(ref, value, lcsc, a, b, note=""):
     return two(ref, value, "Capacitor_SMD:C_0603_1608Metric", lcsc, a, b, "Device:C", note)
 
 
+def r0402(ref, value, lcsc, a, b, note=""):
+    return two(ref, value, "Resistor_SMD:R_0402_1005Metric", lcsc, a, b, "Device:R", note)
+
+
+def c0402(ref, value, lcsc, a, b, note=""):
+    return two(ref, value, "Capacitor_SMD:C_0402_1005Metric", lcsc, a, b, "Device:C", note)
+
+
 def bead(ref, lcsc, a, b, note=""):
     return two(ref, "600R@100MHz", "Inductor_SMD:L_0603_1608Metric", lcsc, a, b, "Device:FerriteBead", note)
 
@@ -96,14 +107,18 @@ def button(ref, value, net, note):
 
 LCSC = {
     "rp2040": "C2040", "flash": "C97521", "xtal_mcu": "C20625731", "ap2112k": "C51118", "usblc6": "C7519",
-    "led_red": "C2286", "usbc": "C165948", "sw_reset": "C318884", "b5819w": "C8598",
-    "r100k": "C25803", "r1k": "C21190", "r10k": "C25804", "r5k1": "C23186", "r27": "C25190",
-    "c10u": "C19702", "c4u7": "C19666", "c15p": "C1644", "c100n": "C14663",
+    "led_red": "C2286", "usbc": "C165948", "sw_reset": "C318884",
+    "r100k": "C25803", "r1k": "C21190", "r10k": "C25804", "r5k1": "C23186",
+    "c10u": "C19702", "c4u7": "C19666", "c100n": "C14663",
     "socket": "C41430893", "diode": "C81598",
+    # 0402 at the RP2040's pins (Hardware design with RP2040 2.1.2: decoupling close to the power pins)
+    "c100n_0402": "C1525", "c1u_0402": "C52923", "c15p_0402": "C1548", "r1k_0402": "C11702", "r27_0402": "C2909343",
+    # VBUS: surge clamp, damped bulk capacitor, divider to the ADC
+    "tvs5v": "C2857263", "c4u7_0805": "C1779", "r1R": "C22936", "r22k": "C31850", "r27k": "C22967", "c1n": "C1588",
     # sound card: hub, codec, jack, 12 MHz crystal, and the passives not used elsewhere
     "ch334p": "C5373042", "cm108b": "C371347", "jack": "C95562", "xtal12": "C9002",
     "c1u": "C15849", "c100p": "C14858", "r22": "C23345", "r2k2": "C4190", "bead": "C1002",
-    "tps22919": "C2149796", "tpa6132": "C69901", "c2u2": "C23630", "c470n": "C1623", "c10n": "C57112",
+    "tps22919": "C2149796", "tpa6132": "C69901", "c2u2": "C23630", "c10n": "C57112",
     "r1M": "C22935", "r1k2": "C22765", "esd_jack": "C19224",
 }
 
@@ -112,22 +127,28 @@ DEVIATIONS = [
     "path (B5819W + SI2301), no power switch, no battery divider, no 32.768 kHz crystal, no antenna keep-out.",
     "Raspberry Pi RP2040 instead of the module, with the minimum circuit of Raspberry Pi's 'Hardware design with RP2040' "
     "(the Pico's): 12 MHz crystal ABM8-272-T3 (the one Raspberry Pi qualified) with 2 x 15 pF and 1k in series on "
-    "XOUT; W25Q128JV QSPI flash (16 MB) with a 10k pull-up on QSPI_SS; 100 nF on each of the six IOVDD pins, on both "
-    "DVDD, USB_VDD and ADC_AVDD, 1 uF on VREG_VIN and VREG_VOUT; the internal regulator makes the 1.1 V core supply; "
-    "TESTEN grounded.",
+    "XOUT; W25Q128JV QSPI flash (16 MB) with a 10k pull-up on QSPI_SS; 100 nF (0402) on IOVDD 1, 22, 42, 49, on "
+    "DVDD 23 and on ADC_AVDD, USB_VDD sharing IOVDD 49's as in the design guide, IOVDD 10 / 33 sharing 1's / 42's "
+    "through a tie under the package and DVDD 50 VREG_VOUT's 1 uF through the 1.1 V ring under it; 1 uF on VREG_VIN "
+    "and VREG_VOUT; each within a few mm of its pin on the bottom layer; the internal regulator makes the 1.1 V core "
+    "supply; TESTEN grounded.",
     "USB: hub port 3 goes to the RP2040's USB_DP / USB_DM through 27 ohm series resistors (as on the Pico and in the "
     "design guide), instead of the module's D+ / D-.",
     "Programming: the RP2040's boot ROM is a USB drive (RPI-RP2) - no bootloader to flash with an SWD probe. A blank "
     "board starts in it; BOOT (SW101, QSPI_SS to GND through 1k) held while plugging the cable enters it again; "
     "RESET (SW102) pulls RUN low. The SWD pads stay for debugging.",
-    "3.3 V regulator AP2112K-3.3 (the same as the wireless board) fed straight from VBUS: 1 uF in, 1 uF + 10 uF out.",
+    "3.3 V regulator AP2112K-3.3 (the same as the wireless board) fed straight from VBUS: 1 uF in, 1 uF + 4.7 uF out; it "
+    "also supplies the USB hub (V5 and VDD33 on 3.3 V, CH334 datasheet 6.4), so nothing but the regulator, the sound "
+    "card's switch and the protection sits on VBUS.",
+    "VBUS protection at the receptacle: SMF5.0A TVS and a 4.7 uF bulk capacitor damped by 1 ohm (hot-plug ringing); "
+    "VBUS divider 22k / 27k + 1 nF to GPIO29 (ADC3) for the firmware.",
     "Status LED (red, Caps Lock) on an RP2040 GPIO, through 1k, as on the wireless board.",
     "Test points: SWD (SWCLK, SWDIO, RESET, GND) in one row in front of the RP2040, 3V3 behind it, VBUS; no VBAT / "
     "VIN.",
-    "Sound card: the supply switch U8 is turned on by VBUS instead of a GPIO (the wireless board has it on only in USB "
-    "mode; here it always is) and its pull-down is dropped. It still soft-starts the sound card's 5 V: its 17 uF are "
-    "charged through the switch's controlled rise, not straight from the cable (only ~3 uF sit directly on VBUS). "
-    "The amplifier's EN delay (1M + 470 nF) runs from VBUS too, and D104 drags EN down with VBUS on unplug.",
+    "Sound card: the supply switch U8 is on a GPIO (GPIO12) with a 100k pull-down, as on the wireless board; the "
+    "headphone amplifier's EN has its own GPIO (GPIO13) through 100k, held low by 1M (the wireless board delays it with "
+    "an RC from the switch). The firmware turns the sound card on when the host has configured the keyboard, the "
+    "amplifier 0.2 s later, the amplifier off in USB suspend and as soon as VBUS starts to fall.",
 ]
 
 
@@ -149,23 +170,28 @@ def rp2040(gpio=None):
     usb.update({"A5": ("CC1", "CC1"), "B5": ("CC2", "CC2"), "A6": ("D+", "USB_DP"), "B6": ("D+", "USB_DP"),
                 "A7": ("D-", "USB_DN"), "B7": ("D-", "USB_DN"), "A8": ("SBU1", None), "B8": ("SBU2", None),
                 "SH": ("SHIELD", "GND")})
-    decoupling = [(1, "3V3"), (10, "3V3"), (22, "3V3"), (33, "3V3"), (42, "3V3"), (49, "3V3"), (48, "3V3"),
-                  (43, "3V3"), (23, "1V1"), (50, "1V1")]
+    # one 100 nF per supply pin, except where Raspberry Pi's minimal design shares one for lack of room (Hardware design
+    # with RP2040 2.1.2, Figures 5-6: "pins 48 and 49 share a single capacitor"): USB_VDD (48) shares IOVDD 49's (C6),
+    # IOVDD 10 and 33, in the middle of the matrix lines' fan-out, share IOVDD 1's and 42's (C1, C5) through a tie
+    # under the package, and DVDD 50 shares VREG_VOUT's 1 uF (C12) through the 1.1 V ring under it (behind the package
+    # its neighbours leave no room for a track out)
+    decoupling = {"C1": 1, "C3": 22, "C5": 42, "C6": 49, "C8": 43, "C9": 23}
     return [
         Part("U1", "RP2040", "Package_DFN_QFN:QFN-56-1EP_7x7mm_P0.4mm_EP3.2x3.2mm", u1, LCSC["rp2040"],
              "lira:RP2040", note="RP2040: 3.3 V I/O, 1.1 V core from its own regulator (VREG_VOUT -> DVDD)"),
-        # --- 100 nF at every supply pin (one per pin, next to it), 1 uF at the regulator's input and output
-        *[c0603("C%d" % i, "100nF", LCSC["c100n"], net, "GND", "at %s (pin %d)" % (RP_PINS[pin], pin))
-          for i, (pin, net) in enumerate(decoupling, start=1)],
-        c0603("C11", "1uF", LCSC["c1u"], "3V3", "GND", "at VREG_VIN (pin 44)"),
-        c0603("C12", "1uF", LCSC["c1u"], "1V1", "GND", "at VREG_VOUT (pin 45)"),
+        # --- 100 nF at every supply pin, 1 uF at the regulator's input and output: 0402, at the pins
+        *[c0402(ref, "100nF", LCSC["c100n_0402"], RP_FIXED[pin], "GND",
+                "at %s (pin %d)%s" % (RP_PINS[pin], pin, " and USB_VDD (pin 48)" if pin == 49 else ""))
+          for ref, pin in decoupling.items()],
+        c0402("C11", "1uF", LCSC["c1u_0402"], "3V3", "GND", "at VREG_VIN (pin 44)"),
+        c0402("C12", "1uF", LCSC["c1u_0402"], "1V1", "GND", "at VREG_VOUT (pin 45)"),
         # --- 12 MHz crystal (Hardware design with RP2040 2.3.1: ABM8-272-T3, CL 10 pF, 2 x 15 pF, 1k on XOUT)
         Part("Y1", "12MHz", "Crystal:Crystal_SMD_3225-4Pin_3.2x2.5mm",
              {1: ("1", "XIN"), 2: ("G", "GND"), 3: ("3", "XOUT_X"), 4: ("G", "GND")}, LCSC["xtal_mcu"],
              "Device:Crystal_GND24", note="Abracon ABM8-272-T3: CL 10 pF, ESR <= 50 ohm"),
-        c0603("C13", "15pF", LCSC["c15p"], "XIN", "GND", "load: 2 x (10 pF - ~2.5 pF of board and pin)"),
-        c0603("C14", "15pF", LCSC["c15p"], "XOUT_X", "GND"),
-        r0603("R1", "1k", LCSC["r1k"], "XOUT", "XOUT_X", "limits the crystal's drive level"),
+        c0402("C13", "15pF", LCSC["c15p_0402"], "XIN", "GND", "load: 2 x (10 pF - ~2.5 pF of board and pin)"),
+        c0402("C14", "15pF", LCSC["c15p_0402"], "XOUT_X", "GND"),
+        r0402("R1", "1k", LCSC["r1k_0402"], "XOUT", "XOUT_X", "limits the crystal's drive level"),
         # --- QSPI flash: W25Q128JV, 16 MB (the boot ROM's default second stage drives it)
         Part("U2", "W25Q128JVS", "Package_SO:SOIC-8_5.3x5.3mm_P1.27mm",
              {1: ("/CS", "QSPI_SS"), 2: ("DO(IO1)", "QSPI_SD1"), 3: ("/WP(IO2)", "QSPI_SD2"), 4: ("GND", "GND"),
@@ -180,8 +206,8 @@ def rp2040(gpio=None):
         r0603("R4", "10k", LCSC["r10k"], "3V3", "RESET", "RUN pull-up"),
         button("SW102", "RESET", "RESET", "pulls RUN low: the RP2040 restarts"),
         # --- USB: the RP2040 on hub port 3 through 27 ohm (as on the Pico and in the design guide)
-        r0603("R5", "27", LCSC["r27"], "RP_DP", "MCU_DP", "USB D+ series resistor, at the RP2040"),
-        r0603("R6", "27", LCSC["r27"], "RP_DN", "MCU_DN", "USB D- series resistor, at the RP2040"),
+        r0402("R5", "27", LCSC["r27_0402"], "RP_DP", "MCU_DP", "USB D+ series resistor, at the RP2040"),
+        r0402("R6", "27", LCSC["r27_0402"], "RP_DN", "MCU_DN", "USB D- series resistor, at the RP2040"),
         # --- USB-C receptacle (sink), ESD array (as on the wireless board)
         Part("J1", "USB-C", "Connector_USB:USB_C_Receptacle_HRO_TYPE-C-31-M-12", usb, LCSC["usbc"],
              "Connector:USB_C_Receptacle_USB2.0_16P"),
@@ -191,13 +217,28 @@ def rp2040(gpio=None):
              {1: ("I/O1", "USB_DP"), 2: ("GND", "GND"), 3: ("I/O2", "USB_DN"), 4: ("I/O2", "USB_DN"),
               5: ("VBUS", "VBUS"), 6: ("I/O1", "USB_DP")}, LCSC["usblc6"], "Power_Protection:USBLC6-2SC6",
              note="ESD protection, placed next to the receptacle"),
+        # --- VBUS at the receptacle: a surge clamp, and a bulk capacitor damped by 1 ohm in series. A cable is ~1 uH;
+        # into the board's ~1-2 uF of ceramic alone it rings on hot-plug (to 6.5-8 V), above the 6 V of the sound
+        # card's switch; 4.7 uF + 1 ohm, a few times that ceramic and near its characteristic impedance (~0.7-1 ohm),
+        # damps it (an RC snubber). Total on VBUS: 6.7 uF nominal, under USB's 10 uF.
+        Part("D108", "SMF5.0A", "Diode_SMD:D_SOD-123F", {1: ("K", "VBUS"), 2: ("A", "GND")}, LCSC["tvs5v"],
+             "Device:D_Zener", note="5 V TVS (200 W), unidirectional, at the receptacle"),
+        r0603("R7", "1", LCSC["r1R"], "VBUS", "VBUS_DAMP", "damping of the bulk capacitor (hot-plug ringing)"),
+        two("C104", "4.7uF", "Capacitor_SMD:C_0805_2012Metric", LCSC["c4u7_0805"], "VBUS_DAMP", "GND", "Device:C",
+            note="VBUS bulk, damped by R7 (25 V X5R: ~3.5 uF left at 5 V)"),
+        # --- VBUS sense for the firmware (unplug: amplifier off before the sound card's supply falls): 22k / 27k
+        # (5.5 V -> 3.0 V at the ADC), 1 nF against noise (tau 12 us)
+        r0603("R8", "22k", LCSC["r22k"], "VBUS", "VBUS_SENSE", "VBUS divider, top"),
+        r0603("R9", "27k", LCSC["r27k"], "VBUS_SENSE", "GND", "VBUS divider, bottom: 0.55 x VBUS on GPIO29 (ADC3)"),
+        two("C16", "1nF", "Capacitor_SMD:C_0603_1608Metric", LCSC["c1n"], "VBUS_SENSE", "GND", "Device:C",
+            note="at the ADC pin"),
         # --- 3.3 V regulator from VBUS (the wireless board's AP2112K, there fed from the power path)
         Part("U3", "AP2112K-3.3", "Package_TO_SOT_SMD:SOT-23-5",
              {1: ("VIN", "VBUS"), 2: ("GND", "GND"), 3: ("EN", "VBUS"), 4: ("NC", None), 5: ("VOUT", "3V3")},
              LCSC["ap2112k"], "Regulator_Linear:AP2112K-3.3", note="EN tied to VIN: always on"),
         c0603("C102", "1uF", LCSC["c1u"], "VBUS", "GND", "regulator input"),
         c0603("C108", "1uF", LCSC["c1u"], "3V3", "GND", "regulator output"),
-        c0603("C103", "10uF", LCSC["c10u"], "3V3", "GND", "3.3 V bulk, at the RP2040"),
+        c0603("C103", "4.7uF", LCSC["c4u7"], "3V3", "GND", "3.3 V bulk, at the RP2040 (4.7 uF: USB inrush)"),
         # --- status LED (Caps Lock), active high
         Part("D103", "LED red", "LED_SMD:LED_0603_1608Metric", {1: ("K", "LED_RED_K"), 2: ("A", "LED_RED")},
              LCSC["led_red"], "Device:LED"),
@@ -209,34 +250,37 @@ def rp2040(gpio=None):
 
 
 AUDIO_DEVIATIONS = [
-    "Supply: VBUS through a TPS22919 load switch (soft start 1.3 ms, output discharge) to AUD_5V, ON tied to VBUS (the "
-    "wireless board drives it from a GPIO, on only in USB mode): the sound card's capacitors are charged slowly after "
-    "the cable has made contact. A hard switch-on would dip VBUS enough to reset the hub (CH334 datasheet 6.1).",
+    "Supply: VBUS through a TPS22919 load switch (soft start 1.3 ms, output discharge) to AUD_5V, ON from an RP2040 "
+    "GPIO (on once the host has configured the keyboard): the sound card's capacitors are charged slowly. A hard "
+    "switch-on would dip VBUS enough to reset the hub (CH334 datasheet 6.1).",
     "Headphones: a TPA6132A2 DirectPath amplifier after LOL / LOR (demo board: 100 uF + 39R straight to the jack): "
     "about 0 ohm output impedance, no coupling capacitors, 0 dB gain (-6 dB with JP3 closed, for very sensitive "
-    "earphones). Inputs single-ended through 1 uF (8 Hz); EN about 0.15 s after the supply (1M + 470 nF from VBUS), "
-    "and dragged down with VBUS through a Schottky when the cable is pulled (EN stays within a Schottky drop of "
-    "VBUS). On unplug the codec and the amplifier lose their supply together: listen for a click.",
+    "earphones). Inputs single-ended through 1 uF (8 Hz); EN from an RP2040 GPIO through 100k (1M to ground): on "
+    "0.2 s after the supply, off in USB suspend (2 mA saved) and, when the cable is pulled, as soon as the firmware "
+    "sees VBUS fall, before the codec loses its supply (no click).",
     "Microphone: bias 1.2k + 2.2k (demo board 2.2k + 8.2k, for PC microphones) for phone headsets (Android: "
     "1.8-2.9 V through 2.2k); 1k in series before MICIN against the step when a plug goes in.",
-    "The demo board's two 10 nF capacitors DVDD - DREG18 and DVDD - DREG33 ('close to IC', for ESD) are fitted.",
+    "The demo board's two 10 nF capacitors DVDD - DREG18 and DVDD - DREG33 ('close to IC', for ESD) are fitted; each "
+    "AVDD pin (29, 34) has its own 100 nF.",
     "The amplifier's SGND (pin 15) is grounded at the amplifier (its ground pad and a via into the top ground plane), "
     "not on a track of its own to the jack's ground pin as TI suggests (datasheet 10.3): with both layers poured "
     "the difference is a few millivolts.",
     "The four mode jumpers are also strapped with 10k (MODE/ADSEL low, PWRSEL/MSEL high to DREG33) on top of the "
     "chip's internal pulls. D105-D107 are bidirectional ESD clamps (PESD5V0S1BA) on the jack's left, right and "
-    "microphone contacts: a DirectPath output swings below GND, so the clamp must be bidirectional.",
+    "microphone contacts, between the jack and the ferrites, each with its own ground via: a DirectPath output swings "
+    "below GND, so the clamp must be bidirectional.",
 ]
 
 
 def audio():
     """The sound card: CH334P USB 2.0 hub between the receptacle and the RP2040, CM108B USB audio codec on a hub port,
     TPA6132A2 headphone amplifier, 3.5 mm headset jack (CTIA: tip = left, ring 1 = right, ring 2 = ground, sleeve =
-    microphone). The codec and the amplifier run from AUD_5V, switched by a TPS22919 that VBUS turns on."""
+    microphone). The codec and the amplifier run from AUD_5V, switched by a TPS22919 that the RP2040 turns on
+    (AUD_EN); the amplifier has its own enable from the RP2040 (AMP_ON)."""
     hub = {1: ("XO", "HUB_XO"), 2: ("XI", "HUB_XI"), 3: ("DM4", None), 4: ("DP4", None),
            5: ("DM3", "MCU_DN"), 6: ("DP3", "MCU_DP"), 7: ("DM2", "AUD_DN"), 8: ("DP2", "AUD_DP"), 9: ("DM1", None),
            10: ("DP1", None), 11: ("DMU", "USB_DN"), 12: ("DPU", "USB_DP"), 13: ("RESET#/CDP", None),
-           14: ("PGANG", None), 15: ("V5", "VBUS"), 16: ("VDD33", "HUB_3V3"), 17: ("GND", "GND")}
+           14: ("PGANG", None), 15: ("V5", "3V3"), 16: ("VDD33", "3V3"), 17: ("GND", "GND")}
     names = {1: "SPDIFO", 2: "DR", 3: "DW", 4: "SK", 5: "CS", 6: "MUTER", 7: "PWRSEL", 8: "DREG18", 9: "DREG33",
              10: "MODE", 11: "NC", 12: "LEDO", 13: "GPIO3", 14: "DVSS", 15: "GPIO4", 16: "SDIN", 17: "ADSCLK",
              18: "MUTEP", 19: "ADLRCK", 20: "ADMCLK", 21: "LEDR", 22: "ADSEL", 23: "TEST", 24: "AVSS", 25: "VBIAS",
@@ -257,34 +301,39 @@ def audio():
            10: ("PGND", "GND"), 11: ("CPP", "AMP_CPP"), 12: ("HPVDD", "AMP_VDDH"), 13: ("EN", "AMP_EN"),
            14: ("VDD", "AUD_5V"), 15: ("SGND", "GND"), 16: ("OUTL", "HPL2"), 17: ("EP", "GND")}
     return [
-        # --- hub (CH334P datasheet V2.91): 12 MHz crystal without load capacitors (they are inside the chip)
+        # --- hub (CH334P datasheet V2.91): 12 MHz crystal without load capacitors (they are inside the chip). Powered
+        # from the 3.3 V rail, V5 and VDD33 together (datasheet 6.4, "on-board embedded hub": recommended when there is
+        # a 3.3 V supply; one 1 uF is then enough): nothing of the hub is on VBUS, whose 5.5 V is the V5 pin's
+        # absolute maximum
         Part("U5", "CH334P", "Package_DFN_QFN:WCH_QFN-16-1EP_3x3mm_P0.5mm_EP1.8x1.8mm", hub, LCSC["ch334p"],
              "lira:CH334P", note="USB 2.0 hub: upstream to the receptacle, port 3 RP2040, port 2 sound card"),
         Part("Y2", "12MHz", "Crystal:Crystal_SMD_3225-4Pin_3.2x2.5mm",
              {1: ("1", "HUB_XI"), 2: ("G", "GND"), 3: ("3", "HUB_XO"), 4: ("G", "GND")}, LCSC["xtal12"],
              "Device:Crystal_GND24", note="no load capacitors: the CH334 has them inside"),
-        c0603("C110", "1uF", LCSC["c1u"], "VBUS", "GND", "hub V5 input"),
-        c0603("C111", "10uF", LCSC["c10u"], "HUB_3V3", "GND", "hub VDD33 (internal regulator output)"),
-        c0603("C112", "100nF", LCSC["c100n"], "HUB_3V3", "GND", "hub VDD33"),
+        c0603("C110", "1uF", LCSC["c1u"], "3V3", "GND", "hub V5 + VDD33 (3.3 V supply, datasheet 6.4)"),
+        c0603("C112", "100nF", LCSC["c100n"], "3V3", "GND", "hub VDD33"),
         # --- codec (CM108B): USB through 22R, supplies from VBUS through ferrite beads
         Part("U6", "CM108B", "Package_QFP:LQFP-48_7x7mm_P0.5mm", codec, LCSC["cm108b"], "lira:CM108B",
              note="USB audio codec, crystal-free; operating 0-70 C"),
         r0603("R110", "22", LCSC["r22"], "AUD_DP", "CM_DP", "series resistor at the codec's D+"),
         r0603("R111", "22", LCSC["r22"], "AUD_DN", "CM_DN", "series resistor at the codec's D-"),
-        # --- the sound card's 5 V: soft-started by a TPS22919 that VBUS turns on (QOD through 1k for a slow fall)
+        # --- the sound card's 5 V: a TPS22919 switched by the RP2040 (GPIO12, AUD_EN), soft start; its pull-down
+        # keeps it off while the RP2040 starts and in the boot ROM (QOD through 1k for a slow fall)
         Part("U8", "TPS22919", "Package_TO_SOT_SMD:SOT-363_SC-70-6",
-             {1: ("IN", "VBUS"), 2: ("GND", "GND"), 3: ("ON", "VBUS"), 4: ("NC", None), 5: ("QOD", "AUD_QOD"),
+             {1: ("IN", "VBUS"), 2: ("GND", "GND"), 3: ("ON", "AUD_EN"), 4: ("NC", None), 5: ("QOD", "AUD_QOD"),
               6: ("VOUT", "AUD_5V")}, LCSC["tps22919"], "lira:TPS22919",
-             note="load switch, ON tied to VBUS: soft start of the sound card's supply"),
+             note="load switch, ON from the RP2040: soft start of the sound card's supply"),
+        r0603("R119", "100k", LCSC["r100k"], "AUD_EN", "GND", "keeps the sound card off until the firmware runs"),
         c0603("C130", "1uF", LCSC["c1u"], "VBUS", "GND", "load switch input"),
-        r0603("R118", "1k", LCSC["r1k"], "AUD_QOD", "AUD_5V", "output discharge, once VBUS (ON) is gone"),
+        r0603("R118", "1k", LCSC["r1k"], "AUD_QOD", "AUD_5V", "output discharge, once the switch is off"),
         bead("L101", LCSC["bead"], "AUD_5V", "AUD_AVDD", "analog supply filter"),
         bead("L102", LCSC["bead"], "AUD_5V", "AUD_DVDD", "digital supply filter"),
         c0603("C113", "10uF", LCSC["c10u"], "AUD_5V", "GND", "bulk on the switched 5 V"),
         c0603("C114", "100nF", LCSC["c100n"], "AUD_5V", "GND"),
         c0603("C115", "100nF", LCSC["c100n"], "AUD_DVDD", "GND", "at DVDD (pin 35)"),
         c0603("C116", "4.7uF", LCSC["c4u7"], "AUD_DVDD", "GND"),
-        c0603("C117", "100nF", LCSC["c100n"], "AUD_AVDD", "GND", "at AVDD (pin 34)"),
+        c0603("C117", "100nF", LCSC["c100n"], "AUD_AVDD", "GND", "at AVDD (pin 34), 4.5 mm of track from it"),
+        c0402("C140", "100nF", LCSC["c100n_0402"], "AUD_AVDD", "GND", "at AVDD (pin 29), 1 mm from it"),
         c0603("C118", "1uF", LCSC["c1u"], "DREG18", "GND", "1.8 V core regulator"),
         c0603("C119", "100nF", LCSC["c100n"], "DREG33", "GND", "3.3 V I/O regulator"),
         c0603("C120", "10uF", LCSC["c10u"], "AREG36", "GND", "3.6 V analog regulator"),
@@ -310,10 +359,11 @@ def audio():
         Part("JP3", "-6 dB", "Jumper:SolderJumper-2_P1.3mm_Open_RoundedPad1.0x1.5mm",
              {1: ("A", "AMP_G0"), 2: ("B", "GND")}, symbol="Jumper:SolderJumper_2_Open",
              note="closed: amplifier gain -6 dB, for very sensitive earphones"),
-        r0603("R113", "1M", LCSC["r1M"], "VBUS", "AMP_EN", "amplifier on about 0.15 s after the supply"),
-        c0603("C137", "470nF", LCSC["c470n"], "AMP_EN", "GND"),
-        Part("D104", "B5819W", "Diode_SMD:D_SOD-123", {1: ("K", "VBUS"), 2: ("A", "AMP_EN")}, LCSC["b5819w"],
-             "Device:D_Schottky", note="EN follows VBUS down when the cable is pulled"),
+        # amplifier enable from the RP2040 (GPIO13, AMP_ON): on after the sound card's supply has settled, off first
+        # when VBUS starts to fall or the host suspends. 100k in series: EN never pushes current into an unpowered
+        # amplifier (EN must stay below VDD + 0.3 V); 1M holds it low while the RP2040 starts (EN: 3.0 V when on)
+        r0603("R124", "100k", LCSC["r100k"], "AMP_ON", "AMP_EN", "series: limits EN current when VDD is off"),
+        r0603("R113", "1M", LCSC["r1M"], "AMP_EN", "GND", "amplifier off while the RP2040 starts"),
         bead("L103", LCSC["bead"], "HPL2", "HP_L"),
         c0603("C124", "100pF", LCSC["c100p"], "HP_L", "GND"),
         bead("L104", LCSC["bead"], "HPR2", "HP_R"),
@@ -337,6 +387,26 @@ def audio():
         two("D107", "PESD5V0", "Diode_SMD:D_SOD-323", LCSC["esd_jack"], "MIC", "GND", "Device:D_TVS",
             note="ESD clamp, microphone contact"),
     ]
+
+
+# Copper paths measured on the routed PCB (pcb/verify_netlist.py, pcb/layout_metrics.py) and judged by pcb/check_circuit.py
+# (G01): (kind, net, from (ref, pad), to (ref, pad)).
+LAYOUT_PAIRS = [
+    *[("decoupling", RP_FIXED[pin], ("U1", pin), (ref, 1)) for pin, ref in (
+        (1, "C1"), (22, "C3"), (42, "C5"), (48, "C6"), (49, "C6"), (43, "C8"), (23, "C9"))],
+    ("decoupling_shared", "3V3", ("U1", 10), ("C1", 1)), ("decoupling_shared", "3V3", ("U1", 33), ("C5", 1)),
+    ("decoupling_shared", "1V1", ("U1", 50), ("C12", 1)),
+    ("regulator", "3V3", ("U1", 44), ("C11", 1)), ("regulator", "1V1", ("U1", 45), ("C12", 1)),
+    ("crystal", "XIN", ("U1", 20), ("Y1", 1)), ("crystal", "XOUT", ("U1", 21), ("R1", 1)),
+    ("crystal", "XOUT_X", ("R1", 2), ("Y1", 3)),
+    ("crystal_load", "XIN", ("Y1", 1), ("C13", 1)), ("crystal_load", "XOUT_X", ("Y1", 3), ("C14", 1)),
+    ("usb_termination", "RP_DP", ("U1", 47), ("R5", 1)), ("usb_termination", "RP_DN", ("U1", 46), ("R6", 1)),
+    ("usb_fs", "MCU_DP", ("R5", 2), ("U5", 6)), ("usb_fs", "MCU_DN", ("R6", 2), ("U5", 5)),
+    ("codec_avdd", "AUD_AVDD", ("U6", 29), ("C140", 1)), ("codec_avdd", "AUD_AVDD", ("U6", 34), ("C117", 1)),
+    ("jack_esd", "HP_L", ("J3", "T"), ("D105", 1)), ("jack_esd", "HP_R", ("J3", "R1"), ("D106", 1)),
+    ("jack_esd", "MIC", ("J3", "S"), ("D107", 1)),
+    ("vbus_clamp", "VBUS", ("J1", "A4"), ("D108", 1)),
+]
 
 
 def matrix(keys):

@@ -52,6 +52,19 @@ PASS, FAIL, WARN, SKIP = "PASS", "FAIL", "WARN", "SKIP"
 # Datasheet sources (file in datasheets/, PDF page, section)
 # ----------------------------------------------------------------------------
 SRC = {
+    "VBUS_prot": "SMF5.0A_C2857263.pdf (unidirectional TVS, SOD-123FL: VRWM 5.0 V, VBR 6.4-7.0 V at 10 mA, IR <= 200 uA "
+                 "at VRWM, VC 9.2 V at IPP 21.7 A 10/1000 us, 200 W); USB 2.0 7.2.4.1 (at most 10 uF on VBUS at attach); "
+                 "USB Type-C 2.0 4.4 / Table 4-2 (vSafe5V 4.75-5.5 V); TPS22919_C2149796.pdf p.4 (VIN abs max 6 V); "
+                 "AP2112.pdf p.3 (VIN abs max 6.5 V); RC snubber damping of an LC input (R. D. Middlebrook, 'Design "
+                 "techniques for preventing input-filter oscillations', 1978: damping capacitor several times the one "
+                 "damped, resistor near the characteristic impedance)",
+    "VBUS_sense": "rp2040-datasheet.pdf 4.9 p.557-560 (ADC: GPIO26-29 = ADC0-3, input range 0-ADC_AVDD, 12 bit), "
+                  "Table 625 p.616 (pad voltage <= IOVDD + 0.5 V abs max); USB Type-C 2.0 Table 4-2 (vSafe5V max 5.5 V)",
+    "layout": "Hardware design with RP2040 2.1.2 p.7 (decoupling close to the power pins), 2.1.3 p.8 (1 uF close to "
+              "VREG_IN and VREG_OUT), 2.3 p.9-10 (crystal: keep the tracks short), 2.4.1 p.11 (27 Ohm close to the "
+              "RP2040); rp2040-datasheet.pdf 2.10.1 p.156 (the regulator's 1 uF close to its pins); "
+              "CM108B_CM119B_DemoBoard_v133.pdf sheet 4 (0.1 uF at AVDD); ESD clamps between the connector and the "
+              "circuit they protect (usblc6.pdf p.5-6)",
     "E73_pins": "E73-2G4M08S1C_C356849.pdf p.7 (ch.3 pin table, nRF52840 ball per pin)",
     "E73_limits": "E73-2G4M08S1C_C356849.pdf p.5 (2.1 abs max 0-5.5 V; 2.2 supply 1.7-5.5 V, "
                   ">=3.3 V for rated TX power, 3.3 V I/O level)",
@@ -414,6 +427,7 @@ W25_VCC = (2.7, 3.6)          # 9.2 p.60 (3.0-3.6 V for 133 MHz)
 W25_VCC_ABS = 4.6             # 9.1 p.60
 W25_ICC_MAX = 0.025           # 9.4 p.62
 AP2112_THETA_JA = 184.0       # SOT25, C/W (DS39724 p.3)
+CH334_I_MAX = 0.085           # CH334 datasheet p.28: "maximum power consumption of the HUB chip 85 mA"
 AP2112_IOUT = 0.600           # IOUT(MAX) min (p.8)
 
 
@@ -631,6 +645,8 @@ def classify(p):
         return "schottky"
     if lcsc == "C81598" or "1N4148" in vu:
         return "mdiode"
+    if lcsc in ("C2857263", "C193402") or re.search(r"\bSM[AFB]J?5\.0A\b", vu):
+        return "tvs"
     if lcsc == "C32346" or "CRYSTAL" in fp or re.search(r"32[.,]?768", vu):
         return "xtal"
     if lcsc in ("C2286", "C2290", "C72043", "C72041") or "LED" in fp or "LED" in vu \
@@ -2328,9 +2344,14 @@ def check_rp_budget(nl, rep):
         if nl.net(f, "8") == rail:
             items.append(("%s ICC program / erase max (W25Q 9.4)" % f, W25_ICC_MAX))
     unknown = []
+    seen = set()
     for r, p in nl.non_cap_members(rail, exclude=(rp, ldo)):
         k = nl.kind[r]
-        if k in ("tp", "flash"):
+        if k in ("tp", "flash") or r in seen:
+            continue
+        seen.add(r)
+        if k == "hub":
+            items.append(("%s CH334 on 3.3 V (V5 = VDD33), the hub's maximum (CH334 datasheet p.28)" % r, CH334_I_MAX))
             continue
         if k == "res":
             o = nl.other_end(r, p)[1]
@@ -5594,6 +5615,7 @@ def run(path):
         ("A05", check_codec_lineout), ("A06", check_codec_mic),
         ("A11", check_amp_power), ("A12", check_amp_cp), ("A13", check_amp_inputs), ("A14", check_amp_ctl),
         ("S01", check_loadsw_power), ("S02", check_loadsw_on), ("S03", check_loadsw_qod), ("J01", check_jack),
+        ("V01", check_vbus_protection), ("V02", check_vbus_sense), ("G01", check_layout),
         ("D01", check_leds), ("R01", check_reset_button), ("T01", check_testpoints),
         ("N01", check_floating), ("K01-K02", check_matrix), ("K03", check_encoders), ("B01", check_bootloader),
     ]
@@ -5604,6 +5626,149 @@ def run(path):
             rep.add(code, "%s (check crashed)" % fn.__name__, FAIL, "NETLIST",
                     ["internal error while checking: %s: %s" % (type(exc).__name__, exc)])
     return rep.print(title)
+
+
+# ---------------------------------------------------------------- VBUS protection, VBUS sense, layout ---
+TVS_VBR_MIN, TVS_VC, TVS_IR_MAX = 6.4, 9.2, 200e-6   # SMF5.0A (C2857263)
+USB_ATTACH_C_MAX = 10e-6                             # USB 2.0 7.2.4.1
+CABLE_L = 1e-6                                       # ~1 m USB cable
+X5R_5V_DERATE = 0.6                                  # 0603/0805 X5R at 5 V DC bias (typical, Samsung CL series curves)
+
+
+def check_vbus_protection(nl, rep):
+    title = ("VBUS at the receptacle: TVS surge clamp, damped bulk capacitor (hot-plug ringing), total capacitance "
+             "within USB's 10 uF; the 6 V parts on VBUS")
+    vbus, gnd = nl.vbus, nl.gnd
+    if not vbus or not nl.first("usbc"):
+        rep.add("V01", title, SKIP, "VBUS_prot", ["no USB receptacle / VBUS"])
+        return
+    status, d = PASS, []
+    tvs = [r for r in nl.fitted("tvs") if {nl.net(r, p) for p in nl.pins_of(r)} == {vbus, gnd}]
+    if not tvs:
+        status = WARN
+        d.append("no TVS from VBUS to GND: surges and hot-plug ringing only meet the USBLC6's ESD clamp (VBR >= 6 V)")
+    for r in tvs:
+        a, k, _ = nl.diode_ak(r)
+        if nl.net(r, k) == vbus and nl.net(r, a) == gnd:
+            d.append("%s %s: cathode on VBUS, anode on GND; VBR >= %.1f V above USB-C's 5.5 V (off in use, leakage <= "
+                     "%.0f uA at 5 V), clamps <= %.1f V at its rated surge" % (r, nl.value(r), TVS_VBR_MIN,
+                                                                               TVS_IR_MAX * 1e6, TVS_VC))
+        else:
+            status = FAIL
+            d.append("%s is reversed (cathode must be on VBUS): it would conduct at 0.7 V" % r)
+    ceramic = [(r, c) for r, c in nl.cap_list(vbus) if c]
+    c_direct = sum(c for _, c in ceramic)
+    damp = []
+    for r, pin, onet in nl.two_pin_parts_on(vbus, ("res",)):
+        others = [m for m in nl.mems(onet) if m[0] != r]
+        if others and all(nl.kind[m[0]] == "cap" and nl.other_end(*m)[1] == gnd for m in others):
+            damp.append((r, parse_number(nl.value(r), "R"), onet, sum(parse_number(nl.value(m[0]), "F") or 0
+                                                                     for m in others)))
+    d.append("ceramic directly on VBUS: %s = %s (about %s at 5 V)" % ([x for x, _ in ceramic], fmt_c(c_direct),
+                                                                    fmt_c(c_direct * X5R_5V_DERATE)))
+    if not damp:
+        status = WARN if status == PASS else status
+        d.append("no damped bulk capacitor: a ~1 uH cable into the ceramic alone rings on hot-plug (overshoot up to ~2x)")
+    for r, R, net, C in damp:
+        z0 = math.sqrt(CABLE_L / (c_direct * X5R_5V_DERATE))
+        n = C / c_direct
+        ok = R is not None and 0.3 * z0 <= R <= 3 * z0 and n >= 2
+        d.append("damping: %s %s in series with %s on %s; Z0 of 1 uH into %s = %.2f Ohm, Cd / C = %.1f (>= 2 needed, "
+                 "R near Z0)" % (r, fmt_r(R), fmt_c(C), net, fmt_c(c_direct * X5R_5V_DERATE), z0, n))
+        if not ok:
+            status = WARN if status == PASS else status
+            d.append("the RC branch is outside the useful damping range")
+    total = c_direct + sum(C for *_, C in damp)
+    d.append("total capacitance on VBUS at attach: %s (USB 2.0 7.2.4.1: <= 10 uF; capacitance behind the 3.3 V "
+             "regulator and the soft-started load switch not counted)" % fmt_c(total))
+    if total > USB_ATTACH_C_MAX * 1.001:
+        status = WARN if status == PASS else status
+        d.append("above 10 uF: the attach inrush exceeds USB 2.0 7.2.4.1")
+    six = [r for r, p in nl.mems(vbus) if nl.kind[r] in ("loadsw", "hub")]
+    for r in six:
+        d.append("%s (%s) on VBUS: abs max 6 V (TPS22919) / 5.5 V (CH334 V5): the TVS and the damping keep hot-plug "
+                 "peaks near 5.5-6 V" % (r, nl.kind[r]))
+    if any(nl.kind[r] == "hub" for r in six):
+        status = WARN if status == PASS else status
+        d.append("the hub's V5 (abs max 5.5 V) on VBUS: CH334 6.4 recommends the on-board 3.3 V")
+    rep.add("V01", title, status, "VBUS_prot", d)
+
+
+def check_vbus_sense(nl, rep):
+    title = "VBUS sense for the firmware: a divider into an ADC GPIO, inside the ADC range up to USB-C's 5.5 V"
+    if not nl.rp or not nl.vbus:
+        rep.add("V02", title, SKIP, "VBUS_sense", ["no RP2040"])
+        return
+    adc = {38: "GPIO26/ADC0", 39: "GPIO27/ADC1", 40: "GPIO28/ADC2", 41: "GPIO29/ADC3"}
+    found = []
+    for r, pin, onet in nl.two_pin_parts_on(nl.vbus, ("res",)):
+        pads = [int(p) for x, p in nl.mems(onet) if x == nl.rp]
+        if not pads:
+            continue
+        found.append((r, onet, pads, nl.resistors_between(onet, nl.gnd), nl.cap_list(onet)))
+    if not found:
+        rep.add("V02", title, SKIP, "VBUS_sense", ["no divider from VBUS to an RP2040 pin"])
+        return
+    status, d = PASS, []
+    for r, net, pads, bottom, caps in found:
+        rt = parse_number(nl.value(r), "R")
+        rb = parallel(*[v for _, v in bottom if v]) if bottom else None
+        d.append("%s %s from VBUS to %s, RP2040 pin(s) %s" % (r, fmt_r(rt), net, ["%d %s" % (p, adc.get(p, "not ADC"))
+                                                                               for p in pads]))
+        if any(p not in adc for p in pads):
+            status = FAIL
+            d.append("not an ADC pin: the firmware cannot read the level")
+        if not rb:
+            status = FAIL
+            d.append("no resistor to GND: the pin would see VBUS through %s" % r)
+            continue
+        k = rb / (rt + rb)
+        d.append("ratio %.3f: 5.0 V -> %.2f V, 5.5 V -> %.2f V (ADC range 0-3.3 V), 4.4 V -> %.2f V" %
+                 (k, 5.0 * k, 5.5 * k, 4.4 * k))
+        if 5.5 * k > V_VDD:
+            status = FAIL
+            d.append("above IOVDD at 5.5 V")
+        th = rt * rb / (rt + rb)
+        c = sum(x for _, x in caps if x)
+        d.append("source %s, %s at the pin: tau %.0f us; divider current %.0f uA at 5 V" %
+                 (fmt_r(th), fmt_c(c) if c else "no capacitor", th * c * 1e6, 5.0 / (rt + rb) * 1e6))
+        if c and th * c > 100e-6:
+            status = WARN if status == PASS else status
+            d.append("slow: an unplug (VBUS falling ~4 mV/us) is seen late")
+    rep.add("V02", title, status, "VBUS_sense", d)
+
+
+LAYOUT_LIMITS = {  # kind: (mm of copper, vias, status when over)
+    "decoupling": (5.0, 0, FAIL), "decoupling_shared": (8.0, 0, FAIL), "regulator": (2.5, 0, FAIL),
+    "crystal": (8.0, 0, FAIL), "crystal_load": (3.0, 0, FAIL),
+    "usb_termination": (5.0, 0, FAIL), "codec_avdd": (5.0, 0, FAIL), "jack_esd": (6.0, 0, WARN),
+    "usb_fs": (60.0, 2, WARN), "vbus_clamp": (15.0, 2, WARN),
+}
+
+
+def check_layout(nl, rep):
+    title = ("layout, measured on the routed PCB: supply pins to their capacitors, crystal, USB termination, codec "
+             "AVDD, jack and VBUS clamps (copper path length and vias)")
+    lay = nl.data.get("layout")
+    if not lay:
+        rep.add("G01", title, SKIP, "layout", ["no measurements in this netlist (pcb/verify_netlist.py adds them from "
+                                               "the routed board)"])
+        return
+    status, d = PASS, []
+    for m in lay:
+        limit, vias, bad = LAYOUT_LIMITS.get(m["kind"], (None, None, WARN))
+        if m["mm"] is None:
+            status = FAIL
+            d.append("%-15s %-9s %s -> %s: not joined by tracks" % (m["kind"], m["net"], m["from"], m["to"]))
+            continue
+        over = limit is not None and (m["mm"] > limit or m["vias"] > vias)
+        d.append("%-15s %-9s %s -> %s: %5.2f mm, %d via(s)%s" % (m["kind"], m["net"], m["from"], m["to"], m["mm"],
+                                                                 m["vias"], "  OVER (<= %g mm, %d vias)" % (limit, vias)
+                                                                 if over else ""))
+        if over:
+            status = FAIL if bad == FAIL or status == FAIL else WARN
+    d.append("limits: %s" % ", ".join("%s <= %g mm / %d vias" % (k, v[0], v[1]) for k, v in LAYOUT_LIMITS.items()))
+    rep.add("G01", title, status, "layout", d)
 
 
 def main(argv):

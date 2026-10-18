@@ -3,7 +3,7 @@ check_circuit.py - build/netlist.json (design=Lira (wired, RP2040) variant=?)
 ====================================================================================================
 [PASS] N00  netlist self-consistency (parts vs nets tables)
        source: netlist structure (no datasheet needed)
-       - 211 parts, 144 nets
+       - 213 parts, 147 nets
 [SKIP] M01  E73 ground pads
        source: E73-2G4M08S1C_C356849.pdf p.7 (ch.3 pin table, nRF52840 ball per pin)
        - no E73-2G4M08S1C module found
@@ -25,11 +25,11 @@ check_circuit.py - build/netlist.json (design=Lira (wired, RP2040) variant=?)
        source: nrf52840_ps_a.pdf 5.3.1.1 p.61-62 (LC filter needed only when a DC/DC regulator is enabled; Fig.13 normal voltage mode, LDO only), 7.3 p.583-590 (reference circuits)
 [PASS] M10  no GPIO / signal pin tied to a power rail, no two RP2040 pins shorted together
        source: rp2040-datasheet.pdf 1.4.2 Table 1 p.11-12 (pin functions; GND 'single external ground connection' = the central pad; TESTEN 'Factory test mode pin. Tie to GND'), 5.5.2 Tables 614-621 p.612-614 (QFN-56 numbers 1-56, 57 = GND pad; QSPI_SS = QSPI_CSn, SWDIO = 'SWD'; reset state: pull-down on GPIO, TESTEN, QSPI_SCLK; pull-up on QSPI_CSn, SWCLK, SWDIO, RUN), 5.1 p.607 (ePad smaller than usual), 5.1.2 Fig.167 p.608 (recommended footprint: 3.20 mm ePad)
-       - 22 of 30 GPIOs connected: ['GPIO0', 'GPIO1', 'GPIO2', 'GPIO3', 'GPIO4', 'GPIO5', 'GPIO6', 'GPIO7', 'GPIO8', 'GPIO9', 'GPIO10', 'GPIO11', 'GPIO18', 'GPIO19', 'GPIO20', 'GPIO21', 'GPIO22', 'GPIO23', 'GPIO24', 'GPIO25', 'GPIO26', 'GPIO27']
+       - 25 of 30 GPIOs connected: ['GPIO0', 'GPIO1', 'GPIO2', 'GPIO3', 'GPIO4', 'GPIO5', 'GPIO6', 'GPIO7', 'GPIO8', 'GPIO9', 'GPIO10', 'GPIO11', 'GPIO12', 'GPIO13', 'GPIO18', 'GPIO19', 'GPIO20', 'GPIO21', 'GPIO22', 'GPIO23', 'GPIO24', 'GPIO25', 'GPIO26', 'GPIO27', 'GPIO29']
        - XIN/XOUT, SWD, RUN, USB and the six QSPI pins each on a net of their own
 [PASS] M11  no pull-up above IOVDD into an RP2040 pin (divider / LED analysis vs VIH max IOVDD + 0.3 V, abs max IOVDD + 0.5 V)
        source: rp2040-datasheet.pdf 5.5.2.1 Table 614 p.612 (GPIO0-25 Digital IO (FT), GPIO26-29 Digital IO / Analogue, not FT; drive 2/4/8/12 mA, default 4 mA), 5.5.3.1 Table 622 p.614 (VPIN abs max IOVDD + 0.5 V), 5.5.3.4 Table 625 p.615-616 (VIH max IOVDD + 0.3 V; VOH >= 2.62 V at the selected drive current, 3.3 V; RPU / RPD 50-80 kOhm; IIOVDD_MAX = IIOVSS_MAX = 50 mA for all GPIO and QSPI pins together), 5.5.3.5 p.617
-       - no resistor / LED / jumper from a GPIO, QSPI, RUN or SWD net to VBUS, VIN, VBAT or the switched 5 V (VAUD)
+       - pin GPIO29/ADC3 (41): divider 22k / 27k from VBUS -> 3.03 V max (VIH max 3.6 V, abs max 3.8 V)
        - RP2040 I/O level = IOVDD = 3.3 V: VIH max IOVDD + 0.3 V, abs max IOVDD + 0.5 V (Tables 622 / 625); GPIO0-25, RUN and SWD are fault tolerant, GPIO26-29 (ADC) are not (Table 614)
 [SKIP] M12  module symbol pin names
        source: E73-2G4M08S1C_C356849.pdf p.7 (ch.3 pin table, nRF52840 ball per pin)
@@ -52,11 +52,13 @@ check_circuit.py - build/netlist.json (design=Lira (wired, RP2040) variant=?)
        - USB_VDD (48) on the rail: 3.25-3.35 V inside 3.135-3.63 V (Table 634)
        - ADC_AVDD (43) on the rail: 3.25-3.35 V inside 1.62-3.63 V (Table 634)
        - IOVDD max 3.349 V < abs max 3.63 V (Table 622); USB_VDD >= 3.135 V for the USB PHY; ADC_AVDD >= 2.97 V for full ADC performance (2.9.5); one 3.3 V source for all four = the scheme of 2.9.7.1 / Fig.16, any power-up order is allowed (2.9.6)
-[PASS] Q04  RP2040 decoupling: 100 nF per IOVDD / USB_VDD / ADC_AVDD / DVDD pin, 1 uF at VREG_VIN and at VREG_VOUT
+[WARN] Q04  RP2040 decoupling: 100 nF per IOVDD / USB_VDD / ADC_AVDD / DVDD pin, 1 uF at VREG_VIN and at VREG_VOUT
        source: rp2040-datasheet.pdf 2.9.1-2.9.5 p.151-152 (100 nF close to each IOVDD pin, each DVDD pin, USB_VDD and ADC_AVDD; 1 uF close to VREG_VIN), 2.10.1 p.156 ('the regulator must have 1 uF capacitors placed close to its input (VREG_VIN) and output (VREG_VOUT) pins'); hardware-design-with-rp2040.pdf 2.1.2 p.7-8 (100 nF per power pin; pins 48 and 49 share one on the minimal design), 2.1.3 p.8 (1 uF at VREG_VIN and VREG_VOUT; small ceramic chip capacitors meet the ESR limits)
-       - 3V3[=VDD]: 8 RP2040 supply pin(s) [1, 10, 22, 33, 42, 49, 48, 43] + the flash VCC (['U2'], design guide C5); 100 nF-class capacitors 9 ['C1', 'C2', 'C3', 'C4', 'C5', 'C6', 'C7', 'C8', 'C15']
-       - 1V1: 2 RP2040 supply pin(s) [23, 50]; 100 nF-class capacitors 2 ['C9', 'C10']
-       - VREG_VIN (44) on 3V3[=VDD]: >= 1 uF present [('C11', '1uF'), ('C108', '1uF'), ('C103', '10uF')] (2.10.1; the Pico uses 2.2 uF)
+       - 3V3[=VDD]: 8 RP2040 supply pin(s) [1, 10, 22, 33, 42, 49, 48, 43] + the flash VCC (['U2'], design guide C5); 100 nF-class capacitors 7 ['C1', 'C3', 'C5', 'C6', 'C8', 'C15', 'C112']
+       - fewer than one 100 nF per pin (2.9.1-2.9.5); the minimal design shares one between pins 48 and 49 as a layout compromise (design guide 2.1.2 p.8)
+       - 1V1: 2 RP2040 supply pin(s) [23, 50]; 100 nF-class capacitors 1 ['C9']
+       - fewer than one 100 nF per pin (2.9.1-2.9.5); the minimal design shares one between pins 48 and 49 as a layout compromise (design guide 2.1.2 p.8)
+       - VREG_VIN (44) on 3V3[=VDD]: >= 1 uF present [('C11', '1uF'), ('C108', '1uF'), ('C103', '4.7uF'), ('C110', '1uF')] (2.10.1; the Pico uses 2.2 uF)
        - VREG_VOUT (45) on 1V1: >= 1 uF present [('C12', '1uF')] (2.10.1; the Pico uses 2.2 uF)
        - the netlist cannot show placement: each 100 nF next to its pin, the 1 uF parts next to pins 44 and 45 (small ceramics meet the regulator's ESR limits, design guide 2.1.3)
 [PASS] Q05  RP2040 core supply: VREG_VOUT (45) feeds both DVDD pins (23, 50) on a net of their own (1.1 V, <= 100 mA)
@@ -122,9 +124,10 @@ check_circuit.py - build/netlist.json (design=Lira (wired, RP2040) variant=?)
        -    25.0 mA  U2 ICC program / erase max (W25Q 9.4)
        -     0.3 mA  R2 10k to QSPI_SS, other end grounded
        -     0.3 mA  R4 10k to RESET, other end grounded
-       - total <= 178 mA vs U3 IOUT(MAX) >= 600 mA (p.8): OK
+       -    85.0 mA  U5 CH334 on 3.3 V (V5 = VDD33), the hub's maximum (CH334 datasheet p.28)
+       - total <= 263 mA vs U3 IOUT(MAX) >= 600 mA (p.8): OK
        - headroom: VBUS 4.75 V (USB 2.0 low end) - 3.35 V = 1.40 V >> dropout 400 mV max at 600 mA (p.8)
-       - dissipation at this bound: (5.5 V - 3.3 V) x 178 mA = 0.39 W x 184 C/W = +72 C; TJ <= +150 C (p.3) for ambient up to 78 C
+       - dissipation at this bound: (5.5 V - 3.3 V) x 263 mA = 0.58 W x 184 C/W = +106 C; TJ <= +150 C (p.3) for ambient up to 44 C
 [SKIP] C01  MCP73831: pinout, VDD on VBUS (3.75-6 V, abs max 7 V), VSS on GND, VBAT on the battery net, 4.20 V option
        source: MCP73831_C424093.pdf p.1 (Package Types, SOT-23-5: 1 STAT, 2 VSS, 3 VBAT, 4 VDD, 5 PROG), p.11 Table 3-1 (pin functions), p.3 (abs max VDD 7.0 V, all other pins -0.3..VDD+0.3 V; VDD 3.75-6 V; VREG 4.168/4.20/4.232 V for MCP7383X-2), p.11 3.1 ([VREG+0.3 V] to 6 V recommended), p.26 (product ID: -2ACI = 4.20 V, option AC: IPREG 10 %, VPTH 66.5 %, ITERM 7.5 %, VRTH 96.5 %)
        - no MCP73831 charger in this netlist
@@ -149,14 +152,13 @@ check_circuit.py - build/netlist.json (design=Lira (wired, RP2040) variant=?)
        - U3 EN tied to VIN: always on (VIH >= 1.5 V satisfied for VIN >= 2.5 V)
 [PASS] L02  AP2112K-3.3: input and output capacitors >= 1 uF
        source: C51118.pdf (AP2112) p.2 (SOT25 pins: 1 VIN, 2 GND, 3 EN, 4 NC, 5 VOUT; typical application CIN = COUT = 1 uF), p.1 (stable with 1.0 uF ceramic)
-       - U3: CIN ['C102', 'C110', 'C130'] = 3uF ; COUT ['C1', 'C2', 'C3', 'C4', 'C5', 'C6', 'C7', 'C8', 'C11', 'C15', 'C108', 'C103'] = 12.9uF
+       - U3: CIN ['C102', 'C130'] = 2uF ; COUT ['C1', 'C3', 'C5', 'C6', 'C8', 'C11', 'C15', 'C108', 'C103', 'C110', 'C112'] = 8.4uF
 [PASS] L03  AP2112K-3.3: input voltage within 2.5-6.0 V, output feeds the RP2040
        source: C51118.pdf (AP2112) p.3 (abs max VCC 6.5 V, recommended VIN 2.5-6.0 V), p.8 (AP2112-3.3: VOUT 3.3 V +-1.5 %, dropout 250 mV typ at 600 mA, VEN high >= 1.5 V, low <= 0.4 V, EN pull-down 3 MOhm)
        - U3: VIN = VBUS, max 5.5 V (USB-C tolerance) <= 6.0 V recommended / 6.5 V abs max; min 4.75 V (USB 2.0) leaves 1.45 V of headroom over 3.3 V >> the dropout (250 mV typ at 600 mA, p.8); no battery
-[SKIP] P01  B5819W Schottky: power-path diode VBUS -> VIN when there is a power path, otherwise judged by its role
+[SKIP] P01  Schottky VBUS -> VIN
        source: C8598.pdf (B5819W) p.1 (marking bar = cathode; IO 1 A, VRRM 40 V, VF 0.6 V at 1 A)
-       - no power path in this netlist (no VIN node behind a diode, no battery): the VBUS -> VIN rule does not apply
-       - D104 (B5819W): anode(2) -> AMP_EN ; cathode(1) -> VBUS - the amplifier-EN discharge diode, judged in A14
+       - no B5819W / 1N5819 found
 [SKIP] P02  P-MOSFET battery switch
        source: C10487.pdf (Si2301CDS) p.1 (SOT-23: 1 G, 2 S, 3 D; VDS -20 V, VGS +-8 V), p.2 (VGS(th) -0.4..-1 V, body diode VSD -0.8 V), p.7 (AN807: pin 1 gate, pin 2 source, pin 3 drain)
        - no SI2301 found
@@ -198,11 +200,9 @@ check_circuit.py - build/netlist.json (design=Lira (wired, RP2040) variant=?)
 [PASS] H01  CH334P: pinout, GND pad, V5 on VBUS (4.5-5.25 V, abs max 5.5 V) with >= 1 uF, VDD33 0.1 uF + 10 uF (or >= 1 uF), no load on the internal LDO
        source: CH334_C5373042.pdf p.4 Table 1-3 (V5: 5 V or 3.3 V input, 1 uF or more; VDD33: LDO output and 3.3 V input, 0.1 uF + 10 uF or 1 uF; GND pad), p.19 4.1 (abs max V5 5.5 V, VDD33 4.0 V), p.19 4.2 (V5 4.5-5.0-5.25 V with the internal LDO, 3.15-3.5 V without; LDO external load <= 20 mA), p.26 6.1 (bus-powered application: V5 from the upstream VBUS, C1 1 uF, C2 0.1 uF + C8 10 uF on VDD33), p.28 6.4 (embedded hub: V5 = VDD33 = on-board 3.3 V suggested)
        - U5 exposed pad ['17'] -> GND (the CH334P's only ground pin)
-       - U5 (CH334P): V5(15) -> VBUS ; VDD33(16) -> HUB_3V3
-       - internal LDO in use: V5 from VBUS (USB 2.0 VBUS 4.75-5.25 V inside 4.5-5.25 V, p.19 4.2; a USB-C source may give up to 5.5 V = the V5 absolute maximum of 5.5 V, p.19 4.1)
-       - V5 capacitance 3uF (['C102', 'C110', 'C130'])
-       - VDD33 capacitors [('C111', '10uF'), ('C112', '100nF')] = 10.1uF
-       - 0.1 uF + 10 uF as in p.4 / p.26 6.1 (10 uF or more also helps against hot-plug dips, p.26)
+       - U5 (CH334P): V5(15) -> 3V3[=VDD] ; VDD33(16) -> 3V3[=VDD]
+       - V5 = VDD33 = the 3.3 V rail: LDO bypassed (3.15-3.5 V, p.19; p.28 6.4)
+       - V5 capacitance 8.4uF (['C1', 'C3', 'C5', 'C6', 'C8', 'C11', 'C15', 'C108', 'C103', 'C110', 'C112'])
        - V5 straight from VBUS (as p.26 6.1); p.28 6.4's embedded-hub option (V5 = VDD33 = the on-board 3.3 V) would put the hub on the 3.3 V regulator instead - either is allowed
 [PASS] H02  CH334P clock: 12 MHz crystal between XI and XO, no external load capacitors (~16 pF inside), case to GND
        source: CH334_C5373042.pdf p.1 (crystal oscillator with built-in capacitors), p.4 Table 1-3 (XI/XO: 12 MHz crystal, 24 MHz only on the CH334X), p.26 6.1 (XI and XO have ~16 pF built in: no external load capacitors), p.27 6.2 (crystal-free option only on parts ordered with it: XO open and XI to GND)
@@ -218,7 +218,7 @@ check_circuit.py - build/netlist.json (design=Lira (wired, RP2040) variant=?)
 [PASS] A01  CM108B supply: AVDD/DVDD on a 4.5-5.5 V rail (through ferrite beads), DVSS/AVSS on GND, decoupling
        source: CM108B_datasheet_v1.41.pdf p.4 (DVdd = AVdd = 5 V), p.7 (29/34 AVDD 5 V, 35 DVDD 5 V, 8 DREG18 1.8 V / 9 DREG33 3.3 V (40 mA) / 37 AREG36 3.6 V regulator outputs, 14/36 DVSS, 24/33 AVSS), p.20 8.1-8.2 (supplies 4.5-5.0-5.5 V, abs max 6 V; 37.25 mA; 0-70 C); CM108B_appnotes_v1.50.pdf p.8 3.4 (1 uF on DREG18, 0.1 uF on DREG33), p.25 (AVDD36: 10 uF to AGND); demo board v1.33 sheet 4 (L2/L3 beads USB5V -> DVDD/AVDD, DVDD 4.7 uF + 0.1 uF, AVDD 0.1 uF, AVDD36 10 uF, C23/C24 10 nF DVDD -> REGV/DVDD18 'close to IC')
        - AVDD AUD_AVDD <- VAUD via bead ['L101']: VAUD 4.75-5.25 V (USB 2.0) through the load switch, inside 4.5-5.5 V (p.20), abs max 6 V
-       - AVDD capacitors [('C117', '100nF')] (demo board: 0.1 uF C7)
+       - AVDD capacitors [('C117', '100nF'), ('C140', '100nF')] (demo board: 0.1 uF C7)
        - DVDD AUD_DVDD <- VAUD via bead ['L102']: VAUD 4.75-5.25 V (USB 2.0) through the load switch, inside 4.5-5.5 V (p.20), abs max 6 V
        - DVDD capacitors [('C115', '100nF'), ('C116', '4.7uF')] = 4.8uF (demo board: 4.7 uF + 0.1 uF)
        - current 37.25 mA typ (p.20); ambient 0-70 C only (p.20)
@@ -272,33 +272,27 @@ check_circuit.py - build/netlist.json (design=Lira (wired, RP2040) variant=?)
        - INR+ on GND: single-ended input (p.1, p.3)
        - INR- <- C126 1uF <- LOR ; corner 1/(2 pi RIN C): ['-6 dB: RIN 26.4k -> 6.0 Hz', '0 dB: RIN 19.8k -> 8.0 Hz']
        - input capacitors also keep the turn-on pop inaudible (p.12 7.3.2)
-[WARN] A14  TPA6132A2 EN/G0/G1: defined levels (VIH >= 1.3 V, VIL <= 0.6 V, <= VDD + 0.3 V), gain per jumper state, EN delayed after the audio supply and dropped before it
-       source: TPA6132A2_C69901.pdf p.4 (EN/G0/G1: VIH >= 1.3 V, VIL <= 0.6 V, abs max -0.3..VDD+0.3 V), p.5 (EN/G0/G1 input current <= 1 uA; gain -0.5/-1.0/-1.41/-2.0 V/V), p.13 7.4.1 (G0/G1 <= 0.5 V or >= 1.3 V: -6 / 0 / 3 / 6 dB), p.12 7.3.2 (activate after the audio sources have settled, deactivate before the sources; tON 5 ms); C8598.pdf (B5819W) p.1; nrf52840_ps_a.pdf p.156 (IOL >= 1 mA standard / >= 6 mA high drive at 0.4 V); CM108B_datasheet_v1.41.pdf p.20 (37.25 mA); TPS22919_C2149796.pdf p.5 (tON, tOFF, RPD,QOD), p.13 8.3.3; TPA6132A2_C69901.pdf p.12 7.3.2 ('activate the TPA6132A2 after all audio sources have been activated and their output voltages have settled. On power-down, deactivate the TPA6132A2 before deactivating the audio input source'; EN <= 0.6 V off, >= 1.3 V on), p.4 (EN abs max VDD + 0.3 V; VDD 2.3-5.5 V; no undervoltage lockout listed), p.5 (EN input current <= 1 uA); CM108B_datasheet_v1.41.pdf p.20 (supply 4.5 V minimum, 37.25 mA); TPS22919_C2149796.pdf p.5 (tON); C8598.pdf (B5819W) p.1 (VF 0.6 V at 1 A only); rp2040-datasheet.pdf 4.1.2.8.4 p.391 (without VBUS detection a disconnect looks like a suspend)
+[PASS] A14  TPA6132A2 EN/G0/G1: defined levels (VIH >= 1.3 V, VIL <= 0.6 V, <= VDD + 0.3 V), gain per jumper state, EN delayed after the audio supply and dropped before it
+       source: TPA6132A2_C69901.pdf p.4 (EN/G0/G1: VIH >= 1.3 V, VIL <= 0.6 V, abs max -0.3..VDD+0.3 V), p.5 (EN/G0/G1 input current <= 1 uA; gain -0.5/-1.0/-1.41/-2.0 V/V), p.13 7.4.1 (G0/G1 <= 0.5 V or >= 1.3 V: -6 / 0 / 3 / 6 dB), p.12 7.3.2 (activate after the audio sources have settled, deactivate before the sources; tON 5 ms); C8598.pdf (B5819W) p.1; nrf52840_ps_a.pdf p.156 (IOL >= 1 mA standard / >= 6 mA high drive at 0.4 V); CM108B_datasheet_v1.41.pdf p.20 (37.25 mA); TPS22919_C2149796.pdf p.5 (tON, tOFF, RPD,QOD), p.13 8.3.3
        - default (jumpers open): G0=1 G1=0 -> gain 0 dB (p.13 7.4.1) [G0 pulled up to VAUD by R112 100k: >= 4.90 V with the 1 uA input current (VIH 1.3 V); G1 on GND]
        - JP3 closed: G0=0 G1=0 -> gain -6 dB (p.13 7.4.1) [JP3 closed: G0 shorted to GND; G1 on GND]
-       - EN <- R113 1M <- VBUS (the supply rail itself, no firmware, also the ['U8'] ON pin); [('C137', '470nF')] to GND = 470nF
-       - steady EN >= 3.75 V with the rail at its 4.75 V minimum and the 1 uA input current: above VIH 1.3 V (p.4-5)
-       - turn-on: tau = 1M x 470nF = 470 ms -> EN passes 0.6-1.3 V 60-200 ms after the cable is plugged; the switched rail is up after ~2 ms (TPS22919 p.5): the amplifier starts after its supply and the codec (p.12 order kept; the CM108B output settling time is not specified - listen for a plug-in pop)
-       - turn-off: D104 (anode EN, cathode VBUS) drags EN down with the rail, one diode drop above it, and empties 470nF at every unplug: the delay starts from 0 V again at the next plug-in; reverse voltage <= ~1 V << VRRM 40 V (C8598.pdf p.1)
-       - EN vs VDD + 0.3 V (abs max p.4): VDD AUD_5V[=VAUD] is the same rail through ['U8'] (ON = VBUS, so it stays closed while the rail falls); steady EN <= the rail, at power-up EN lags far behind VDD, at power-down EN sits one Schottky drop above the falling rail (B5819W: only VF 0.6 V at 1 A is specified, p.1; at the milliamps that discharge 470nF it is a few tenths of a volt) - at the 0.3 V edge for a moment, with at most 0.4 uJ left in 470nF once EN is below VIH
-       - power-down order NOT kept (p.12: 'deactivate the TPA6132A2 before deactivating the audio input source'): on unplug EN stays above VIH 1.3 V until the rail is down to ~1 V, while ['U6'] drops below its 4.5 V minimum (CM108B p.20) as soon as the rail does. From 4.5 V to the amplifier's own 2.3 V minimum (p.4) the amplifier is enabled and powered while its source browns out - ~1.1 ms with 20.2uF on the rail and only the codec + amplifier draining it (less with the hub and the 3.3 V regulator also loading VBUS). The TPA6132A2 lists no undervoltage lockout. Firmware cannot help: EN is not under its control and nothing senses VBUS (without VBUS detection the RP2040 cannot tell an unplug from a suspend, RP2040 datasheet 4.1.2.8.4). A fix needs EN to fall while VBUS is still above 4.5 V (e.g. a ~4.6 V VBUS supervisor driving EN); otherwise bench-check for a pop when the cable is pulled with headphones in
+       - EN <- R124 100k <- AMP_ON (RP2040 pin ['16']); [] to GND = 0pF
+       - steady EN level >= 3.20 V with the 1 uA input current: above VIH 1.3 V (p.4)
 [PASS] S01  TPS22919: pinout, IN on VBUS (1.6-5.5 V), GND, NC open, 1 uF input capacitor, load and inrush
        source: TPS22919_C2149796.pdf p.3 (DCK SC-70-6: 1 IN, 2 GND, 3 ON 'do not leave floating', 4 NC 'leave floating', 5 QOD, 6 VOUT), p.4 (abs max VIN/VOUT/VON/VQOD 6 V; VIN 1.6-5.5 V; IMAX 1.5 A), p.5 (RON 89 mOhm at 5 V; tON 1.95 ms and 3.2 mV/us at 5 V), p.17 10 (CIN 1 uF usually sufficient)
-       - U8 (TPS22919): IN(1) VBUS | GND(2) GND | ON(3) VBUS | NC(4) <unconnected> | QOD(5) AUD_QOD | VOUT(6) AUD_5V[=VAUD]
+       - U8 (TPS22919): IN(1) VBUS | GND(2) GND | ON(3) AUD_EN | NC(4) <unconnected> | QOD(5) AUD_QOD | VOUT(6) AUD_5V[=VAUD]
        - IN on VBUS (<= 5.5 V): inside 1.6-5.5 V, abs max 6 V (p.4)
-       - input capacitance 3uF >= 1 uF (p.17 10)
-       - load capacitance 17.2uF (incl. behind beads); turn-on slew 3.2 mV/us at 5 V (p.5) -> inrush ~55 mA; loads ['U6', 'U7'] (CM108B 37 mA typ, TPA6132A2 2.2 mA + headphone current) << 1.5 A (p.4)
-[PASS] S02  TPS22919 ON (sound-card enable): a GPIO with a pull-down, or tied to its own IN (always on: soft start only); never floating
-       source: TPS22919_C2149796.pdf p.3 (ON: active high, 'do not leave floating'), p.4 (VIN 1.6-5.5 V; ON VIH 1-5.5 V, VIL <= 0.35 V; abs max VON 6 V), p.5 (tON 1.95 ms, 3.2 mV/us at 5 V), p.12-14 8.1 / 8.3 / 8.4 Table 2 (no reverse-current blocking specified; QOD acts only with ON low), p.13 8.3.1 (smart pull-down only until ON is driven high)
-       - U8 ON(3) -> VBUS
-       - ON tied to its own IN (VBUS): on whenever VBUS is present; 5.5 V max <= VIH range 1-5.5 V and abs max 6 V (p.4), never floating (p.3); the smart pull-down plays no part (p.13 8.3.1), so no pull-down resistor is needed
-       - role: soft start only - 17.2uF on AUD_5V[=VAUD] charged at 3.2 mV/us (~55 mA, tON ~2 ms at 5 V, p.5) after the cable has made contact, instead of being hard-wired to VBUS (3uF directly on it)
-       - on unplug the switch stays closed until VBUS falls below VIH (~1 V): with no reverse-current blocking specified (p.12-14) the 17.2uF back-feed VBUS and everything discharges together - harmless; the QOD path (S03) only acts once ON < VIL 0.35 V, i.e. at the very end
-       - the same rail also drives ['R113'] (amplifier EN network, judged in A14: the unplug order is the real risk there, not the switch)
+       - input capacitance 2uF >= 1 uF (p.17 10)
+       - load capacitance 17.3uF (incl. behind beads); turn-on slew 3.2 mV/us at 5 V (p.5) -> inrush ~55 mA; loads ['U6', 'U7'] (CM108B 37 mA typ, TPA6132A2 2.2 mA + headphone current) << 1.5 A (p.4)
+[PASS] S02  TPS22919 ON (sound-card enable): module GPIO with a pull-down to GND, never floating
+       source: TPS22919_C2149796.pdf p.3 (ON: active high, do not leave floating), p.4 (ON VIH >= 1 V, VIL <= 0.35 V, abs max 6 V), p.5 (ON leakage <= 100 nA; smart pull-down 530 kOhm while ON <= VIL), p.13 8.3.1 (the smart pull-down exists only once VIN is applied); nrf52840_ps_a.pdf 6.9.3.1 p.156 (GPIO drive) and 9 p.612 (VI/O max VDD + 0.3 V); reference/bluemicro_nrf52840_board.h (pins the bootloader drives)
+       - U8 ON(3) -> AUD_EN
+       - driven by RP2040 pin 15 GPIO12: 3.3 V high >= VIH 1 V, abs max 6 V (p.4)
+       - pull-down R119 100k: ON = 10 mV with 100 nA leakage (VIL 0.35 V, p.4); 33 uA from the GPIO when high
 [PASS] S03  TPS22919 QOD: tied to VOUT (24 Ohm discharge), through a resistor to VOUT, or open
        source: TPS22919_C2149796.pdf p.3 (QOD: resistor to VOUT, tied to VOUT, or floating = no discharge), p.13-14 8.3.3 + Table 2 (ON low: VOUT to GND through RPD,QOD (24 Ohm) + RQOD; tFALL = 2.2 * (RDIS || RL) * CL), p.5 (RPD,QOD 24 Ohm), p.6 (tFALL 0.4 ms with 10 uF)
        - U8 QOD through R118 1k to VOUT: RDIS = 1.024k (p.13 eq.1)
-       - tFALL ~ 2.2 x 1.024k x 17.2uF = 38.75 ms without load (p.13 eq.2); peak discharge current 5 mA
+       - tFALL ~ 2.2 x 1.024k x 17.3uF = 38.97 ms without load (p.13 eq.2); peak discharge current 5 mA
 [PASS] J01  PJ-320D-4A contacts (from the drawing) wired as a CTIA headset jack: tip = left, ring 1 = right, ring 2 = ground, sleeve = microphone
        source: PJ-320D-4A_C95562.pdf p.1 / PJ-320D-4A_C95562-p1.png (PJ-320D-A schematic: pin 1 = the long contact reaching the jack opening = sleeve; pins 4 / 3 / 2 = contacts at 3.20 / 6.20 / 10.20 mm from the front face = ring 2 / ring 1 / tip; pad 1 at 11.30 mm on the other side; 0.5 A 30 V); KiCad footprint Jack_3.5mm_KoreanHropartsElec_PJ-320D-4A_Horizontal: pads R2 / R1 / T / S sit on the drawing's pads 4 / 3 / 2 / 1; CTIA headset plug (tip L, ring 1 R, ring 2 GND, sleeve MIC) - convention, not in the datasheet set; TPA6132A2_C69901.pdf p.3 / p.18 10.3
        - J3 (PJ-320D-4A): ring1(right) -> HP_R, ring2(ground) -> GND, sleeve(mic) -> MIC, tip(left) -> HP_L
@@ -307,6 +301,48 @@ check_circuit.py - build/netlist.json (design=Lira (wired, RP2040) variant=?)
        - ring 2 on GND (= TPA6132A2 SGND net, checked in A11)
        - sleeve -> ['R116', 'C129'] -> CM108B MICIN (bias and coupling checked in A06)
        - rating 0.5 A / 30 V DC (drawing): far above headphone currents
+[PASS] V01  VBUS at the receptacle: TVS surge clamp, damped bulk capacitor (hot-plug ringing), total capacitance within USB's 10 uF; the 6 V parts on VBUS
+       source: SMF5.0A_C2857263.pdf (unidirectional TVS, SOD-123FL: VRWM 5.0 V, VBR 6.4-7.0 V at 10 mA, IR <= 200 uA at VRWM, VC 9.2 V at IPP 21.7 A 10/1000 us, 200 W); USB 2.0 7.2.4.1 (at most 10 uF on VBUS at attach); USB Type-C 2.0 4.4 / Table 4-2 (vSafe5V 4.75-5.5 V); TPS22919_C2149796.pdf p.4 (VIN abs max 6 V); AP2112.pdf p.3 (VIN abs max 6.5 V); RC snubber damping of an LC input (R. D. Middlebrook, 'Design techniques for preventing input-filter oscillations', 1978: damping capacitor several times the one damped, resistor near the characteristic impedance)
+       - D108 SMF5.0A: cathode on VBUS, anode on GND; VBR >= 6.4 V above USB-C's 5.5 V (off in use, leakage <= 200 uA at 5 V), clamps <= 9.2 V at its rated surge
+       - ceramic directly on VBUS: ['C102', 'C130'] = 2uF (about 1.2uF at 5 V)
+       - damping: R7 1 in series with 4.7uF on VBUS_DAMP; Z0 of 1 uH into 1.2uF = 0.91 Ohm, Cd / C = 2.4 (>= 2 needed, R near Z0)
+       - total capacitance on VBUS at attach: 6.7uF (USB 2.0 7.2.4.1: <= 10 uF; capacitance behind the 3.3 V regulator and the soft-started load switch not counted)
+       - U8 (loadsw) on VBUS: abs max 6 V (TPS22919) / 5.5 V (CH334 V5): the TVS and the damping keep hot-plug peaks near 5.5-6 V
+[PASS] V02  VBUS sense for the firmware: a divider into an ADC GPIO, inside the ADC range up to USB-C's 5.5 V
+       source: rp2040-datasheet.pdf 4.9 p.557-560 (ADC: GPIO26-29 = ADC0-3, input range 0-ADC_AVDD, 12 bit), Table 625 p.616 (pad voltage <= IOVDD + 0.5 V abs max); USB Type-C 2.0 Table 4-2 (vSafe5V max 5.5 V)
+       - R8 22k from VBUS to VBUS_SENSE, RP2040 pin(s) ['41 GPIO29/ADC3']
+       - ratio 0.551: 5.0 V -> 2.76 V, 5.5 V -> 3.03 V (ADC range 0-3.3 V), 4.4 V -> 2.42 V
+       - source 12.1224k, 1nF at the pin: tau 12 us; divider current 102 uA at 5 V
+[PASS] G01  layout, measured on the routed PCB: supply pins to their capacitors, crystal, USB termination, codec AVDD, jack and VBUS clamps (copper path length and vias)
+       source: Hardware design with RP2040 2.1.2 p.7 (decoupling close to the power pins), 2.1.3 p.8 (1 uF close to VREG_IN and VREG_OUT), 2.3 p.9-10 (crystal: keep the tracks short), 2.4.1 p.11 (27 Ohm close to the RP2040); rp2040-datasheet.pdf 2.10.1 p.156 (the regulator's 1 uF close to its pins); CM108B_CM119B_DemoBoard_v133.pdf sheet 4 (0.1 uF at AVDD); ESD clamps between the connector and the circuit they protect (usblc6.pdf p.5-6)
+       - decoupling      3V3       U1.1 -> C1.1:  1.44 mm, 0 via(s)
+       - decoupling      3V3       U1.22 -> C3.1:  4.73 mm, 0 via(s)
+       - decoupling      3V3       U1.42 -> C5.1:  2.63 mm, 0 via(s)
+       - decoupling      3V3       U1.48 -> C6.1:  1.63 mm, 0 via(s)
+       - decoupling      3V3       U1.49 -> C6.1:  1.23 mm, 0 via(s)
+       - decoupling      3V3       U1.43 -> C8.1:  3.63 mm, 0 via(s)
+       - decoupling      1V1       U1.23 -> C9.1:  3.58 mm, 0 via(s)
+       - decoupling_shared 3V3       U1.10 -> C1.1:  6.51 mm, 0 via(s)
+       - decoupling_shared 3V3       U1.33 -> C5.1:  7.71 mm, 0 via(s)
+       - decoupling_shared 1V1       U1.50 -> C12.1:  5.59 mm, 0 via(s)
+       - regulator       3V3       U1.44 -> C11.1:  2.03 mm, 0 via(s)
+       - regulator       1V1       U1.45 -> C12.1:  1.32 mm, 0 via(s)
+       - crystal         XIN       U1.20 -> Y1.1:  7.41 mm, 0 via(s)
+       - crystal         XOUT      U1.21 -> R1.1:  4.65 mm, 0 via(s)
+       - crystal         XOUT_X    R1.2 -> Y1.3:  2.46 mm, 0 via(s)
+       - crystal_load    XIN       Y1.1 -> C13.1:  2.93 mm, 0 via(s)
+       - crystal_load    XOUT_X    Y1.3 -> C14.1:  1.45 mm, 0 via(s)
+       - usb_termination RP_DP     U1.47 -> R5.1:  3.35 mm, 0 via(s)
+       - usb_termination RP_DN     U1.46 -> R6.1:  4.15 mm, 0 via(s)
+       - usb_fs          MCU_DP    R5.2 -> U5.6: 38.11 mm, 2 via(s)
+       - usb_fs          MCU_DN    R6.2 -> U5.5: 35.78 mm, 2 via(s)
+       - codec_avdd      AUD_AVDD  U6.29 -> C140.1:  1.84 mm, 0 via(s)
+       - codec_avdd      AUD_AVDD  U6.34 -> C117.1:  4.42 mm, 0 via(s)
+       - jack_esd        HP_L      J3.T -> D105.1:  3.80 mm, 0 via(s)
+       - jack_esd        HP_R      J3.R1 -> D106.1:  3.80 mm, 0 via(s)
+       - jack_esd        MIC       J3.S -> D107.1:  4.10 mm, 0 via(s)
+       - vbus_clamp      VBUS      J1.A4 -> D108.1:  7.46 mm, 2 via(s)
+       - limits: decoupling <= 5 mm / 0 vias, decoupling_shared <= 8 mm / 0 vias, regulator <= 2.5 mm / 0 vias, crystal <= 8 mm / 0 vias, crystal_load <= 3 mm / 0 vias, usb_termination <= 5 mm / 0 vias, codec_avdd <= 5 mm / 0 vias, jack_esd <= 6 mm / 0 vias, usb_fs <= 60 mm / 2 vias, vbus_clamp <= 15 mm / 2 vias
 [PASS] D01  LEDs: polarity, series resistor, current within LED / driver limits
        source: C2286.pdf (KT-0603R) p.3 (IF max 25 mA, VF 1.8-2.4 V at 20 mA, VR 5 V), p.4 (VF bins 1.9-2.0 V); rp2040-datasheet.pdf 5.5.2.1 Table 614 p.612 (GPIO0-25 Digital IO (FT), GPIO26-29 Digital IO / Analogue, not FT; drive 2/4/8/12 mA, default 4 mA), 5.5.3.1 Table 622 p.614 (VPIN abs max IOVDD + 0.5 V), 5.5.3.4 Table 625 p.615-616 (VIH max IOVDD + 0.3 V; VOH >= 2.62 V at the selected drive current, 3.3 V; RPU / RPD 50-80 kOhm; IIOVDD_MAX = IIOVSS_MAX = 50 mA for all GPIO and QSPI pins together), 5.5.3.5 p.617
        - D103 (LED red): anode(2) LED_RED -> [gpio] ; cathode(1) LED_RED_K -> [gnd via 1k]
@@ -331,14 +367,11 @@ check_circuit.py - build/netlist.json (design=Lira (wired, RP2040) variant=?)
        - TP6 (VBUS) -> VBUS
 [PASS] N01  no floating passive / IC pin; single-pin nets only on NC or spare pins; no self-shorted part
        source: netlist structure (no datasheet needed)
-       - U1.15 (rp2040 GPIO12) unconnected - allowed
-       - U1.16 (rp2040 GPIO13) unconnected - allowed
        - U1.17 (rp2040 GPIO14) unconnected - allowed
        - U1.18 (rp2040 GPIO15) unconnected - allowed
        - U1.27 (rp2040 GPIO16) unconnected - allowed
        - U1.28 (rp2040 GPIO17) unconnected - allowed
        - U1.40 (rp2040 GPIO28/ADC2) unconnected - allowed
-       - U1.41 (rp2040 GPIO29/ADC3) unconnected - allowed
        - SW101.2 (tact 2) unconnected - allowed
        - SW101.3 (tact 3) unconnected - allowed
        - SW102.2 (tact 2) unconnected - allowed
@@ -393,9 +426,9 @@ check_circuit.py - build/netlist.json (design=Lira (wired, RP2040) variant=?)
        source: reference/bluemicro_nrf52840_board.h (LED_PRIMARY_PIN P1.04, LED_SECONDARY_PIN P1.10, LED_STATE_ON 1, BUTTON_DFU P0.18 = RESET, BUTTON_DFU_OTA P1.01 not on the module)
        - no E73: the RP2040 boots from its USB boot ROM (BOOTSEL strap checked in Q08)
 ----------------------------------------------------------------------------------------------------
-SUMMARY: 42 PASS, 0 FAIL, 3 WARN, 23 SKIP
+SUMMARY: 45 PASS, 0 FAIL, 3 WARN, 23 SKIP
 WARN:
+  Q04 RP2040 decoupling: 100 nF per IOVDD / USB_VDD / ADC_AVDD / DVDD pin, 1 uF at VREG_VIN and at VREG_VOUT
   A06 CM108B microphone: MICIN AC-coupled from the mic contact, VBIAS through resistors, bias current
-  A14 TPA6132A2 EN/G0/G1: defined levels (VIH >= 1.3 V, VIL <= 0.6 V, <= VDD + 0.3 V), gain per jumper state, EN delayed after the audio supply and dropped before it
   R01 RESET (RUN) and BOOT (QSPI_SS strap) push buttons between their signal and GND, unused pads open
 

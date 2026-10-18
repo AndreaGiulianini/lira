@@ -151,11 +151,11 @@ sanitize:
 	NEUTRAL_DATE=$(NEUTRAL_DATE) python3 sanitize.py $(B) lib/lira.3dshapes
 	NEUTRAL_DATE=$(NEUTRAL_DATE) python3 sanitize.py --mtime ../production
 
-# commit with a fixed, deterministic date; use: make commit m="message"
+# commit everything (the commit has the real date; the built files' own timestamps are NEUTRAL_DATE, see sanitize);
+# use: make commit m="message"
 commit:
 	git add -A
-	GIT_AUTHOR_DATE="$(NEUTRAL_DATE)T00:00:00" GIT_COMMITTER_DATE="$(NEUTRAL_DATE)T00:00:00" \
-		git commit -m "$(m)"
+	git commit -m "$(m)"
 	git reflog expire --expire=now --all
 	git gc --prune=now --quiet
 

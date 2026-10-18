@@ -25,10 +25,10 @@ design (C-Media CM108B demo board).
 |---|---|---|
 | Microcontroller | Raspberry Pi **RP2040** (LCSC C2040) with a **W25Q128JV** 16 MB QSPI flash | Programmed over USB from its boot ROM: no bootloader to flash and no SWD probe (§4) |
 | Clock | 12 MHz **Abracon ABM8-272-T3** with 2 × 15 pF and 1 kΩ on XOUT | The crystal and the values Raspberry Pi qualified for the RP2040 |
-| Power | **AP2112K** 3.3 V regulator from the USB 5 V; the RP2040's own regulator makes its 1.1 V core | 100 nF at every supply pin of the RP2040, 1 µF at its regulator's input and output |
-| USB-C | HRO TYPE-C-31-M-12, USBLC6-2SC6 ESD protection | Standard JLCPCB parts; 5.1 kΩ on CC1 / CC2 (a plain USB device) |
+| Power | **AP2112K** 3.3 V regulator from the USB 5 V (it also supplies the USB hub); the RP2040's own regulator makes its 1.1 V core | 0402 capacitors at the RP2040's supply pins, 1–3 mm from them on the same side: 100 nF at the I/O, ADC and core pins (two I/O pins in the middle of the matrix lines share their neighbour's through a tie under the chip, and USB_VDD shares IOVDD 49's, as Raspberry Pi's own design does), 1 µF at the internal regulator's input and output |
+| USB-C | HRO TYPE-C-31-M-12, USBLC6-2SC6 ESD protection, SMF5.0A surge clamp, 4.7 µF + 1 Ω on VBUS | Standard JLCPCB parts; 5.1 kΩ on CC1 / CC2 (a plain USB device); the 1 Ω damps the ringing of the cable when it is plugged in |
 | USB hub | WCH **CH334P** (USB 2.0), 12 MHz crystal, right behind the USB-C port | The RP2040 is on hub port 3 (through 27 Ω), the sound card on port 2: over the cable the computer sees a hub with a keyboard and a headset |
-| Sound card | C-Media **CM108B** (USB audio, no drivers on macOS / Windows / Linux) + TI **TPA6132A2** headphone amplifier, 3.5 mm **headset jack** at the back | Headphones and microphone (4-pole CTIA plugs, as on phones and Macs; plain 3-pole headphones work too). On whenever the cable is plugged in: a switch (TPS22919) turned on by the USB 5 V itself starts it slowly, so the hub does not see a dip |
+| Sound card | C-Media **CM108B** (USB audio, no drivers on macOS / Windows / Linux) + TI **TPA6132A2** headphone amplifier, 3.5 mm **headset jack** at the back | Headphones and microphone (4-pole CTIA plugs, as on phones and Macs; plain 3-pole headphones work too). Switched by the RP2040: on once the computer has set the keyboard up (a TPS22919 switch starts it slowly, so the hub does not see a dip), the amplifier 0.2 s later; the amplifier goes off while the computer sleeps and as soon as the USB 5 V starts to fall when the cable is pulled, so there is no click |
 | Matrix | 4 rows × 17 columns, 1N4148W diodes (column → row) | The firmware takes the pins from the PCB automatically |
 | Indicator | Red LED = Caps Lock | Visible through the rear window |
 | Buttons | **BOOT** (restarts into the USB boot ROM when held while the keyboard starts) and **RESET** | BOOT is reachable with a paperclip through the hole under the case; RESET only with the case open |
@@ -48,7 +48,7 @@ switches.
    - RP2040 (QFN-56) and W25Q128 flash (SOIC-8): pin-1 dot in the right corner (compare with
      `kicad/lira.kicad_pcb`); a QFN turned by 90° still sits on its pads, so only the dot tells;
    - USB-C: opening towards the edge;
-   - 1N4148W diodes and B5819W Schottky: cathode stripe towards pad 1;
+   - 1N4148W diodes: cathode stripe towards pad 1;
    - LED: cathode (pad 1) as in the footprint;
      JLCPCB's own LED drawing calls the anode pin 1, so its pin-1 dot will sit on the other pad: judge the LEDs by
      their cathode mark, not by the dot;
@@ -56,9 +56,10 @@ switches.
      footprint; turned by 90° their contacts land on the ground pads and the chip does not start;
    - AP2112K, USBLC6, CH334P (hub), CM108B (sound chip), TPA6132A2 (amplifier), TPS22919 (switch): pin 1 in the
      right corner;
+   - the SMF5.0A surge clamp next to the USB-C: its cathode band towards the receptacle's side (the VBUS track);
    - headset jack: opening at the rear edge (it sticks out of the board by 1.8 mm; the USB-C by 0.4 mm);
    - hot-swap sockets: their two pads on top of the PCB pads.
-5. Choose **Economic** assembly: no part of this board needs Standard. "Extended" parts (a loading fee per part type): the RP2040, its crystal, the sockets, USB-C, ESD, the regulator, and for the sound card the hub, the sound chip, the amplifier, the switch and the jack (the flash is a Basic part). The amplifier (TPA6132A2, LCSC C69901) has only a few hundred in stock: check it before anything else.
+5. Choose **Economic** assembly: no part of this board needs Standard. "Extended" parts (a loading fee per part type): the RP2040, its crystal, its 27 Ω USB resistors, the sockets, USB-C, ESD, the VBUS surge clamp (SMF5.0A), the regulator, and for the sound card the hub, the sound chip, the amplifier, the switch and the jack (the flash is a Basic part). The amplifier (TPA6132A2, LCSC C69901) has only a few hundred in stock: check it before anything else.
 
 ## 2. The plate: cut by JLCPCB, laser cut or 3D printed
 
@@ -98,10 +99,10 @@ has its USB bootloader in ROM, so there is no programmer to buy and no bootloade
 
 1. **Power check**: plug in the USB-C. On the test pads you should measure about 5 V on **VBUS** and 3.3 V on
    **3V3**, relative to GND (and 1.1 V on either pad of C12, the RP2040's core supply). The computer should find a
-   **USB hub**, a **USB audio device** ("USB Audio Device" / C-Media: the sound card is on whenever the cable is in)
-   and, because the flash is still empty, a drive called **RPI-RP2**: the RP2040's boot ROM, waiting for a firmware.
+   **USB hub** and, because the flash is still empty, a drive called **RPI-RP2**: the RP2040's boot ROM, waiting for a
+   firmware. The sound card stays off until the firmware runs (its switch has a pull-down).
 2. **Firmware**: drag `lira.uf2` from `production/4-firmware/` onto **RPI-RP2**. The drive disappears and the
-   keyboard starts. On macOS 14 and later the Finder may stop the copy with error −36: copy it from the Terminal
+   keyboard starts; a moment later the **USB audio device** appears ("USB Audio Device" / C-Media). On macOS 14 and later the Finder may stop the copy with error −36: copy it from the Terminal
    instead, `cp -X production/4-firmware/lira.uf2 /Volumes/RPI-RP2/`.
 3. **Vial**: open <https://vial.rocks> in Chrome (or the Vial app) with the keyboard connected. To unlock the
    protected features, hold **Esc + Return**.
@@ -135,7 +136,7 @@ has its USB bootloader in ROM, so there is no programmer to buy and no bootloade
 - **Before the first plug-in**, look at the RP2040 (QFN, 0.4 mm pins) and the hub with a loupe for solder bridges, and plug in through a USB power meter: the whole board should draw roughly 60–150 mA. Much more means a short: unplug at once.
 - **Matrix test before closing the case**: after step 4 of §5 (plate, PCB and switches are one unit, still out of the case), plug in, open Vial, hold **Esc + Return** to unlock it and use *Matrix tester*: press every key once. A key that does nothing is usually a switch pin bent under the socket.
 - **No RPI-RP2 drive**: measure 3V3 (test pad) and 1.1 V (C12). If both are there, the crystal or the flash is the usual suspect (rotation in JLCPCB's placement, a bridge on the flash pins). Holding BOOT while plugging in must always bring the drive back, whatever is in the flash.
-- **No hub / no audio device**: measure VBUS (about 5 V) and the hub's 12 MHz crystal area for bridges; the sound card needs the hub, so without a hub there is neither keyboard nor headset.
+- **No hub / no audio device**: measure VBUS (about 5 V), 3V3 (the hub runs from it) and the hub's 12 MHz crystal area for bridges; the sound card needs the hub, so without a hub there is neither keyboard nor headset. The audio device only appears with the firmware running and the keyboard set up by the computer: then the sound card's 5 V (C113, about 5 V) and GPIO12 (U8's ON pin, 3.3 V) are on.
 - **Headphones silent**: check that the computer's output is the C-Media “USB Audio Device” and that the plug is pushed fully home (the jack sits slightly inside the back wall).
 
 ## 5. Case: printing and assembly
@@ -252,27 +253,31 @@ Before ordering 5 boards, it is wise to order 2.
   first (§5).
 - **Plate flush on the frame**: the M2 inserts must not stand proud of the frame's underside (§5).
 - **Routing**: automatic (Freerouting; the few connections it leaves open or crossing are redone by a small
-  router in `source/pcb/repair.py`), passes DRC, not optimized by hand, except a few short connections the generator
-  draws itself (the RP2040's 1.1 V core supply, under the chip, and its SWD lines; the hub's crystal; the
-  amplifier's supply; the ground pins of the chips) and the USB high-speed pair
+  router in `source/pcb/repair.py`), passes DRC, not optimized by hand, except the connections the generator draws
+  itself: around the RP2040 every supply pin to its capacitor, the 1.1 V core supply (under the chip), the crystal,
+  the QSPI flash, the USB resistors and the SWD lines; the two lines that switch the sound card, along the bottom of the
+  strip; the hub's crystal and supply; the codec's analog supply; the amplifier's supply and enable; the jack's ESD
+  clamps; the VBUS protection; the ground pins of the chips; and the USB high-speed pair
   (480 Mbit/s, from the USB-C port through the ESD chip to the hub): about
   20 mm on the bottom layer, no vias, lengths within 0.5 mm. For about a third of the way the two lines run side by
   side, 0.5 mm apart with ground 0.2 mm beside them (about 96 Ω); around the ESD chip they split, D+ through its
   middle and D− round its side as ST lays it out, and there the impedance is higher. Over 20 mm this is normally
   harmless; and if the hub ever fell back to full speed (12 Mbit/s), the keyboard and the sound card would not notice.
   Between the hub and the RP2040 and the sound chip the lines run at 12 Mbit/s, where controlled impedance is not
-  needed. No track runs on the top layer over the hub or the headphone amplifier, so the ground plane there is
-  whole (both chips take their ground through a via in their exposed pad; the RP2040 through five).
+  needed. No track runs on the top layer over the RP2040 (with its capacitors and crystal), the hub or the headphone
+  amplifier, so the ground plane there is whole (the hub and the amplifier take their ground through a via in their
+  exposed pad, the RP2040 through four, every capacitor through its own).
   Around the RP2040 the tracks are 0.2 mm (its pins are 0.4 mm apart); the matrix lines are widened to 0.3 mm
   wherever they have room.
 - **Sound card**: designed from the datasheets and C-Media's reference design, not tested yet. The CM108B is
   rated 0–70 °C. The microphone bias (1.2 kΩ + 2.2 kΩ) suits phone headsets; try a couple of headsets. Very
-  sensitive in-ear earphones may hiss slightly at 0 dB gain: close JP3 (−6 dB). Unplugging the keyboard while
-  listening may make a click in the headphones: the amplifier and the sound chip lose their supply together.
+  sensitive in-ear earphones may hiss slightly at 0 dB gain: close JP3 (−6 dB). The firmware turns the amplifier
+  off when it sees the USB 5 V start to fall, before the sound chip loses its supply: unplug the keyboard while
+  listening and check there is no click.
 - **USB hub**: the CH334P always announces itself as self-powered (this package has no pin to say otherwise) and declares 100 mA, while the board draws about 100 mA idle and up to ~330 mA at full headphone volume. Fine on a computer's port; avoid phones, tablets and bus-powered hubs. Check on the first board what the computer sees (macOS: System Information → USB; Linux: `lsusb -v`): the hub, the RP2040 (100 mA) and the sound chip (100 mA).
-- **The RP2040's power and clock layout**: the autorouter took some of the RP2040's capacitors 10–25 mm round from their pins (the 1 µF at VREG_VOUT, the 100 nF at DVDD pin 50 and IOVDD pin 10), and the crystal's lines are longer than Raspberry Pi recommends. On the first board: look at 1.1 V on C12 with an oscilloscope while typing and playing music (steady 1.10 V, no ringing), and run the keyboard for a day. If it is unstable, this is the place to rework.
+- **The RP2040's power and clock layout**: every capacitor is now drawn to its pin on the bottom layer and the crystal sits next to its pins (distances in `datasheet-checks.txt`, test G01), over a whole ground plane. On the first board, still look at 1.1 V on C12 with an oscilloscope while typing and playing music (steady 1.10 V, no ringing), and run the keyboard for a day.
 - **Matrix**: the firmware waits for the rows to settle after each column (a patch to RMK, `source/firmware/patch_rmk.py`); still, try every key and a few chords in Vial's matrix tester and look for a key that shows up in the next column.
-- **Hot-plug**: plug the board a dozen times into a charger that gives 5.25 V or more: the hub's 5 V pin is rated 5.5 V at most and the board has no surge clamp besides the USB ESD chip.
+- **Hot-plug**: plug the board a dozen times into a charger that gives 5.25 V or more, with an oscilloscope on VBUS (TP6) if you have one: the peak should stay under 6 V (the sound card's switch is rated 6 V; the hub now runs from 3.3 V, and VBUS has a surge clamp and a damped bulk capacitor).
 - **Headset jack**: its four contacts were matched to the drawing of a near-identical jack (the maker's drawing
   does not name them). Before ordering many boards, check one loose PJ-320D-4A with a meter and a 4-pole plug:
   pad S = sleeve, R2 = ring 2, R1 = ring 1, T = tip.

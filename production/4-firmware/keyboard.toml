@@ -68,3 +68,8 @@ vial_enabled = true
 rynk_enabled = false
 # hold Esc + Return to unlock Vial's protected functions (matrix tester, bootloader...)
 unlock_keys = [[0, 4], [1, 16]]
+
+[event]
+# subscriber slots of the connection status: the sound card's power (src/sound_card.rs: on once the host has configured
+# the keyboard, amplifier off in USB suspend) is its only listener in this build
+connection_status_change.subs = 2

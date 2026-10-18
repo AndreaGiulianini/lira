@@ -100,6 +100,9 @@ def main():
         errors.append("schematic netlist %s not found" % net_file)
     data = circuit.to_json(parts, {"design": "Lira (wired, RP2040)", "matrix": iface["matrix"], "gpio": iface["gpio"],
                                    "deviations_from_wireless": circuit.DEVIATIONS})
+    if board.name == "lira.kicad_pcb":  # the routed board: the copper paths the checks judge (G01)
+        from layout_metrics import measure
+        data["layout"] = measure(pcbnew.LoadBoard(str(board)), circuit.LAYOUT_PAIRS)
     (BUILD / "netlist.json").write_text(json.dumps(data, indent=1))
     for e in errors:
         print(e)

@@ -139,10 +139,32 @@ vial_enabled = true
 rynk_enabled = false
 # hold Esc + Return to unlock Vial's protected functions (matrix tester, bootloader...)
 unlock_keys = [[%d, %d], [%d, %d]]
+
+[event]
+# subscriber slots of the connection status: the sound card's power (src/sound_card.rs: on once the host has configured
+# the keyboard, amplifier off in USB suspend) is its only listener in this build
+connection_status_change.subs = 2
 ''' % (q(m["rows"]), q(m["cols"]), lay, layers, m["status_led"], esc.row, esc.col, ret.row, ret.col)
 
 
+# the sound card's pins, fixed on the board (pcb/circuit.py RP_FIXED) and used by name in rmk/src/main.rs
+FIXED_PINS = {"AUD_EN": "PIN_12", "AMP_ON": "PIN_13", "VBUS_SENSE": "PIN_29"}
+
+
+def check_fixed_pins():
+    sys.path.insert(0, str(ROOT / "pcb"))
+    import circuit
+    main_rs = (HERE / "rmk/src/main.rs").read_text()
+    for net, pin in FIXED_PINS.items():
+        pad = next(p for p, n in circuit.RP_FIXED.items() if n == net)
+        assert circuit.rp_pin(pad) == pin, "%s is on %s on the board" % (net, circuit.rp_pin(pad))
+        assert "p.%s" % pin in main_rs, "rmk/src/main.rs does not use %s for %s" % (pin, net)
+    m = IFACE["matrix"]
+    assert not set(m["rows"] + m["cols"] + [m["status_led"]]) & set(FIXED_PINS.values()), "a matrix line on a sound pin"
+
+
 def main():
+    check_fixed_pins()
     toml = keyboard_toml()
     OUT.mkdir(parents=True, exist_ok=True)
     (OUT / "keyboard.toml").write_text(toml)

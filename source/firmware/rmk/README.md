@@ -37,3 +37,26 @@ Follow these steps to generate and flash the .uf2 firmware with RMK:
 RMK keeps the keymap changed from Vial in the flash from 1 MB on (RMK's rp2040 default, `[storage] start_addr =
 0x100000`); `memory.x` makes the link fail if the program ever grows into it. A new build of RMK starts again from the
 keymap of `keyboard.toml` (RMK resets its storage when the build hash changes).
+
+### Lira: the sound card's power (`src/sound_card.rs`)
+
+The RP2040 switches the sound card: GPIO12 turns on its 5 V (the TPS22919 load switch, soft start), GPIO13 the
+headphone amplifier (its EN, through 100 kΩ); both have pull-downs on the board, so the sound card stays off while the
+RP2040 starts and in the boot ROM. GPIO29 (ADC3) reads VBUS through 22 kΩ / 27 kΩ. From RMK's USB state:
+
+- the sound card goes on once the host has configured the keyboard and stays on while the host is asleep (USB
+  suspend): switching the codec off would disconnect it from the hub, and the host would see it leave or be woken;
+- the amplifier goes on 200 ms later, off in USB suspend (2.1 mA less), and off at once when VBUS starts to fall, the
+  cable being pulled: VBUS is read every 50 µs while the amplifier is on, and a reading under 4.3 V or 0.35 V under its
+  recent average turns it off before the codec's supply goes (no click in the headphones).
+
+`main.rs` registers it with RMK (`#[register_processor(event)]`); `../gen_firmware.py` checks that the pins in
+`main.rs` are the board's (`pcb/circuit.py`).
+
+### Lira: the RMK patch and the async matrix
+
+`../patch_rmk.py` builds RMK 0.9.0 with three changes (Cargo.toml's `[patch.crates-io]`): after each column, and
+after waking on a key, the matrix waits until every row reads low (the RP2040's pull-downs are weak and the rows long:
+without it a held key could also appear in the next column); USB asks for 100 mA instead of 450 mA. The `async_matrix`
+feature makes the matrix wait for a key on the rows' interrupts when none is held, instead of scanning all the time:
+the RP2040 sleeps between events, while typing and in USB suspend.
